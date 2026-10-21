@@ -1,0 +1,37 @@
+{
+  "n_solutions": 24,
+  "agreement": {
+    "conventions": {
+      "exact": 0.7083333333333334,
+      "within1": 1.0,
+      "spearman": 0.8135049089760336,
+      "qwk": 0.7613636363636364
+    },
+    "readability": {
+      "exact": 0.875,
+      "within1": 1.0,
+      "spearman": 0.8125871456828306,
+      "qwk": 0.7857142857142857
+    },
+    "focus": {
+      "exact": 0.7916666666666666,
+      "within1": 1.0,
+      "spearman": 0.7792207792207793,
+      "qwk": 0.76
+    },
+    "tests": {
+      "exact": 0.9583333333333334,
+      "within1": 1.0,
+      "spearman": 0.991581144780595,
+      "qwk": 0.9897959183673469
+    },
+    "overall": {
+      "exact": 1.0,
+      "within1": 1.0,
+      "spearman": 1.0,
+      "qwk": 1.0
+    }
+  },
+  "overall_diff": 0.5833333333333335,
+  "overall_p": 0.06104694765261737
+}

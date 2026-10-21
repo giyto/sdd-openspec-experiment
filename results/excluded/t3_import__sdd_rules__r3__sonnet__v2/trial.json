@@ -1,0 +1,103 @@
+{
+  "trial_id": "t3_import__sdd_rules__r3__sonnet__v2",
+  "stage": "cr",
+  "task": "t3_import",
+  "condition": "sdd_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2de3096a2c\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3e6f4ba314",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3e6f4ba314\\project",
+  "base_commit": "9bbf13de5c6f634453143a412160badfcfe90805",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 220.2,
+      "cost_usd": 0.6275408,
+      "duration_ms": 218113,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 65004,
+        "cache_read_input_tokens": 581748,
+        "output_tokens": 30929,
+        "output_tokens_details": {
+          "thinking_tokens": 5442
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 65004,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 952,
+            "cache_read_input_tokens": 70377,
+            "cache_creation_input_tokens": 563,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 563
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `refine-statement-import` создан в `openspec/changes/refine-statement-import/`. `openspec validate refine-statement-import --strict` проходит. Код проекта не менялся, в git добавилась только папка change.\n\n**Артефакты**\n- `proposal.md` содержит пункты LEDGER-74. Публичный API перенесён дословно: сигнатура `import_statement` с `dry_run=False`, `RowError.raw`, `ImportResult.transactions`, `StatementRowError.errors`. Изменённое поведение помечено **BREAKING**.\n- `specs/statement-import/spec.md` — дельта к существующей спецификации. Изменены 8 требований: точка/запятая в суммах, пропуск нулей в `sfera_split`, нормализация описания, строгий режим со всеми ошибками, `StatementRowError`, `import_csv`, дедупликация, точка входа. Добавлены 3 требования: `dry_run`, `transactions`, `raw`.\n- `design.md` описывает решения и допущения A1–A7.\n- `tasks.md` содержит 6 групп задач, последняя — сверка публичного API.\n\n**Допущения** (подробно в `design.md`)\n- Нормализация описания действует на все форматы и на `import_csv`. Пробельными считаются любые символы, для которых `str.isspace()` истинно, включая NBSP.\n- Пропуск «ноль/ноль» не зависит от даты и описания строки. `-0,00` остаётся ошибкой.\n- Одна колонка с нулём при пустой второй остаётся ошибкой, как сказала Ольга.\n- Точка никогда не считается разделителем тысяч. Поэтому `1.234` — ошибка (три знака), `1.234,56` и `1,234.56` — ошибка (оба разделителя).\n- `StatementRowError(msg, line_no=n)` без `errors` получает одну `RowError(n, msg)` с пустым `raw`.\n- `RowError` остаётся в `importer.py`, в `errors.py` только под `TYPE_CHECKING`, чтобы не было циклического импорта.\n- `raw` строится по тем же границам строк, что и нумерация csv (`\\r\\n|\\r|\\n`), без `splitlines`.\n\n**Что менять в существующих тестах.** `\"1 234.56\"` в `test_sfera_bad_values` теперь корректная сумма. `test_public_api_signatures` придётся расширить из-за `dry_run` и `raw`. Это следствие нового API, а не пунктов 1–4, поэтому отмечаю отдельно. Тесты на `Ничего;;0,00` менять не нужно, это по-прежнему ошибка.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 768.6,
+      "cost_usd": 0.4636246,
+      "duration_ms": 6968,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 3785,
+        "cache_read_input_tokens": 52169,
+        "output_tokens": 131,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 3785,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 131,
+            "cache_read_input_tokens": 52169,
+            "cache_creation_input_tokens": 3785,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3785
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Это уведомление о первой команде, которая зависла из-за моей ошибки: `cat` ждал stdin, и её остановили по лимиту времени. Перезапускать её не нужно.\n\nПравки в код я внёс позже отдельными командами. После них полный `python -m pytest -q` прошёл: 109 тестов. Состояние задач не изменилось: все 11 выполнены."
+    }
+  ]
+}

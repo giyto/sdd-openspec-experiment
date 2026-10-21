@@ -1,0 +1,833 @@
+{
+  "exp1/t1_promo__baseline__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__baseline__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__baseline__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__baseline__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__baseline__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__baseline__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd__r3__sonnet__v2": {
+    "interface": [
+      "test_R01_promo_is_optional_keyword_only",
+      "test_R01_place_order_without_code_with_registry",
+      "test_R07_start_is_inclusive",
+      "test_R07_not_started_is_expired_error",
+      "test_R07_end_is_exclusive",
+      "test_R07_place_order_checks_window_with_injected_clock",
+      "test_R08_resolve_ignores_case_and_surrounding_spaces",
+      "test_R08_duplicate_codes_rejected",
+      "test_R08_order_stores_normalized_code",
+      "test_R08_blank_code_means_no_promo",
+      "test_R09_unknown_code",
+      "test_R09_expired_wins_over_unmet_conditions",
+      "test_R09_expired_wins_over_exhausted_limit",
+      "test_R10_quote_does_not_consume_uses",
+      "test_R10_limit_reached",
+      "test_R10_failed_order_does_not_consume",
+      "test_R10_cancel_returns_use",
+      "test_R14_order_keeps_code_and_discount",
+      "test_R14_quote_matches_placed_order",
+      "test_R14_service_uses_its_shipping_and_tax_policies"
+    ],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd_rules__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd_rules__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t1_promo__sdd_rules__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp1/t2_reserve__baseline__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__baseline__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__baseline__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__baseline__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__baseline__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__baseline__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot",
+      "test_R01_accepts_reservation_line_objects"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd_rules__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd_rules__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t2_reserve__sdd_rules__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp1/t3_import__baseline__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__baseline__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__baseline__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__baseline__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__baseline__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__baseline__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd__r2__sonnet__v2": {
+    "interface": [
+      "test_R05_detect_format",
+      "test_R05_header_case_order_and_extra_columns",
+      "test_R05_unknown_header_raises_and_saves_nothing",
+      "test_R05_empty_file_is_unknown_format",
+      "test_R06_utf8_bom_sfera",
+      "test_R06_cp1251_sfera_with_nbsp",
+      "test_R06_encoding_detected_for_whole_file"
+    ],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd_rules__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd_rules__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t3_import__sdd_rules__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp1/t4_retry__baseline__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "source": "agent.diff",
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__baseline__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__baseline__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error"
+    ],
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__baseline__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error",
+      "test_R13_terminal_flags"
+    ],
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__baseline__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error"
+    ],
+    "source": "agent.diff",
+    "condition": "baseline",
+    "model": "haiku",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__baseline__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "source": "agent.diff",
+    "condition": "baseline",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd__r1__haiku__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd__r2__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd__r3__haiku__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error"
+    ],
+    "condition": "sdd",
+    "model": "haiku",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd_rules__r1__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error",
+      "test_R13_terminal_flags"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd_rules__r2__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp1/t4_retry__sdd_rules__r3__sonnet__v2": {
+    "interface": [],
+    "behavior": [
+      "test_R06_dead_letter_entry_fields",
+      "test_R13_terminal_flags"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_rules",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t1_promo__base_po__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R10_cancel_returns_use"
+    ],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__base_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__base_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R10_cancel_returns_use"
+    ],
+    "source": "agent.diff",
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__sdd_po__r1__sonnet__po": {
+    "interface": [
+      "test_R01_place_order_without_code_with_registry",
+      "test_R07_start_is_inclusive",
+      "test_R07_not_started_is_expired_error",
+      "test_R07_end_is_exclusive",
+      "test_R07_place_order_checks_window_with_injected_clock",
+      "test_R08_resolve_ignores_case_and_surrounding_spaces",
+      "test_R08_duplicate_codes_rejected",
+      "test_R08_order_stores_normalized_code",
+      "test_R08_blank_code_means_no_promo",
+      "test_R09_unknown_code",
+      "test_R09_expired_wins_over_unmet_conditions",
+      "test_R09_expired_wins_over_exhausted_limit",
+      "test_R10_quote_does_not_consume_uses",
+      "test_R10_limit_reached",
+      "test_R10_failed_order_does_not_consume",
+      "test_R10_cancel_returns_use",
+      "test_R14_order_keeps_code_and_discount",
+      "test_R14_quote_matches_placed_order",
+      "test_R14_service_uses_its_shipping_and_tax_policies"
+    ],
+    "behavior": [],
+    "source": "agent.diff",
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__sdd_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__sdd_po__r3__sonnet__po": {
+    "interface": [
+      "test_R01_promo_is_optional_keyword_only"
+    ],
+    "behavior": [],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__sdd_po_rules__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__sdd_po_rules__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t1_promo__sdd_po_rules__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t1_promo"
+  },
+  "exp3/t2_reserve__base_po__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__base_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R09_extend_never_shortens"
+    ],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__base_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__sdd_po__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__sdd_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__sdd_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__sdd_po_rules__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__sdd_po_rules__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t2_reserve__sdd_po_rules__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R01_reserve_returns_active_snapshot"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t2_reserve"
+  },
+  "exp3/t3_import__base_po__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R04_zero_in_unused_column_means_empty",
+      "test_R05_header_case_order_and_extra_columns",
+      "test_R05_split_header_in_other_order",
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__base_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R05_header_case_order_and_extra_columns",
+      "test_R05_split_header_in_other_order",
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__base_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__sdd_po__r1__sonnet__po": {
+    "interface": [
+      "test_R05_detect_format",
+      "test_R05_header_case_order_and_extra_columns",
+      "test_R05_unknown_header_raises_and_saves_nothing",
+      "test_R05_empty_file_is_unknown_format",
+      "test_R06_utf8_bom_sfera",
+      "test_R06_cp1251_sfera_with_nbsp",
+      "test_R06_encoding_detected_for_whole_file"
+    ],
+    "behavior": [
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__sdd_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__sdd_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__sdd_po_rules__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_API_import_csv_errors_are_statement_errors"
+    ],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__sdd_po_rules__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t3_import__sdd_po_rules__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t3_import"
+  },
+  "exp3/t4_retry__base_po__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__base_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__base_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R12_success_after_retry_clears_error",
+      "test_R13_terminal_flags"
+    ],
+    "condition": "base_po",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__sdd_po__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__sdd_po__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__sdd_po__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "condition": "sdd_po",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__sdd_po_rules__r1__sonnet__po": {
+    "interface": [],
+    "behavior": [],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__sdd_po_rules__r2__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "source": "agent.diff",
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t4_retry"
+  },
+  "exp3/t4_retry__sdd_po_rules__r3__sonnet__po": {
+    "interface": [],
+    "behavior": [
+      "test_R13_terminal_flags"
+    ],
+    "condition": "sdd_po_rules",
+    "model": "sonnet",
+    "task": "t4_retry"
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "t1_promo__sdd__r2__sonnet__v2": {
+    "conventions": 5.0,
+    "readability": 4.5,
+    "focus": 4.5,
+    "tests": 5.0,
+    "overall": 5.0
+  },
+  "t1_promo__baseline__r2__sonnet__v2": {
+    "conventions": 4.0,
+    "readability": 3.0,
+    "focus": 4.0,
+    "tests": 3.0,
+    "overall": 3.0
+  },
+  "t1_promo__sdd__r1__sonnet__v2": {
+    "conventions": 4.0,
+    "readability": 4.5,
+    "focus": 4.0,
+    "tests": 5.0,
+    "overall": 4.0
+  },
+  "t1_promo__sdd__r3__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 4.0,
+    "focus": 3.0,
+    "tests": 5.0,
+    "overall": 3.0
+  },
+  "t1_promo__baseline__r3__sonnet__v2": {
+    "conventions": 4.0,
+    "readability": 3.5,
+    "focus": 4.5,
+    "tests": 2.5,
+    "overall": 3.0
+  },
+  "t1_promo__baseline__r1__sonnet__v2": {
+    "conventions": 3.5,
+    "readability": 3.0,
+    "focus": 3.0,
+    "tests": 2.0,
+    "overall": 3.0
+  },
+  "t2_reserve__baseline__r1__sonnet__v2": {
+    "conventions": 4.0,
+    "readability": 4.0,
+    "focus": 4.0,
+    "tests": 1.0,
+    "overall": 3.0
+  },
+  "t2_reserve__baseline__r2__sonnet__v2": {
+    "conventions": 5.0,
+    "readability": 5.0,
+    "focus": 5.0,
+    "tests": 1.0,
+    "overall": 3.0
+  },
+  "t2_reserve__baseline__r3__sonnet__v2": {
+    "conventions": 4.0,
+    "readability": 4.0,
+    "focus": 5.0,
+    "tests": 1.0,
+    "overall": 3.0
+  },
+  "t2_reserve__sdd__r1__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 4.0,
+    "focus": 4.0,
+    "tests": 4.0,
+    "overall": 3.0
+  },
+  "t2_reserve__sdd__r3__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 4.0,
+    "focus": 4.0,
+    "tests": 4.0,
+    "overall": 3.0
+  },
+  "t2_reserve__sdd__r2__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 3.0,
+    "focus": 3.5,
+    "tests": 5.0,
+    "overall": 3.0
+  },
+  "t3_import__baseline__r3__sonnet__v2": {
+    "conventions": 4.5,
+    "readability": 4.0,
+    "focus": 5.0,
+    "tests": 3.0,
+    "overall": 4.0
+  },
+  "t3_import__sdd__r3__sonnet__v2": {
+    "conventions": 4.0,
+    "readability": 4.0,
+    "focus": 4.5,
+    "tests": 5.0,
+    "overall": 4.0
+  },
+  "t3_import__sdd__r1__sonnet__v2": {
+    "conventions": 5.0,
+    "readability": 4.0,
+    "focus": 5.0,
+    "tests": 5.0,
+    "overall": 5.0
+  },
+  "t3_import__sdd__r2__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 4.0,
+    "focus": 4.0,
+    "tests": 4.0,
+    "overall": 3.0
+  },
+  "t3_import__baseline__r1__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 3.0,
+    "focus": 5.0,
+    "tests": 3.0,
+    "overall": 3.0
+  },
+  "t3_import__baseline__r2__sonnet__v2": {
+    "conventions": 4.5,
+    "readability": 4.0,
+    "focus": 5.0,
+    "tests": 3.0,
+    "overall": 4.0
+  },
+  "t4_retry__sdd__r2__sonnet__v2": {
+    "conventions": 5.0,
+    "readability": 4.0,
+    "focus": 4.5,
+    "tests": 5.0,
+    "overall": 5.0
+  },
+  "t4_retry__baseline__r2__sonnet__v2": {
+    "conventions": 4.5,
+    "readability": 4.0,
+    "focus": 5.0,
+    "tests": 3.0,
+    "overall": 4.0
+  },
+  "t4_retry__baseline__r3__sonnet__v2": {
+    "conventions": 4.5,
+    "readability": 4.0,
+    "focus": 5.0,
+    "tests": 2.0,
+    "overall": 3.0
+  },
+  "t4_retry__sdd__r3__sonnet__v2": {
+    "conventions": 4.5,
+    "readability": 4.0,
+    "focus": 4.0,
+    "tests": 5.0,
+    "overall": 4.0
+  },
+  "t4_retry__sdd__r1__sonnet__v2": {
+    "conventions": 3.5,
+    "readability": 4.0,
+    "focus": 4.0,
+    "tests": 5.0,
+    "overall": 4.0
+  },
+  "t4_retry__baseline__r1__sonnet__v2": {
+    "conventions": 3.0,
+    "readability": 3.0,
+    "focus": 4.0,
+    "tests": 2.0,
+    "overall": 3.0
+  }
+}
