@@ -1,0 +1,21 @@
+[20:00:11] t1_promo__baseline__r2__sonnet__v2: 1.3 min | t1_promo__baseline__r2__sonnet__v2: CR 34/35 req 9/10 preserved 52/52 regress 38/38 protected [] cost 0.2154
+[20:00:43] t1_promo__baseline__r1__sonnet__v2: 1.8 min | t1_promo__baseline__r1__sonnet__v2: CR 35/35 req 10/10 preserved 52/52 regress 38/38 protected [] cost 0.2744
+[20:01:01] t1_promo__baseline__r3__sonnet__v2: 0.8 min | t1_promo__baseline__r3__sonnet__v2: CR 35/35 req 10/10 preserved 52/52 regress 38/38 protected [] cost 0.1237
+[20:07:33] t1_promo__sdd__r1__sonnet__v2: 6.8 min | t1_promo__sdd__r1__sonnet__v2: CR 35/35 req 10/10 preserved 52/52 regress 38/38 protected [] cost 1.2794
+[20:08:10] t1_promo__sdd__r2__sonnet__v2: 7.2 min | t1_promo__sdd__r2__sonnet__v2: CR 35/35 req 10/10 preserved 52/52 regress 38/38 protected [] cost 1.2069
+[20:08:58] t2_reserve__baseline__r1__sonnet__v2: 1.4 min | t2_reserve__baseline__r1__sonnet__v2: CR 37/37 req 10/10 preserved 60/60 regress 40/40 protected [] cost 0.2164
+[20:09:10] t2_reserve__baseline__r2__sonnet__v2: 1.0 min | t2_reserve__baseline__r2__sonnet__v2: CR 37/37 req 10/10 preserved 60/60 regress 40/40 protected [] cost 0.1441
+[20:10:00] t2_reserve__baseline__r3__sonnet__v2: 1.0 min | t2_reserve__baseline__r3__sonnet__v2: CR 37/37 req 10/10 preserved 60/60 regress 40/40 protected [] cost 0.1418
+[20:14:30] t2_reserve__sdd__r1__sonnet__v2: 5.3 min | t2_reserve__sdd__r1__sonnet__v2: CR 37/37 req 10/10 preserved 59/59 regress 40/40 protected [] cost 0.9491
+[20:14:40] t2_reserve__sdd__r2__sonnet__v2: 4.7 min | t2_reserve__sdd__r2__sonnet__v2: CR 37/37 req 10/10 preserved 59/59 regress 40/40 protected [] cost 0.8033
+[20:16:12] t3_import__baseline__r1__sonnet__v2: 1.5 min | t3_import__baseline__r1__sonnet__v2: CR 32/32 req 10/10 preserved 56/56 regress 41/41 protected [] cost 0.2366
+[20:17:42] t3_import__baseline__r2__sonnet__v2: 1.5 min | t3_import__baseline__r2__sonnet__v2: CR 32/32 req 10/10 preserved 56/56 regress 41/41 protected [] cost 0.21
+[20:19:19] t3_import__baseline__r3__sonnet__v2: 1.6 min | t3_import__baseline__r3__sonnet__v2: CR 32/32 req 10/10 preserved 56/56 regress 41/41 protected [] cost 0.218
+[20:19:50] t2_reserve__sdd__r3__sonnet__v2: 5.3 min | t2_reserve__sdd__r3__sonnet__v2: CR 37/37 req 10/10 preserved 59/59 regress 40/40 protected [] cost 0.9873
+[20:24:01] t3_import__sdd__r1__sonnet__v2: 4.7 min | t3_import__sdd__r1__sonnet__v2: CR 32/32 req 10/10 preserved 56/56 regress 41/41 protected [] cost 0.8003
+[20:25:12] t3_import__sdd__r2__sonnet__v2: 5.4 min | t3_import__sdd__r2__sonnet__v2: CR 32/32 req 10/10 preserved 49/49 regress 41/41 protected [] cost 0.8903
+[20:25:12] t4_retry__baseline__r1__sonnet__v2: skip
+[20:25:58] t4_retry__baseline__r2__sonnet__v2: 0.8 min | t4_retry__baseline__r2__sonnet__v2: CR 32/33 req 9/10 preserved 49/49 regress 36/36 protected [] cost 0.1122
+[20:26:48] t4_retry__baseline__r3__sonnet__v2: 0.8 min | t4_retry__baseline__r3__sonnet__v2: CR 33/33 req 10/10 preserved 50/50 regress 36/36 protected [] cost 0.1403
+[20:30:10] t3_import__sdd__r3__sonnet__v2: 6.1 min | t3_import__sdd__r3__sonnet__v2: CR 32/32 req 10/10 preserved 56/56 regress 41/41 protected [] cost 0.9819
+[20:31:06] t4_retry__sdd__r1__sonnet__v2: 4.3 min | t4_retry__sdd__r1__sonnet__v2: CR 33/33 req 10/10 preserved 50/50 regress 36/36 protected [] cost 0.7427

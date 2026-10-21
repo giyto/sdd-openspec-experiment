@@ -1,0 +1,30 @@
+[20:31:52] t1_promo__baseline__r3__sonnet__v2: skip
+[20:31:52] t1_promo__baseline__r1__sonnet__v2: skip
+[20:31:52] t1_promo__baseline__r2__sonnet__v2: skip
+[20:31:52] t1_promo__sdd__r2__sonnet__v2: skip
+[20:31:52] t1_promo__sdd__r1__sonnet__v2: skip
+[20:38:18] t1_promo__sdd_rules__r1__sonnet__v2: 6.4 min | t1_promo__sdd_rules__r1__sonnet__v2: CR 35/35 req 10/10 preserved 52/52 regress 38/38 protected [] cost 1.0838
+[20:39:39] t1_promo__sdd__r3__sonnet__v2: 7.8 min | t1_promo__sdd__r3__sonnet__v2: CR 22/35 req 6/10 preserved 32/32 regress 38/38 protected [] cost 1.2557
+[20:39:39] t2_reserve__baseline__r1__sonnet__v2: skip
+[20:39:39] t2_reserve__baseline__r2__sonnet__v2: skip
+[20:39:39] t2_reserve__baseline__r3__sonnet__v2: skip
+[20:39:39] t2_reserve__sdd__r1__sonnet__v2: skip
+[20:39:39] t2_reserve__sdd__r2__sonnet__v2: skip
+[20:39:39] t2_reserve__sdd__r3__sonnet__v2: skip
+[20:43:54] t2_reserve__sdd_rules__r1__sonnet__v2: 4.3 min | t2_reserve__sdd_rules__r1__sonnet__v2: CR 37/37 req 10/10 preserved 60/60 regress 40/40 protected [] cost 0.8041
+[20:44:57] t1_promo__sdd_rules__r2__sonnet__v2: 6.7 min | t1_promo__sdd_rules__r2__sonnet__v2: CR 35/35 req 10/10 preserved 52/52 regress 38/38 protected [] cost 1.1725
+[20:44:57] t3_import__baseline__r1__sonnet__v2: skip
+[20:44:57] t3_import__baseline__r2__sonnet__v2: skip
+[20:44:57] t3_import__baseline__r3__sonnet__v2: skip
+[20:44:57] t3_import__sdd__r1__sonnet__v2: skip
+[20:44:57] t3_import__sdd__r2__sonnet__v2: skip
+[20:44:57] t3_import__sdd__r3__sonnet__v2: skip
+[20:49:53] t2_reserve__sdd_rules__r2__sonnet__v2: 6.0 min | t2_reserve__sdd_rules__r2__sonnet__v2: CR 37/37 req 10/10 preserved 60/60 regress 40/40 protected [] cost 1.0918
+[20:49:53] t4_retry__baseline__r1__sonnet__v2: skip
+[20:49:53] t4_retry__baseline__r2__sonnet__v2: skip
+[20:49:53] t4_retry__baseline__r3__sonnet__v2: skip
+[20:49:53] t4_retry__sdd__r1__sonnet__v2: skip
+[20:49:55] t3_import__sdd_rules__r1__sonnet__v2: 5.0 min | t3_import__sdd_rules__r1__sonnet__v2: CR 32/32 req 10/10 preserved 56/56 regress 41/41 protected [] cost 0.7934
+[20:54:45] t4_retry__sdd__r2__sonnet__v2: 4.9 min | t4_retry__sdd__r2__sonnet__v2: CR 33/33 req 10/10 preserved 50/50 regress 36/36 protected [] cost 0.8107
+[20:55:04] t4_retry__sdd__r3__sonnet__v2: 5.1 min | t4_retry__sdd__r3__sonnet__v2: CR 33/33 req 10/10 preserved 51/51 regress 36/36 protected [] cost 0.8385
+[20:59:23] t4_retry__sdd_rules__r1__sonnet__v2: 4.6 min | t4_retry__sdd_rules__r1__sonnet__v2: CR 32/33 req 9/10 preserved 49/49 regress 36/36 protected [] cost 0.8235

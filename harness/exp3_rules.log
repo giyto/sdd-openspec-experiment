@@ -1,0 +1,46 @@
+[20:45:45] t1_promo__sdd_po_rules__r1__sonnet__po: 5.9 min | t1_promo__sdd_po_rules__r1__sonnet__po: hidden 57/57 decisions 5/5 other 1.0 po_comments 2 cost 1.0223
+[20:45:53] t2_reserve__sdd_po_rules__r1__sonnet__po: 6.0 min | t2_reserve__sdd_po_rules__r1__sonnet__po: hidden 66/67 decisions 5/5 other 0.9787 po_comments 3 cost 1.0828
+[20:47:27] t3_import__sdd_po_rules__r1__sonnet__po: 7.6 min | t3_import__sdd_po_rules__r1__sonnet__po: hidden 60/61 decisions 5/5 other 0.9796 po_comments 4 cost 1.169
+[20:49:20] t4_retry__sdd_po_rules__r1__sonnet__po: RUN FAIL ^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", line 1554, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+                             # no special security
+                             ^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 206] ��� ����� ��� ��� ���������� ����� ������� ������� �����
+
+[20:51:46] t1_promo__sdd_po_rules__r2__sonnet__po: 5.9 min | t1_promo__sdd_po_rules__r2__sonnet__po: hidden 57/57 decisions 5/5 other 1.0 po_comments 2 cost 0.9794
+[20:53:50] t2_reserve__sdd_po_rules__r2__sonnet__po: 6.4 min | t2_reserve__sdd_po_rules__r2__sonnet__po: hidden 67/67 decisions 5/5 other 1.0 po_comments 2 cost 1.0681
+[20:55:11] t3_import__sdd_po_rules__r2__sonnet__po: 5.9 min | t3_import__sdd_po_rules__r2__sonnet__po: hidden 61/61 decisions 5/5 other 1.0 po_comments 4 cost 0.8723
+[20:57:31] t4_retry__sdd_po_rules__r2__sonnet__po: 5.8 min | t4_retry__sdd_po_rules__r2__sonnet__po: hidden 58/59 decisions 4/4 other 0.9815 po_comments 2 cost 1.067
+[20:59:15] t1_promo__sdd_po_rules__r3__sonnet__po: 5.4 min | t1_promo__sdd_po_rules__r3__sonnet__po: hidden 57/57 decisions 5/5 other 1.0 po_comments 2 cost 0.9342
+[21:01:28] t2_reserve__sdd_po_rules__r3__sonnet__po: 6.3 min | t2_reserve__sdd_po_rules__r3__sonnet__po: hidden 66/67 decisions 5/5 other 0.9787 po_comments 3 cost 1.0519
+[21:02:38] t4_retry__sdd_po_rules__r3__sonnet__po: RUN FAIL ^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", line 1554, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+                             # no special security
+                             ^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 206] ��� ����� ��� ��� ���������� ����� ������� ������� �����
+
+[21:03:09] t3_import__sdd_po_rules__r3__sonnet__po: 5.6 min | t3_import__sdd_po_rules__r3__sonnet__po: hidden 61/61 decisions 5/5 other 1.0 po_comments 2 cost 0.9011

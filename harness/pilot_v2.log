@@ -1,0 +1,4 @@
+[19:24:58] t4_retry__baseline__r1__sonnet__v2: 1.6 min | t4_retry__baseline__r1__sonnet__v2: hidden 59/59 req 14/14 regress 36/36 protected [] cost 0.2633
+[19:25:08] t3_import__baseline__r1__sonnet__v2: 1.8 min | t3_import__baseline__r1__sonnet__v2: hidden 61/61 req 14/14 regress 41/41 protected [] cost 0.2663
+[19:28:46] t4_retry__sdd__r1__sonnet__v2: 5.4 min | t4_retry__sdd__r1__sonnet__v2: hidden 58/59 req 13/14 regress 36/36 protected [] cost 0.9136
+[19:29:17] t3_import__sdd__r1__sonnet__v2: 5.9 min | t3_import__sdd__r1__sonnet__v2: hidden 61/61 req 14/14 regress 41/41 protected [] cost 0.9147

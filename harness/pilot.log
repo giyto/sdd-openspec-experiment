@@ -1,0 +1,19 @@
+[19:17:24] t4_retry__sdd__r1__sonnet: RUN FAIL                 ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", line 1554, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+                             # no special security
+                             ^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] �� ������� ����� ��������� ����
+
+[19:19:01] t4_retry__baseline__r1__sonnet: 1.6 min | t4_retry__baseline__r1__sonnet: hidden 59/59 req 13/14 regress 36/36 protected [] cost 0.2415

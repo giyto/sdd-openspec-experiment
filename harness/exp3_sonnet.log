@@ -1,0 +1,24 @@
+[19:57:48] t1_promo__base_po__r1__sonnet__po: 3.3 min | t1_promo__base_po__r1__sonnet__po: hidden 56/57 decisions 4/5 other 1.0 po_comments 2 cost 0.5352
+[20:00:03] t1_promo__sdd_po__r1__sonnet__po: 5.5 min | t1_promo__sdd_po__r1__sonnet__po: hidden 38/57 decisions 4/5 other 0.5814 po_comments 2 cost 0.9641
+[20:00:21] t2_reserve__base_po__r1__sonnet__po: 2.5 min | t2_reserve__base_po__r1__sonnet__po: hidden 67/67 decisions 5/5 other 1.0 po_comments 2 cost 0.4319
+[20:00:21] t3_import__base_po__r1__sonnet__po: skip
+[20:00:21] t3_import__sdd_po__r1__sonnet__po: skip
+[20:00:21] t4_retry__base_po__r1__sonnet__po: skip
+[20:00:21] t4_retry__sdd_po__r1__sonnet__po: skip
+[20:03:13] t1_promo__base_po__r2__sonnet__po: 2.9 min | t1_promo__base_po__r2__sonnet__po: hidden 57/57 decisions 5/5 other 1.0 po_comments 2 cost 0.4413
+[20:05:25] t2_reserve__sdd_po__r1__sonnet__po: 5.4 min | t2_reserve__sdd_po__r1__sonnet__po: hidden 66/67 decisions 5/5 other 0.9787 po_comments 2 cost 0.9416
+[20:07:47] t2_reserve__base_po__r2__sonnet__po: 2.4 min | t2_reserve__base_po__r2__sonnet__po: hidden 66/67 decisions 4/5 other 1.0 po_comments 2 cost 0.3643
+[20:09:08] t1_promo__sdd_po__r2__sonnet__po: 5.9 min | t1_promo__sdd_po__r2__sonnet__po: hidden 57/57 decisions 5/5 other 1.0 po_comments 2 cost 1.0023
+[20:11:30] t3_import__base_po__r2__sonnet__po: 2.4 min | t3_import__base_po__r2__sonnet__po: hidden 58/61 decisions 4/5 other 0.9796 po_comments 1 cost 0.3301
+[20:14:04] t2_reserve__sdd_po__r2__sonnet__po: 6.3 min | t2_reserve__sdd_po__r2__sonnet__po: hidden 66/67 decisions 5/5 other 0.9787 po_comments 2 cost 1.0693
+[20:17:37] t3_import__sdd_po__r2__sonnet__po: 6.1 min | t3_import__sdd_po__r2__sonnet__po: hidden 60/61 decisions 5/5 other 0.9796 po_comments 2 cost 0.9681
+[20:19:02] t4_retry__base_po__r2__sonnet__po: 5.0 min | t4_retry__base_po__r2__sonnet__po: hidden 59/59 decisions 4/4 other 1.0 po_comments 2 cost 0.4474
+[20:21:30] t1_promo__base_po__r3__sonnet__po: 2.5 min | t1_promo__base_po__r3__sonnet__po: hidden 56/57 decisions 4/5 other 1.0 po_comments 1 cost 0.3855
+[20:23:36] t4_retry__sdd_po__r2__sonnet__po: 6.0 min | t4_retry__sdd_po__r2__sonnet__po: hidden 59/59 decisions 4/4 other 1.0 po_comments 2 cost 1.0772
+[20:25:50] t2_reserve__base_po__r3__sonnet__po: 2.2 min | t2_reserve__base_po__r3__sonnet__po: hidden 67/67 decisions 5/5 other 1.0 po_comments 2 cost 0.3865
+[20:27:09] t1_promo__sdd_po__r3__sonnet__po: 5.7 min | t1_promo__sdd_po__r3__sonnet__po: hidden 56/57 decisions 5/5 other 0.9767 po_comments 2 cost 1.0074
+[20:29:47] t3_import__base_po__r3__sonnet__po: 2.6 min | t3_import__base_po__r3__sonnet__po: hidden 60/61 decisions 5/5 other 0.9796 po_comments 1 cost 0.3607
+[20:31:33] t2_reserve__sdd_po__r3__sonnet__po: 5.7 min | t2_reserve__sdd_po__r3__sonnet__po: hidden 66/67 decisions 5/5 other 0.9787 po_comments 2 cost 1.0039
+[20:34:13] t4_retry__base_po__r3__sonnet__po: 2.7 min | t4_retry__base_po__r3__sonnet__po: hidden 57/59 decisions 4/4 other 0.963 po_comments 4 cost 0.4116
+[20:36:18] t3_import__sdd_po__r3__sonnet__po: 6.5 min | t3_import__sdd_po__r3__sonnet__po: hidden 60/61 decisions 5/5 other 0.9796 po_comments 2 cost 0.9844
+[20:39:47] t4_retry__sdd_po__r3__sonnet__po: 5.6 min | t4_retry__sdd_po__r3__sonnet__po: hidden 58/59 decisions 4/4 other 0.9815 po_comments 2 cost 0.9681

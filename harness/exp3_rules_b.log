@@ -1,0 +1,3 @@
+[21:05:06] t4_retry__sdd_po_rules__r2__sonnet__po: skip
+[21:12:06] t4_retry__sdd_po_rules__r3__sonnet__po: 7.0 min | t4_retry__sdd_po_rules__r3__sonnet__po: hidden 58/59 decisions 4/4 other 0.9815 po_comments 2 cost 1.253
+[21:12:25] t4_retry__sdd_po_rules__r1__sonnet__po: 7.3 min | t4_retry__sdd_po_rules__r1__sonnet__po: hidden 59/59 decisions 4/4 other 1.0 po_comments 2 cost 1.1903

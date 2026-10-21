@@ -1,0 +1,4 @@
+[19:47:01] t3_import__base_po__r1__sonnet__po: 2.6 min | t3_import__base_po__r1__sonnet__po: hidden 57/61 decisions 3/5 other 0.9796 po_comments 0 cost 0.3788
+[19:49:05] t4_retry__base_po__r1__sonnet__po: 2.1 min | t4_retry__base_po__r1__sonnet__po: hidden 59/59 decisions 4/4 other 1.0 po_comments 3 cost 0.3371
+[19:50:16] t3_import__sdd_po__r1__sonnet__po: 5.8 min | t3_import__sdd_po__r1__sonnet__po: hidden 53/61 decisions 4/5 other 0.8571 po_comments 3 cost 0.9092
+[19:54:21] t4_retry__sdd_po__r1__sonnet__po: 5.3 min | t4_retry__sdd_po__r1__sonnet__po: hidden 59/59 decisions 4/4 other 1.0 po_comments 2 cost 0.9879
