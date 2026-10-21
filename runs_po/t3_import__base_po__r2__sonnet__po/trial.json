@@ -1,0 +1,145 @@
+{
+  "trial_id": "t3_import__base_po__r2__sonnet__po",
+  "task": "t3_import",
+  "condition": "base_po",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bd9e49f385",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bd9e49f385\\project",
+  "base_commit": "107e22661406281a0aa00f615f65a890d7e3c102",
+  "po_comments": "1. Про `sfera_split`: в документе сказано, что заполнена должна быть ровно одна из колонок «Приход» и «Расход», а нулевая сумма считается ошибкой. Так строка с `0,00` в одной колонке и суммой в другой может попасть в ошибки. Должно быть иначе: `0,00` в неиспользуемой колонке равно пустой колонке. Строка с `0,00` в приходе и суммой в расходе (и наоборот) — нормальная операция, а не ошибка.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 89.6,
+      "cost_usd": 0.2392297,
+      "duration_ms": 87760,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 24337,
+        "cache_read_input_tokens": 129037,
+        "output_tokens": 12895,
+        "output_tokens_details": {
+          "thinking_tokens": 2968
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 24337,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1394,
+            "cache_read_input_tokens": 29003,
+            "cache_creation_input_tokens": 1270,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1270
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "`import_statement` для «Новы», «Сферы» и `sfera_split` готов, как и остальной интерфейс из тикета. Все 46 тестов проходят: прежние без изменений и пять новых в `tests/test_import_statement.py`.\n\n## Что сделано\n- **`ledger/errors.py`:** добавлены `UnknownFormatError` и `StatementRowError`, оба наследуют `StatementError`. У `StatementRowError` `line_no` всегда заполнен.\n- **`ledger/importer.py`:**\n  - Добавлены `import_statement`, `detect_format`, `normalize_description` (это `normalize_text` из rules), `RowError` и `ImportResult`.\n  - Файл целиком читается как UTF-8, BOM допускается, иначе это cp1251.\n  - Формат определяется по заголовку. В новых форматах «Сферы» заголовок сравнивается без учёта регистра и пробелов. Если заголовок не распознан или не подходит к `fmt`, бросается `UnknownFormatError` и ничего не сохраняется. Это относится и к пустому файлу.\n  - Суммы «Сферы» разбираются с пробелом или U+00A0 (а также U+202F) как разделителем тысяч, запятой как десятичным знаком и знаком `+` или `-`. В `sfera_split` знак в сумме считается ошибкой строки, заполнена должна быть ровно одна из колонок «Приход» и «Расход».\n  - Пустые строки, строки из пробелов и из одних разделителей (`;;;`, `,,`) пропускаются где угодно. В `errors`, `duplicates` и `added` они не попадают, но номера строк считаются по физическим строкам файла.\n  - В нестрогом режиме новые транзакции записываются одним `add_many`, так что запись атомарна. При `strict=True` исключение бросается на первой плохой строке до любой записи, поэтому в хранилище и в JSON ничего не попадает.\n  - `import_csv` теперь вызывает `import_statement(strict=True)` и возвращает `added`. CLI не менялся.\n\n## Решения там, где тикет молчал\n1. **Одинаковые операции внутри одного файла** (два кофе за один день) считаются двумя операциями. Дубль — это то, что уже есть в хранилище, при этом каждая существующая запись «гасит» только одну строку файла. Повторный импорт того же файла даёт `duplicates` равным числу строк, а `added=0`.\n2. **Поведение `import_csv` и CLI меняется в двух местах.** Они теперь пропускают дубли, а ошибка строки бросает `StatementRowError`; это подкласс `StatementError`, а `line_no` прежний. CLI заодно научился читать форматы «Сферы», потому что формат определяется автоматически. Без дедупликации не обойтись, иначе возвращается исходная проблема из тикета.\n3. **Ошибки строки:**\n   - неверное число полей;\n   - плохая дата (у «Сферы» строго `ДД.ММ.ГГГГ`);\n   - плохая сумма, в том числе нулевая и с более чем двумя знаками после запятой;\n   - пустое описание;\n   - ошибка парсера csv, например байт NUL.\n4. **Номер строки в `UnknownFormatError`:** для нераспознанного заголовка — 1, для пустого файла — `None`. Мусорные строки перед заголовком тоже пропускаются, это моё расширение правила Ольги.\n5. **Файл, не читаемый даже как cp1251** (байт 0x98), даёт `StatementError` без `line_no`.\n6. **Неизвестное значение `fmt`** (например, `\"foo\"`) даёт `UnknownFormatError`.\n7. **`imported_at`** вычисляется один раз на весь импорт, как и раньше.\n\nСпорных вопросов для Марины Беловой два. Первый — пункт 2: подходит ли вам, что CLI теперь пропускает дубли. Второй — пункт 1 про одинаковые операции в одном файле."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 19.6,
+      "cost_usd": 0.0258674,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 3152,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 1311,
+        "output_tokens_details": {
+          "thinking_tokens": 1135
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 3152,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1311,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 3152,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3152
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. Про `sfera_split`: в документе сказано, что заполнена должна быть ровно одна из колонок «Приход» и «Расход», а нулевая сумма считается ошибкой. Так строка с `0,00` в одной колонке и суммой в другой может попасть в ошибки. Должно быть иначе: `0,00` в неиспользуемой колонке равно пустой колонке. Строка с `0,00` в приходе и суммой в расходе (и наоборот) — нормальная операция, а не ошибка."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 27.0,
+      "cost_usd": 0.064955,
+      "duration_ms": 24978,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 9420,
+        "cache_read_input_tokens": 80570,
+        "output_tokens": 1919,
+        "output_tokens_details": {
+          "thinking_tokens": 141
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 9420,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 308,
+            "cache_read_input_tokens": 14899,
+            "cache_creation_input_tokens": 457,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 457
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Замечание исправлено: в `sfera_split` значение `0,00` в неиспользуемой колонке теперь считается пустой колонкой. Все 47 тестов проходят: 46 прежних и один новый.\n\nПравка в `ledger/importer.py`, в `_build`. Обе колонки разбираются как суммы, и нулевая приравнивается к пустой. Строка валидна, если после этого осталась ровно одна ненулевая колонка.\n\n- **Нормальные операции:** `0,00` в приходе и сумма в расходе, и наоборот.\n- **Ошибки строки:** обе колонки пустые или нулевые, обе ненулевые, а также знак в любой из сумм.\n\nНовый тест `test_split_zero_in_unused_column` в `tests/test_import_statement.py` проверяет эти четыре случая. В нём две нормальные операции и две ошибки, строки 4 и 5."
+    }
+  ]
+}

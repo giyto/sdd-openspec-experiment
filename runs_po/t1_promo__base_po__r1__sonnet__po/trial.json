@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__base_po__r1__sonnet__po",
+  "task": "t1_promo",
+  "condition": "base_po",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c1aff1fbf6",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c1aff1fbf6\\project",
+  "base_commit": "e14439ac53dd978d11ebc48e4912b569040d374f",
+  "po_comments": "1. **Минимальная сумма заказа.** Сравнивать с полным `subtotal` неверно. В сравнение идут только товары, на которые скидка реально действует. Подарочные сертификаты и исключённые для этого кода категории не считаются. Сумма берётся до скидки, без доставки и налога.\n\n2. **Доставка.** Порог бесплатной доставки нужно сравнивать с суммой товаров после скидки, а не до неё. Иначе покупатели будут добирать до порога промокодом. Сама стоимость доставки от скидки не уменьшается, это в документе верно.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 151.7,
+      "cost_usd": 0.42623540000000004,
+      "duration_ms": 149776,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 36174,
+        "cache_read_input_tokens": 264954,
+        "output_tokens": 25500,
+        "output_tokens_details": {
+          "thinking_tokens": 1464
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 36174,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1456,
+            "cache_read_input_tokens": 39421,
+            "cache_creation_input_tokens": 2689,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2689
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды работают в `calculate_total`, `quote` и `place_order`. Весь набор тестов проходит: 47 тестов, из них 9 новых в `tests/test_promo.py`. Существующие тесты не менялись, а `cli.py` и `reports.py` не трогал. Ничего не закоммичено.\n\n## Что сделано\n- **`shop/promo.py`** — новый модуль: `DiscountKind`, `PromoCode` и `PromoRegistry` (`add`, `resolve`, `uses`).\n- **`shop/errors.py`** — `PromoError` и три независимых наследника: `UnknownPromoCodeError`, `PromoExpiredError`, `PromoConditionsError`.\n- **`shop/pricing.py`** — `calculate_total(..., *, promo=None)`, поля `LineTotal.discount` и `OrderTotal.discount` (по умолчанию `0.00`), `total = subtotal - discount + shipping + tax`.\n- **`shop/orders.py`** — `OrderService(promos=...)`, `quote` и `place_order` принимают `promo_code`, в `Order` добавлено `promo_code`.\n- **`shop/__init__.py`** — новые имена добавлены в экспорт.\n\n## Как считается скидка\n- **Участвующие товары:** все, кроме подарочных сертификатов (по README скидки на них не действуют) и категорий из `excluded_categories`.\n- **Размер скидки:** процент считается от суммы участвующих строк и округляется `ROUND_HALF_UP`. Фиксированная скидка не превышает эту сумму.\n- **Раскладка по строкам:** пропорционально суммам строк, с точностью до копейки, остаток отдаётся строкам с наибольшей дробной частью, при равенстве — более ранней строке. Сумма по строкам равна общей скидке, а скидка строки не больше её суммы.\n- **Налог:** считается с суммы строки после скидки.\n- **Доставка:** считается от суммы до скидки, так что скидка не лишает бесплатной доставки и не меняет её стоимость.\n- **Счётчик использований:** растёт только после того, как заказ сохранён. `quote`, `calculate_total` и неудачные попытки его не меняют.\n- **Порядок проверок:** есть ли код, потом срок, потом лимит, потом условия заказа.\n\n## Решения там, где тикет неоднозначен\n- **Минимальная сумма заказа** сравнивается с полным `subtotal` до скидки, включая сертификаты и исключённые категории. Читал «сумму заказа» буквально. Если маркетингу нужна сумма только участвующих товаров, это правка одной строки.\n- **Нет участвующих товаров** (например, в корзине только сертификаты или только исключённые категории) — `PromoConditionsError`, а не скидка 0.\n- **Срок действия** — полуоткрытый интервал `[starts_at, expires_at)`, как в README. Акция, которая ещё не началась, даёт `PromoExpiredError`, как ответила Ольга.\n- **Нормализация кода:** `strip()` и верхний регистр (`normalize_key`) при создании, поиске и в `uses`.\n- **Пустой код:** пустой или пробельный `promo_code` в `quote`/`place_order` означает «без кода». `resolve(\"\")` даёт `UnknownPromoCodeError`.\n- **Без реестра** любой непустой код — `UnknownPromoCodeError`.\n- **Валидация `PromoCode`:**\n  - Фиксированная сумма округляется до копеек и должна быть больше 0.\n  - Даты должны быть aware.\n  - Начало должно быть раньше конца.\n  - `max_uses` — целое не меньше 1.\n  - Нарушения дают `ValidationError`.\n- **Повторный `add` того же кода** — `ValidationError`.\n- **`PromoRegistry.record_use(code)`** — публичный метод, которого в API тикета нет. Через него `OrderService` увеличивает счётчик.\n- **Потокобезопасность:** реестр в памяти и не защищён от гонок. При параллельном оформлении заказов лимит можно превысить, и это стоит учесть, когда появится реальное хранилище."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 13.4,
+      "cost_usd": 0.0198794,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 3140,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 717,
+        "output_tokens_details": {
+          "thinking_tokens": 515
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 3140,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 717,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 3140,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3140
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Минимальная сумма заказа.** Сравнивать с полным `subtotal` неверно. В сравнение идут только товары, на которые скидка реально действует. Подарочные сертификаты и исключённые для этого кода категории не считаются. Сумма берётся до скидки, без доставки и налога.\n\n2. **Доставка.** Порог бесплатной доставки нужно сравнивать с суммой товаров после скидки, а не до неё. Иначе покупатели будут добирать до порога промокодом. Сама стоимость доставки от скидки не уменьшается, это в документе верно."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 26.7,
+      "cost_usd": 0.0890843,
+      "duration_ms": 25052,
+      "num_turns": 6,
+      "usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 14515,
+        "cache_read_input_tokens": 71443,
+        "output_tokens": 2386,
+        "output_tokens_details": {
+          "thinking_tokens": 178
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 14515,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 523,
+            "cache_read_input_tokens": 19544,
+            "cache_creation_input_tokens": 907,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 907
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Оба замечания исправлены. Тесты проходят: 48, включая новые. Коммитов я не делал.\n\n1. **Минимальная сумма заказа.** В `shop/pricing.py` код теперь сравнивает `min_order_amount` с суммой только тех строк, на которые скидка действует. Подарочные сертификаты и исключённые категории не считаются. Сумма берётся до скидки, без доставки и налога. Если участвующих товаров нет, по-прежнему возникает `PromoConditionsError`.\n2. **Доставка.** Порог бесплатной доставки теперь сравнивается с `subtotal - discount`. Сама стоимость доставки от скидки не меняется. Докстринг модуля обновил.\n\nВ `tests/test_promo.py` пришлось изменить свой же тест `test_shipping_ignores_discount`. Он закреплял прежнее поведение, при котором порог считался до скидки. Теперь это `test_free_shipping_threshold_uses_amount_after_discount`: он проверяет, что скидка 50% лишает бесплатной доставки, а 5% нет. Добавил `test_min_order_amount_counts_only_eligible_lines`: он проверяет, что сертификат и исключённая категория не попадают в сравнение с минимальной суммой. Остальные существующие тесты не менял.\n\nREADME я не правил. Правило про порог бесплатной доставки там сформулировано как «по сумме товаров» и промокодов не упоминает. Если хотите, допишу туда, что порог считается после скидки."
+    }
+  ]
+}

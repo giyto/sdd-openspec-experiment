@@ -1,0 +1,145 @@
+{
+  "trial_id": "t4_retry__base_po__r2__sonnet__po",
+  "task": "t4_retry",
+  "condition": "base_po",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\99108c84a8",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\99108c84a8\\project",
+  "base_commit": "8796ecdb3c411917b6bc3c4723ec01f19ca499d8",
+  "po_comments": "1. **Счётчик попыток при возврате из dead-letter.** Написано, что `attempts` не сбрасывается и после возврата у задания остаётся одна попытка. Так быть не должно: при ручном возврате счётчик начинается заново, и у задания снова полный набор попыток, как у нового. Прежнее число попыток смотрим в логах.\n\n2. **Джиттер и максимальная задержка.** Написано, что множитель джиттера применяется после ограничения `max_delay`, поэтому итог может превысить `max_delay`. Так быть не должно: `max_delay` — жёсткий потолок. Если с джиттером выходит больше, ждём ровно `max_delay`.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 261.7,
+      "cost_usd": 0.3625366,
+      "duration_ms": 259941,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 34776,
+        "cache_read_input_tokens": 264326,
+        "output_tokens": 19696,
+        "output_tokens_details": {
+          "thinking_tokens": 2909
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 34776,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1434,
+            "cache_read_input_tokens": 39520,
+            "cache_creation_input_tokens": 1192,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1192
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Повторы и dead-letter из JOBQ-212 сделаны. Все 42 теста проходят: 36 прежних без изменений и 6 новых в `tests/test_retry.py`. `dashboard.py` и `cli.py` не менял. Подписи новых статусов в отчёте появились сами, потому что отчёт строится по `JobStatus`.\n\n## Что сделано\n- **`jobq/retry.py`:** `RetryPolicy` с валидацией, `delay_for` и `is_retryable`. Расчёт задержки идёт через `float`. Иначе `factor=2` (int) при огромном `attempt` считал бы точное большое целое и зависал. При `base_delay=0` результат 0, при `OverflowError` задержка равна `max_delay`.\n- **`errors.py`:** добавлена `PermanentJobError`.\n- **`models.py`:** статусы `RETRY_SCHEDULED` и `DEAD_LETTERED` с подписями «Ожидает повтора» и «В dead-letter», а также `DeadLetterEntry`.\n- **`queue.py`:**\n  - Параметр `default_retry_policy`, методы `set_retry_policy`, `retry_policy_for`, `dead_letters`, `requeue_dead_letter`.\n  - Новые методы `mark_retry_scheduled` и `mark_dead_lettered`.\n  - Таблица переходов расширена.\n- **`store.py`:** воркер теперь берёт и `RETRY_SCHEDULED`, когда наступил `run_at`.\n- **`worker.py`:** параметр `rng`. Политика берётся в момент ошибки, и тип полностью заменяет дефолт. `rng` трогается только при планировании повтора и только при `jitter > 0`.\n- **`metrics.py`:** счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **`__init__.py`:** экспортированы `RetryPolicy`, `PermanentJobError` и `DeadLetterEntry`.\n\n## Решения там, где тикет молчал\n- **`max_attempts=1`:** без повторов, но падение уходит в dead-letter, как сказал тимлид.\n- **Исчерпание попыток:** условие `attempts >= max_attempts`.\n- **`DEAD_LETTERED` считается терминальным.** `purge_finished` его не удаляет, иначе запись в dead-letter осталась бы без задания. Для dead-letter выход один — `requeue_dead_letter`.\n- **`requeue_dead_letter`:** `attempts` не сбрасываю, потому что тикет это не требует. После возврата задание получает одну попытку до следующего dead-letter, если не сменить политику. Если нужен сброс, это одна строка. `finished_at` очищаю.\n- **Ошибки `requeue_dead_letter`:** для задания не в dead-letter будет `InvalidTransitionError`, для неизвестного id — `JobNotFoundError`.\n- **Отмена:** `cancel` работает и для `RETRY_SCHEDULED`.\n- **`job.error` после успеха:** `mark_succeeded` теперь обнуляет `error`. Это нужно, чтобы выполнялось правило «у SUCCEEDED `error` всегда `None`» после успешного повтора.\n- **Валидация `RetryPolicy`:** отвергаю `NaN`, `inf`, не-числа и bool. `max_delay=inf` («без потолка») поэтому недопустим. Ошибки конфигурации — `ConfigError`.\n- **Jitter:** множитель применяется после ограничения `max_delay`, поэтому итог может чуть превысить `max_delay`, как написано в тикете.\n- **Если `rng` у воркера не передан:** он создаёт свой `random.Random()`.\n- **Обработчик не найден:** сразу `FAILED`, повторов нет.\n\nОграничение: `failure_rate` и блок «Последние ошибки» в дашборде считают только `FAILED`. Задания в dead-letter там не видны, но менять дашборд запрещено — это вопрос к другой команде.\n\nКоммит не делал: вы о нём не просили."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 8.7,
+      "cost_usd": 0.013909399999999999,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2855,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 234,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2855,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 234,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 2855,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2855
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Счётчик попыток при возврате из dead-letter.** Написано, что `attempts` не сбрасывается и после возврата у задания остаётся одна попытка. Так быть не должно: при ручном возврате счётчик начинается заново, и у задания снова полный набор попыток, как у нового. Прежнее число попыток смотрим в логах.\n\n2. **Джиттер и максимальная задержка.** Написано, что множитель джиттера применяется после ограничения `max_delay`, поэтому итог может превысить `max_delay`. Так быть не должно: `max_delay` — жёсткий потолок. Если с джиттером выходит больше, ждём ровно `max_delay`."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 23.3,
+      "cost_usd": 0.0709248,
+      "duration_ms": 21510,
+      "num_turns": 9,
+      "usage": {
+        "input_tokens": 12,
+        "cache_creation_input_tokens": 11349,
+        "cache_read_input_tokens": 79348,
+        "output_tokens": 1757,
+        "output_tokens_details": {
+          "thinking_tokens": 41
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 11349,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 256,
+            "cache_read_input_tokens": 16880,
+            "cache_creation_input_tokens": 405,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 405
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Оба замечания исправлены, все 44 теста проходят: 42 прежних и 2 новых.\n\n1. **Возврат из dead-letter:** `requeue_dead_letter` теперь обнуляет `job.attempts`, и у задания снова полный набор попыток (`jobq/queue.py`).\n2. **Джиттер:** `delay_for` теперь ограничивает задержку по `max_delay` и после умножения на джиттер, поэтому итог никогда не превышает `max_delay` (`jobq/retry.py`).\n\nЯ добавил два теста в `tests/test_retry.py`: один проверяет, что при джиттере задержка не превышает `max_delay`, другой — что `attempts` обнуляется при возврате. Коммит не делал."
+    }
+  ]
+}

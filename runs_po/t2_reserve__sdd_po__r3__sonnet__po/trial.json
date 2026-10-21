@@ -1,0 +1,145 @@
+{
+  "trial_id": "t2_reserve__sdd_po__r3__sonnet__po",
+  "task": "t2_reserve",
+  "condition": "sdd_po",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\945202abdd",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\945202abdd\\project",
+  "base_commit": "1a01ea0b952f826bd571ca0bec5cd9d5cc5957f4",
+  "po_comments": "1. **Продление (design п. 9, спецификация «Продление резерва»).** Срок считается неверно: в документе `expires_at + ttl`, то есть от старого срока. Должно быть от момента запроса: `now + ttl`. Срок никогда не сокращается: если `now + ttl` не позже текущего `expires_at`, ничего не меняем, ошибки нет и событие `RESERVE_EXTEND` в журнал не пишется. Сценарий «Продление активного» (`T + 10 минут`) нужно переписать под это правило.\n\n2. **Повторный резерв на тот же заказ (design п. 4, «Риски», спецификация «Проверка входных данных резерва», сценарий «Повторный order_id»).** Документ бросает `DuplicateReservationError` для любого статуса. Ошибка «на заказ уже есть резерв» нужна только если прежний резерв действующий или подтверждённый, и тогда ничего не меняется. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 167.3,
+      "cost_usd": 0.44852309999999995,
+      "duration_ms": 165551,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 47633,
+        "cache_read_input_tokens": 253751,
+        "output_tokens": 23258,
+        "output_tokens_details": {
+          "thinking_tokens": 2676
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 47633,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 903,
+            "cache_read_input_tokens": 51257,
+            "cache_creation_input_tokens": 2312,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2312
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-stock-reservations` создано. `openspec validate --strict` проходит, все четыре артефакта готовы, код проекта не менялся.\n\nАртефакты лежат в `openspec/changes/add-stock-reservations/`:\n- **`proposal.md`** — зачем нужна задача и что меняется. TTL по умолчанию 15 минут, как в обновлении из обсуждения, а не 30 из исходного текста.\n- **`specs/stock-reservations/spec.md`** — новая возможность: 10 требований со сценариями. В них:\n  - строки заказа хранятся как пришли, проверка наличия идёт по сумме дублирующихся позиций;\n  - `CONFIRMED` и `CANCELLED` окончательные, истечение их не меняет;\n  - события журнала описаны полностью.\n- **`design.md`** — решения и риски.\n- **`tasks.md`** — 5 групп задач, у каждой есть способ проверки. Все новые тесты идут в новый `tests/test_reservations.py`.\n\nВ ТЗ нет ответа на ряд вопросов. Я принял такие допущения и записал их в design и spec:\n- **Граница истечения:** резерв истёк, когда `now >= expires_at`.\n- **`transfer`:** склад-источник тоже не забирает чужой резерв, потому что docstring `transfer` называет его обычным расходом. В ТЗ упомянут только `issue`.\n- **`cancel` истёкшего:** ошибки нет, возвращается снимок `EXPIRED`, в журнал ничего не пишется.\n- **`extend`:** новый срок равен `expires_at + ttl`, то есть считается от текущего срока, а не от «сейчас».\n- **Повторный `order_id`:** `DuplicateReservationError` в любом статусе существующего резерва.\n- **`available`:** не опускается ниже 0, даже если инвентаризация убрала остаток ниже резерва.\n- **`confirm` после `adjust` вниз:** `confirm` проверяет физический остаток и при нехватке бросает `InsufficientStockError` без изменений.\n\n`reports.movement_summary` создаёт запись для любого SKU из события с полем `sku`, поэтому `RESERVE` добавит нулевую запись для SKU, у которого за период нет других движений. Суммы приходов, расходов и корректировок не искажаются. `reports.py` менять нельзя, а имена полей заданы ТЗ, так что это принято как есть и зафиксировано в рисках и в задаче 5.1.\n\nАртефакты готовы к ревью. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 14.8,
+      "cost_usd": 0.0597934,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 12971,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 776,
+        "output_tokens_details": {
+          "thinking_tokens": 415
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12971,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 776,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 12971,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 12971
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Продление (design п. 9, спецификация «Продление резерва»).** Срок считается неверно: в документе `expires_at + ttl`, то есть от старого срока. Должно быть от момента запроса: `now + ttl`. Срок никогда не сокращается: если `now + ttl` не позже текущего `expires_at`, ничего не меняем, ошибки нет и событие `RESERVE_EXTEND` в журнал не пишется. Сценарий «Продление активного» (`T + 10 минут`) нужно переписать под это правило.\n\n2. **Повторный резерв на тот же заказ (design п. 4, «Риски», спецификация «Проверка входных данных резерва», сценарий «Повторный order_id»).** Документ бросает `DuplicateReservationError` для любого статуса. Ошибка «на заказ уже есть резерв» нужна только если прежний резерв действующий или подтверждённый, и тогда ничего не меняется. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 153.0,
+      "cost_usd": 0.49559860000000006,
+      "duration_ms": 151117,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 52193,
+        "cache_read_input_tokens": 532666,
+        "output_tokens": 23350,
+        "output_tokens_details": {
+          "thinking_tokens": 774
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52193,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 764,
+            "cache_read_input_tokens": 57890,
+            "cache_creation_input_tokens": 239,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 239
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Артефакты исправлены под оба замечания, все 15 задач выполнены. `python -m pytest -q` проходит (87 тестов), `openspec validate` тоже.\n\n**Артефакты**\n- **Продление.**\n  - Правка внесена в design (п. 9), спецификацию («Продление резерва») и задачу 4.5.\n  - Новый срок считается как `now + ttl`. Если он не позже текущего `expires_at`, резерв не меняется, ошибки нет и `RESERVE_EXTEND` не пишется.\n  - Сценарий «Продление активного» переписан, добавлен сценарий «Продление не сокращает срок».\n- **Повторный `order_id`.**\n  - Правка внесена в design (пп. 4 и «Риски»), спецификацию («Проверка входных данных резерва») и задачу 4.1.\n  - `DuplicateReservationError` бросается только для `ACTIVE` и `CONFIRMED`, и тогда ничего не меняется.\n  - Для `EXPIRED` и `CANCELLED` новый резерв полностью заменяет старый. Старые события остаются в журнале как история.\n  - Сценарий «Повторный order_id» разделён на два.\n- `proposal.md` менять не пришлось: в нём этих правил не было.\n\n**Код**\n- `warehouse/models.py`, `errors.py`, `storage.py`: новые модели, ошибки и методы хранения резервов.\n- `warehouse/reservations.py`: новый модуль. В нём `DEFAULT_RESERVATION_TTL` (15 минут), запись резерва и вычисление статуса.\n- `warehouse/inventory.py`: добавлены `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `reserved` и `available`. `issue` и `transfer` теперь сверяются с доступным остатком.\n- `warehouse/__init__.py` и README: экспорт новых имён и схема модулей.\n- `tests/test_reservations.py`: 47 новых тестов, включая оба новых правила и границу `now == expires_at`.\n\nСуществующие тесты, `cli.py` и `reports.py` не менялись. Дополнительных решений в `design.md` записывать не пришлось."
+    }
+  ]
+}

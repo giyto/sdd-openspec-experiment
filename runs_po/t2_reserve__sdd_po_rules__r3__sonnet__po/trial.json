@@ -1,0 +1,145 @@
+{
+  "trial_id": "t2_reserve__sdd_po_rules__r3__sonnet__po",
+  "task": "t2_reserve",
+  "condition": "sdd_po_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\11bb483b45",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\11bb483b45\\project",
+  "base_commit": "ef2feb213fe7777beca53974122b2811eeec6ffa",
+  "po_comments": "1. **Продление (design.md п. 8, spec «Продление резерва»).** Написано, что новый срок равен прежнему `expires_at + ttl`. Должно быть от момента запроса: `now + ttl`. Срок никогда не сокращается: если `now + ttl` не позже текущего `expires_at`, ничего не меняем, событие `RESERVE_EXTEND` в журнал не пишем и возвращаем резерв как есть. Сценарий «Успешное продление» (`T + 10 минут`) нужно переписать под это правило.\n\n2. **Повторный резерв на тот же заказ (design.md п. 5, spec «Уникальность номера заказа»).** Написано, что `order_id` уникален навсегда, в том числе для отменённых и истёкших резервов, и сценарий «Повторный reserve для отменённого или истёкшего заказа» ждёт `DuplicateReservationError`. Должно быть так:\n   - Если резерв действующий или подтверждённый, это ошибка «на заказ уже есть резерв», состояние не меняется.\n   - Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый.\n\n3. **Отрицательный доступный остаток (design.md п. 3, spec «Доступное и зарезервированное количество»).** Написано, что `available` не обрезается нулём и после `adjust` может быть отрицательным, а в ошибку передаётся `max(0, available)`. Должно быть так: если физически меньше, чем зарезервировано, `available` показываем 0, а не минус. Формулу «физический остаток минус `reserved`» нужно дополнить этим ограничением, а риск «Отрицательный `available` после `adjust`» убрать.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 176.9,
+      "cost_usd": 0.47097910000000004,
+      "duration_ms": 174140,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 47270,
+        "cache_read_input_tokens": 219571,
+        "output_tokens": 25991,
+        "output_tokens_details": {
+          "thinking_tokens": 2081
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 47270,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 935,
+            "cache_read_input_tokens": 52860,
+            "cache_creation_input_tokens": 346,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 346
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-stock-reservations` создано в `openspec/changes/add-stock-reservations/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся, в git добавилась только новая папка `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` — зачем нужна фича и что меняется. Публичный API перенесён из тикета дословно. Новая capability называется `stock-reservations`.\n- `specs/stock-reservations/spec.md` — 12 требований со сценариями. Они покрывают создание резерва, валидацию, уникальность `order_id`, `available`/`reserved`, истечение, `confirm`, `cancel`, `extend`, ошибки, влияние на `issue`/`transfer`, журнал и обратную совместимость.\n- `design.md` — решения по реализации: ленивое истечение по часам сервиса, хранение в `InMemoryStore`, порядок проверок.\n- `tasks.md` — 4 группы задач, у каждой указана проверка. В конце стоит сверка публичного API с proposal и specs.\n\n**Из обсуждения в тикете**\n- TTL по умолчанию — 15 минут, а не 30 из исходного текста.\n- Дублирующиеся строки одной позиции суммируются при проверке наличия в `reserve` и `confirm`, но в резерве хранятся как пришли.\n- `CONFIRMED` и `CANCELLED` окончательные: истечение их не меняет.\n\n**Допущения** (записаны в spec и design)\n- Резерв считается истёкшим, когда `now >= expires_at`.\n- `order_id` уникален навсегда: повторный `reserve` с ним даёт `DuplicateReservationError`, даже если прежний резерв отменён или истёк.\n- `cancel` истёкшего резерва ничего не делает и ничего не пишет в журнал; снимок остаётся `EXPIRED`.\n- `extend` продлевает от прежнего `expires_at`, а не от текущего времени. Истёкший резерв продлить нельзя.\n- `transfer` со склада-источника тоже не забирает чужие резервы. В тикете сказано только про `issue`, но `transfer` по своему контракту — обычный расход.\n- `available` не обрезается нулём: после `adjust` он может стать отрицательным. В `InsufficientStockError` в поле `available` попадает `max(0, available)`.\n- `confirm` проверяет физический остаток по сумме строк одной позиции, а не `available`.\n- Поле `expires` в журнале пишется в формате времени журнала, с точностью до секунды.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 14.6,
+      "cost_usd": 0.0604174,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 12337,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 1092,
+        "output_tokens_details": {
+          "thinking_tokens": 503
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12337,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1092,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 12337,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 12337
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Продление (design.md п. 8, spec «Продление резерва»).** Написано, что новый срок равен прежнему `expires_at + ttl`. Должно быть от момента запроса: `now + ttl`. Срок никогда не сокращается: если `now + ttl` не позже текущего `expires_at`, ничего не меняем, событие `RESERVE_EXTEND` в журнал не пишем и возвращаем резерв как есть. Сценарий «Успешное продление» (`T + 10 минут`) нужно переписать под это правило.\n\n2. **Повторный резерв на тот же заказ (design.md п. 5, spec «Уникальность номера заказа»).** Написано, что `order_id` уникален навсегда, в том числе для отменённых и истёкших резервов, и сценарий «Повторный reserve для отменённого или истёкшего заказа» ждёт `DuplicateReservationError`. Должно быть так:\n   - Если резерв действующий или подтверждённый, это ошибка «на заказ уже есть резерв», состояние не меняется.\n   - Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый.\n\n3. **Отрицательный доступный остаток (design.md п. 3, spec «Доступное и зарезервированное количество»).** Написано, что `available` не обрезается нулём и после `adjust` может быть отрицательным, а в ошибку передаётся `max(0, available)`. Должно быть так: если физически меньше, чем зарезервировано, `available` показываем 0, а не минус. Формулу «физический остаток минус `reserved`» нужно дополнить этим ограничением, а риск «Отрицательный `available` после `adjust`» убрать."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 178.2,
+      "cost_usd": 0.5205468000000001,
+      "duration_ms": 176366,
+      "num_turns": 21,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 55164,
+        "cache_read_input_tokens": 473188,
+        "output_tokens": 25252,
+        "output_tokens_details": {
+          "thinking_tokens": 1280
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 55164,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 894,
+            "cache_read_input_tokens": 60805,
+            "cache_creation_input_tokens": 295,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 295
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Готово: add-stock-reservations (13/13 задач)\n\nСначала я привёл артефакты в соответствие с тремя замечаниями, потом реализовал все задачи. Весь набор тестов проходит (81, из них новые в `tests/test_reservations.py`). `openspec validate` проходит. `cli.py`, `reports.py` и старые тесты не менялись.\n\n**Правки артефактов** (`specs/stock-reservations/spec.md`, `design.md`, `tasks.md`; `proposal.md` менять не пришлось):\n1. **Продление:** новый срок равен `now + ttl`. Если он не позже текущего `expires_at`, резерв не меняется, `RESERVE_EXTEND` не пишется, возвращается резерв как есть. Сценарий «Успешное продление» переписан, добавлен сценарий «Продление не сокращает срок».\n2. **Повторный резерв на тот же заказ:** для `ACTIVE` и `CONFIRMED` бросается `DuplicateReservationError`, состояние не меняется. Для `EXPIRED` и `CANCELLED` новый резерв полностью заменяет старый. Сценарии обновлены.\n3. **Доступный остаток:** `available = max(0, on_hand - reserved)`. Риск «Отрицательный `available` после `adjust`» убран, добавлен сценарий про физический остаток меньше резерва.\n\n**Реализация:**\n- В `models.py`, `errors.py`, `storage.py`, `__init__.py` добавлены новые типы, ошибки, методы хранения и экспорты.\n- Новый модуль `reservations.py` с `DEFAULT_RESERVATION_TTL`.\n- В `inventory.py` добавлены `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `available`, `reserved`. `issue` и `transfer` теперь проверяют остаток по `available`.\n\n**Допущения** (в артефакты я их не записывал, в `design.md` пока ничего нет):\n- Поля `Reservation`: `order_id`, `lines`, `status`, `created_at`, `expires_at`. Поля `ReservationLine`: `warehouse`, `sku`, `qty`. В задаче поля не были перечислены.\n- Замененный резерв нигде не хранится: история по `order_id` теряется. Журнал событий при этом остаётся.\n\nЗадача 13 (сверка API с proposal и specs) выполнена мной по имени, сигнатурам и событиям, отдельного теста на неё нет. Чтобы закрыть change, запустите `/opsx:archive`."
+    }
+  ]
+}

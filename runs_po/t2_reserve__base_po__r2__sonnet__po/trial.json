@@ -1,0 +1,145 @@
+{
+  "trial_id": "t2_reserve__base_po__r2__sonnet__po",
+  "task": "t2_reserve",
+  "condition": "base_po",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\5a0ce314ea",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\5a0ce314ea\\project",
+  "base_commit": "c49f423cbf4ba27672ca993887b814b3c0a0549b",
+  "po_comments": "1. **`extend`:** в документе срок считается как «старый `expires_at` + `ttl`». Так неверно: продление отсчитывается от момента запроса, то есть новый срок равен текущему моменту плюс `ttl`.\n\n2. **Повторный резерв на тот же заказ (п. 2 «Решения там, где тикет молчит»):** `DuplicateReservationError` для резерва любого статуса, включая отменённый и истёкший, — это неверно. Ошибку нужно давать, только если у заказа есть действующий или подтверждённый резерв. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 103.7,
+      "cost_usd": 0.29217780000000004,
+      "duration_ms": 102000,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 28580,
+        "cache_read_input_tokens": 156158,
+        "output_tokens": 16221,
+        "output_tokens_details": {
+          "thinking_tokens": 2106
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 28580,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1158,
+            "cache_read_input_tokens": 33311,
+            "cache_creation_input_tokens": 1205,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1205
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Резервы в `Inventory` сделаны по тикету, все 43 теста проходят: 40 старых без изменений и 3 новых в `tests/test_reservations.py`. Новые тесты проверяют только основные сценарии: резерв и истечение, `confirm` и `cancel`, валидацию. Остальное (`extend`, `transfer`, разные склады, журнал `RESERVE_CANCEL`/`RESERVE_EXTEND`, граница истечения) я проверил только разовым прогоном вручную или не проверял.\n\nДобавлены модели, ошибки (у всех есть `order_id`) и `warehouse/reservations.py`. Метод `Inventory.reserve` и остальные методы из тикета на месте. `cli.py` и `reports.py` не тронуты, новых зависимостей нет. В публичный API (`warehouse/__init__.py`) я добавил новые имена.\n\n**Как это работает**\n- **TTL по умолчанию:** 15 минут, как в обновлении от 13.10, а не 30 из исходного текста.\n- **Истечение:** считается по часам сервиса при каждом обращении, в журнал не пишется.\n- **Дубли позиций:** строки хранятся как пришли и не склеиваются. Наличие проверяется по сумме строк одной позиции, при `reserve` и при `confirm`.\n- **Окончательные статусы:** `CONFIRMED` и `CANCELLED` истечением не меняются.\n- **`confirm`:** списывает остаток напрямую, а не через `issue`, поэтому собственный резерв ему не мешает. Журнал: `ISSUE` с `ref=<заказ>` по каждой строке, затем `RESERVE_CONFIRM`.\n- **`extend`:** прибавляет `ttl` к текущему `expires_at`, а не к текущему времени.\n\n**Решения там, где тикет молчит**\n1. Резерв истекает ровно в момент `expires_at`: при `now >= expires_at` он уже `EXPIRED`.\n2. `order_id` с уже существующим резервом любого статуса, включая отменённый и истёкший, даёт `DuplicateReservationError`. Заново использовать код заказа нельзя.\n3. `cancel` истёкшего резерва ничего не делает и не пишет в журнал, а возвращает снимок со статусом `EXPIRED`. Если нужен переход в `CANCELLED`, это правится в одном месте.\n4. `transfer` тоже не берёт товар из чужих резервов, потому что в коде его проверка достаточности такая же, как у `issue`.\n5. `available` не опускается ниже 0. Если инвентаризация (`adjust`) уменьшила остаток ниже суммы резервов, вернётся 0, а не отрицательное число.\n6. Если после `adjust` физического остатка не хватает на `confirm`, будет `InsufficientStockError`, и ничего не изменится.\n7. `available` и `reserved` для незарегистрированного SKU бросают `UnknownSkuError`, как `on_hand`.\n8. Резервы хранятся в памяти самого `Inventory`, а не в `InMemoryStore`. Два сервиса на одном хранилище резервов друг друга не увидят.\n9. Время в полях `expires` журнала пишется с точностью до секунды, как все времена в журнале, а в снимке `expires_at` секунды не округляются."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 13.1,
+      "cost_usd": 0.0179294,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2795,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 660,
+        "output_tokens_details": {
+          "thinking_tokens": 432
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2795,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 660,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 2795,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2795
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **`extend`:** в документе срок считается как «старый `expires_at` + `ttl`». Так неверно: продление отсчитывается от момента запроса, то есть новый срок равен текущему моменту плюс `ttl`.\n\n2. **Повторный резерв на тот же заказ (п. 2 «Решения там, где тикет молчит»):** `DuplicateReservationError` для резерва любого статуса, включая отменённый и истёкший, — это неверно. Ошибку нужно давать, только если у заказа есть действующий или подтверждённый резерв. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 19.8,
+      "cost_usd": 0.0542156,
+      "duration_ms": 17862,
+      "num_turns": 5,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 9454,
+        "cache_read_input_tokens": 44236,
+        "output_tokens": 1196,
+        "output_tokens_details": {
+          "thinking_tokens": 52
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 9454,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 313,
+            "cache_read_input_tokens": 14818,
+            "cache_creation_input_tokens": 572,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 572
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Оба замечания исправлены в `warehouse/inventory.py`. Все 43 теста проходят, но новых тестов на эти два случая я не добавлял и вручную их тоже не гонял.\n\n1. **`extend`:** новый срок теперь равен текущему моменту по часам сервиса плюс `ttl`. Раньше `ttl` прибавлялся к старому `expires_at`. В журнале `RESERVE_EXTEND` пишется уже новый срок.\n2. **Повторный `reserve` на тот же `order_id`:** `DuplicateReservationError` выбрасывается, только если прежний резерв сейчас действующий или подтверждённый. Если прежний резерв истёк или отменён, новый его полностью заменяет.\n\nРасчёт «от момента запроса» относится только к `extend`. Если продлевают резерв, который уже истёк, по-прежнему будет `ReservationExpiredError`."
+    }
+  ]
+}

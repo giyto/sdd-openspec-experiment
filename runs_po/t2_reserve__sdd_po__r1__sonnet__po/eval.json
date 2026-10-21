@@ -1,0 +1,288 @@
+{
+  "trial_id": "t2_reserve__sdd_po__r1__sonnet__po",
+  "task": "t2_reserve",
+  "condition": "sdd_po",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "po",
+  "hidden_total": 67,
+  "hidden_passed": 66,
+  "hidden_pass_rate": 0.9851,
+  "req_total": 14,
+  "req_satisfied": 13,
+  "req_status": {
+    "R01": false,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 40,
+  "regress_passed": 40,
+  "own_tests_total": 65,
+  "own_tests_passed": 65,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "README.md",
+    "tests/test_reservations.py",
+    "warehouse/errors.py",
+    "warehouse/inventory.py",
+    "warehouse/models.py",
+    "warehouse/reservations.py",
+    "warehouse/storage.py"
+  ],
+  "loc": {
+    "prod_added": 317,
+    "prod_removed": 7,
+    "test_added": 272,
+    "spec_added": 240,
+    "other_files": [
+      "README.md"
+    ]
+  },
+  "new_test_funcs": 23,
+  "changed_funcs": 27,
+  "cc_mean": 2.19,
+  "cc_max": 8,
+  "funcs_cc_gt10": 0,
+  "cost_usd": 0.9416,
+  "wall_s": 314.6,
+  "num_turns": 30,
+  "output_tokens": 46684,
+  "input_tokens_total": 839165,
+  "session_rcs": [
+    0,
+    0,
+    0
+  ],
+  "session_subtypes": [
+    "success",
+    "success",
+    "success"
+  ],
+  "hidden_by_func": {
+    "test_API_cli_scenario_still_works": [
+      true
+    ],
+    "test_API_constructor_signature_unchanged": [
+      true
+    ],
+    "test_API_issue_shortage_without_reservations": [
+      true
+    ],
+    "test_API_old_event_lines_unchanged": [
+      true
+    ],
+    "test_API_old_operations_return_values": [
+      true
+    ],
+    "test_R01_accepts_reservation_line_objects": [
+      true
+    ],
+    "test_R01_default_ttl_is_15_minutes": [
+      true
+    ],
+    "test_R01_rejects_bad_order_id_and_empty_lines": [
+      true
+    ],
+    "test_R01_rejects_bad_ttl": [
+      true,
+      true,
+      true
+    ],
+    "test_R01_reserve_returns_active_snapshot": [
+      false
+    ],
+    "test_R02_bad_quantity_reserves_nothing": [
+      true
+    ],
+    "test_R02_failed_reserve_leaves_no_order": [
+      true
+    ],
+    "test_R02_shortage_reserves_nothing": [
+      true
+    ],
+    "test_R02_unknown_sku_reserves_nothing": [
+      true
+    ],
+    "test_R03_confirm_checks_sum_of_lines": [
+      true
+    ],
+    "test_R03_duplicate_positions_fit_when_sum_fits": [
+      true
+    ],
+    "test_R03_duplicate_positions_summed_on_reserve": [
+      true
+    ],
+    "test_R03_same_sku_in_different_warehouses_is_not_merged": [
+      true
+    ],
+    "test_R04_available_is_on_hand_minus_active_reservations": [
+      true
+    ],
+    "test_R04_registered_sku_without_stock": [
+      true
+    ],
+    "test_R04_reserve_checks_available_not_on_hand": [
+      true
+    ],
+    "test_R04_unknown_sku": [
+      true
+    ],
+    "test_R05_active_until_just_before_expiry": [
+      true
+    ],
+    "test_R05_expired_exactly_at_expires_at": [
+      true
+    ],
+    "test_R05_expired_reservation_frees_stock_for_new_order": [
+      true
+    ],
+    "test_R05_expiry_writes_no_events": [
+      true
+    ],
+    "test_R05_terminal_statuses_survive_ttl": [
+      true
+    ],
+    "test_R06_confirm_just_before_expiry": [
+      true
+    ],
+    "test_R06_confirm_ships_all_lines": [
+      true
+    ],
+    "test_R06_confirm_works_when_everything_is_reserved": [
+      true
+    ],
+    "test_R06_confirmed_reservation_is_not_double_counted": [
+      true
+    ],
+    "test_R07_confirm_cancelled_rejected": [
+      true
+    ],
+    "test_R07_confirm_expired_raises_and_changes_nothing": [
+      true
+    ],
+    "test_R07_confirm_twice_ships_once": [
+      true
+    ],
+    "test_R07_confirm_unknown_order": [
+      true
+    ],
+    "test_R08_cancel_confirmed_rejected": [
+      true
+    ],
+    "test_R08_cancel_expired_is_noop": [
+      true
+    ],
+    "test_R08_cancel_is_idempotent": [
+      true
+    ],
+    "test_R08_cancel_releases_stock": [
+      true
+    ],
+    "test_R08_cancel_unknown_order": [
+      true
+    ],
+    "test_R09_extend_bad_ttl": [
+      true
+    ],
+    "test_R09_extend_confirmed_or_cancelled_rejected": [
+      true
+    ],
+    "test_R09_extend_counts_from_now": [
+      true
+    ],
+    "test_R09_extend_expired_rejected": [
+      true
+    ],
+    "test_R09_extend_never_shortens": [
+      true
+    ],
+    "test_R10_duplicate_active_rejected": [
+      true
+    ],
+    "test_R10_duplicate_confirmed_rejected": [
+      true
+    ],
+    "test_R10_reserve_again_after_cancel_replaces": [
+      true
+    ],
+    "test_R10_reserve_again_after_expiry_replaces": [
+      true
+    ],
+    "test_R11_all_lines_parse_back": [
+      true
+    ],
+    "test_R11_cancel_and_extend_events": [
+      true
+    ],
+    "test_R11_confirm_writes_issue_per_line_then_confirm": [
+      true
+    ],
+    "test_R11_failed_operations_write_nothing": [
+      true
+    ],
+    "test_R11_reserve_event_lines_exact": [
+      true
+    ],
+    "test_R12_expired_reservations_do_not_block_issue": [
+      true
+    ],
+    "test_R12_issue_cannot_take_reserved_stock": [
+      true
+    ],
+    "test_R12_reservations_elsewhere_do_not_block": [
+      true
+    ],
+    "test_R12_transfer_respects_source_reservations": [
+      true
+    ],
+    "test_R13_adjust_below_reservations_available_is_zero": [
+      true
+    ],
+    "test_R13_confirm_succeeds_after_restock": [
+      true
+    ],
+    "test_R13_confirm_with_physical_shortage_is_atomic": [
+      true
+    ],
+    "test_R13_issue_blocked_when_on_hand_below_reservations": [
+      true
+    ],
+    "test_R14_low_stock_uses_physical_quantities": [
+      true
+    ],
+    "test_R14_movement_summary_counts_confirmed_orders_as_issued": [
+      true
+    ],
+    "test_R14_on_hand_and_stock_levels_stay_physical": [
+      true
+    ]
+  },
+  "hidden_out_tail": "F..................................................................      [100%]\n================================== FAILURES ===================================\n__________________ test_R01_reserve_returns_active_snapshot ___________________\n\ninv = <warehouse.inventory.Inventory object at 0x000001B17AA32120>\n\n    def test_R01_reserve_returns_active_snapshot(inv):\n        r = inv.reserve(\"SO-1\", [(\"MAIN\", \"BOLT-M8\", 3), (\"NORTH\", \"BOLT-M8\", 1)], ttl=10 * MIN)\n        assert r.order_id == \"SO-1\"\n        assert r.status == S().ACTIVE\n>       assert r.status == \"active\"\nE       AssertionError: assert <ReservationStatus.ACTIVE: 'ACTIVE'> == 'active'\nE        +  where <ReservationStatus.ACTIVE: 'ACTIVE'> = Reservation(order_id='SO-1', lines=(ReservationLine(warehouse='MAIN', sku='BOLT-M8', qty=3), ReservationLine(warehouse..., 10, 0, tzinfo=datetime.timezone.utc), expires_at=datetime.datetime(2026, 3, 1, 10, 10, tzinfo=datetime.timezone.utc)).status\n\ntests_hidden\\test_hidden.py:46: AssertionError\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0a457bcce9\\project\\_hidden.xml -\n=========================== short test summary info ===========================\nFAILED tests_hidden/test_hidden.py::test_R01_reserve_returns_active_snapshot\n1 failed, 66 passed in 0.52s\n",
+  "decisions_total": 5,
+  "decisions_ok": 5,
+  "decision_status": {
+    "D1": true,
+    "D2": true,
+    "D3": true,
+    "D4": true,
+    "D5": true
+  },
+  "non_decision_pass_rate": 0.9787,
+  "po_comments_n": 2
+}

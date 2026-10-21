@@ -1,0 +1,145 @@
+{
+  "trial_id": "t3_import__sdd_po_rules__r3__sonnet__po",
+  "task": "t3_import",
+  "condition": "sdd_po_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e3c6b26b8c",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e3c6b26b8c\\project",
+  "base_commit": "63a842c4d75b2062cb23feed460c3ac5c9466fb8",
+  "po_comments": "1. **Формат «Сфера, раздельные колонки» (Приход/Расход).** В документе «ровно одна из колонок должна быть заполнена, иначе ошибка строки». Из-за этого строка с `0,00` в одной колонке и суммой в другой станет ошибочной. Должно быть иначе: `0,00` в неиспользуемой колонке равно пустой колонке, и такая строка — обычный расход (или приход).\n\n2. **Определение формата по заголовку («Сфера»).** Документ допускает только фиксированный набор и порядок колонок (`Дата;Сумма;Описание` и `Дата;Описание;Приход;Расход`). Нестрогость есть только по регистру и краевым пробелам. Этого мало: в разных версиях выгрузки порядок колонок разный, и бывают лишние колонки («Номер карты», «Остаток»). Должно быть так: нужные колонки ищутся по названию (без учёта регистра и пробелов по краям) в любом порядке. Лишние колонки не читаются, и заголовок с ними не считается нераспознанным. Строки с лишними колонками тоже не должны считаться ошибкой «неверное число полей».",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 151.7,
+      "cost_usd": 0.40170009999999995,
+      "duration_ms": 149951,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 42713,
+        "cache_read_input_tokens": 293081,
+        "output_tokens": 20150,
+        "output_tokens_details": {
+          "thinking_tokens": 2394
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 42713,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 926,
+            "cache_read_input_tokens": 48386,
+            "cache_creation_input_tokens": 263,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 263
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все четыре артефакта готовы, `openspec validate add-sfera-statement-import --strict` проходит без замечаний. Код проекта не менялся, в git добавилась только папка `openspec/changes/`.\n\nИзменение называется `add-sfera-statement-import` и лежит в `openspec/changes/add-sfera-statement-import/`:\n- **`proposal.md`**: зачем нужно изменение и что меняется. Публичный API из задачи перенесён дословно. Новая capability — `statement-import`.\n- **`specs/statement-import/spec.md`**: 13 требований со сценариями. Они покрывают формат, кодировку, три формата выписок, мусорные строки, ошибки строк, `strict`, дубли, атомарную запись, совместимость `import_csv` и исключения.\n- **`design.md`**: решения и список допущений. Разбор и дедупликация идут целиком в памяти, затем одна запись через `add_many`. `import_csv` становится тонкой обёрткой над новым кодом.\n- **`tasks.md`**: 6 групп задач, у каждой указано, как проверить. Последняя задача — сверка публичного API с proposal и specs, как требует `config.yaml`.\n\nДопущения, которые я принял сам, раз спросить было некого:\n- **Дубли поштучно:** каждая запись в хранилище «гасит» не более одной строки файла. Две одинаковые покупки в одном файле добавляются обе, а повторный импорт того же файла даёт `added=0`.\n- **Сравнение описаний:** `normalize_description` — это обёртка над `rules.normalize_text`, чтобы в проекте была одна реализация сравнения.\n- **Заголовок и `fmt`:** заголовок всегда в первой строке файла, названия колонок сравниваются без учёта регистра. Неизвестное значение `fmt` даёт `UnknownFormatError`.\n- **Кодировка:** файл, который не читается ни как UTF-8, ни как cp1251, тоже даёт `UnknownFormatError`.\n- **Пробелы в суммах:** кроме обычного и неразрывного (U+00A0) пробела допустим U+202F. В датах и суммах принимаются только ASCII-цифры.\n- **`import_csv`:** работает как `fmt=\"nova\"` со `strict=True`. Сигнатура и тип результата прежние, но он теперь пропускает дубли и не считает их в результате (CLI покажет только реально добавленные операции), читает файлы с BOM и не оставляет частичных записей при ошибке. Старые тесты это не ломает.\n\nАртефакты готовы к проверке. Когда будете готовы приступить к реализации, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 21.5,
+      "cost_usd": 0.0547174,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 10697,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 1178,
+        "output_tokens_details": {
+          "thinking_tokens": 774
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 10697,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1178,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 10697,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 10697
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Формат «Сфера, раздельные колонки» (Приход/Расход).** В документе «ровно одна из колонок должна быть заполнена, иначе ошибка строки». Из-за этого строка с `0,00` в одной колонке и суммой в другой станет ошибочной. Должно быть иначе: `0,00` в неиспользуемой колонке равно пустой колонке, и такая строка — обычный расход (или приход).\n\n2. **Определение формата по заголовку («Сфера»).** Документ допускает только фиксированный набор и порядок колонок (`Дата;Сумма;Описание` и `Дата;Описание;Приход;Расход`). Нестрогость есть только по регистру и краевым пробелам. Этого мало: в разных версиях выгрузки порядок колонок разный, и бывают лишние колонки («Номер карты», «Остаток»). Должно быть так: нужные колонки ищутся по названию (без учёта регистра и пробелов по краям) в любом порядке. Лишние колонки не читаются, и заголовок с ними не считается нераспознанным. Строки с лишними колонками тоже не должны считаться ошибкой «неверное число полей»."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 156.0,
+      "cost_usd": 0.4446673,
+      "duration_ms": 154210,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 47062,
+        "cache_read_input_tokens": 388273,
+        "output_tokens": 21754,
+        "output_tokens_details": {
+          "thinking_tokens": 1412
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 47062,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 679,
+            "cache_read_input_tokens": 51581,
+            "cache_creation_input_tokens": 1417,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1417
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 11 задач выполнены и отмечены в `tasks.md`. `python -m pytest -q` проходит: 89 тестов, из них 41 прежний без изменений. `cli.py` и `reports.py` не тронуты.\n\n**Артефакты по замечаниям** (proposal, specs, design, tasks):\n1. **`sfera_split`, нули.** `0,00` или `0` в колонке «Приход»/«Расход» считается пустой колонкой. Строка с нулём в одной колонке и суммой в другой — обычный расход или приход. Ошибка остаётся в трёх случаях: обе колонки ненулевые, обе пустые или нулевые, сумма со знаком.\n2. **Заголовок по названиям колонок.** Нужные колонки ищутся по названию (без учёта регистра и краевых пробелов) в любом порядке. Лишние колонки не читаются и не делают заголовок нераспознанным. В строке данных лишние поля тоже игнорируются. «Неверное число полей» остаётся только когда в строке нет какой-либо из нужных колонок.\n\n**Реализация:**\n- В `ledger/errors.py` добавлены `UnknownFormatError` и `StatementRowError` (у второго `line_no` обязателен).\n- В `ledger/importer.py` теперь `import_statement`, `detect_format`, `normalize_description`, `ImportResult` и `RowError`. `import_csv` стал обёрткой над `import_statement`.\n- Новые тесты лежат в `tests/test_statement_import.py`. В `README.md` описаны форматы «Сферы» и импорт.\n\n**Решения, которых не было в замечаниях** (записаны в `design.md` и `spec.md`):\n- Если в заголовке есть «Сумма» вместе с «Приход»/«Расход», формат определяется как `sfera`.\n- При повторе названия колонки берётся первая.\n\nИзменения не закоммичены. Менять change можно теперь только через `/opsx:archive`."
+    }
+  ]
+}

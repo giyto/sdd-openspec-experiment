@@ -1,0 +1,145 @@
+{
+  "trial_id": "t4_retry__sdd_po_rules__r1__sonnet__po",
+  "task": "t4_retry",
+  "condition": "sdd_po_rules",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\52099f2986",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\52099f2986\\project",
+  "base_commit": "1b992cfbba2105d2dc855d1cde8c86c63c4826d7",
+  "po_comments": "1. **Счётчик попыток при возврате из dead-letter** (design.md, п. 6; proposal.md, «Допущения» и «Risks»; spec dead-letter, требование «Возврат из dead-letter»). В документе `attempts` при `requeue_dead_letter` не сбрасывается, и вернувшееся задание после первой же повторяемой ошибки снова попадёт в dead-letter. Так быть не должно. При ручном возврате счётчик попыток начинается заново, и у задания снова полный набор попыток, как у нового. Нужно убрать «`attempts` не меняется» из спеки и допущений, а риск про повторное попадание в dead-letter снять.\n\n2. **Джиттер и максимальная задержка** (design.md, п. 2; spec retry-policy, требование «Расчёт задержки delay_for» и сценарий «Jitter применяется после ограничения»). В документе джиттер умножает уже ограниченную задержку, поэтому результат может превысить `max_delay`. В сценарии при `max_delay=10` получается 12. Так быть не должно: `max_delay` — жёсткий потолок, и джиттер его тоже не превышает. Если с разбросом выходит больше максимума, ждём ровно `max_delay`. Сценарий нужно исправить: ожидаемый результат 10, а не 12.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 230.2,
+      "cost_usd": 0.5467883999999998,
+      "duration_ms": 228257,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 54875,
+        "cache_read_input_tokens": 413604,
+        "output_tokens": 28588,
+        "output_tokens_details": {
+          "thinking_tokens": 3587
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54875,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1150,
+            "cache_read_input_tokens": 60449,
+            "cache_creation_input_tokens": 362,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 362
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-job-retry-dead-letter` спланировано: все четыре артефакта созданы, `openspec validate --strict` проходит. Код проекта не менялся, в git добавлена только папка `openspec/changes/`. Тесты не запускал, потому что реализации ещё нет.\n\nАртефакты лежат в `openspec/changes/add-job-retry-dead-letter/`:\n- **`proposal.md`** — зачем и что меняется. API перенесён дословно, в конце список допущений.\n- **`specs/`** — три новые capability со сценариями:\n  - `retry-policy` — параметры и валидация, `delay_for` (без `OverflowError`, при `base_delay=0` результат 0), `is_retryable`, `PermanentJobError`.\n  - `job-retry` — политики очереди и типа, решение воркера, использование `rng`, статусы, счётчик `jobs.retried`.\n  - `dead-letter` — `DeadLetterEntry`, `dead_letters()`, `requeue_dead_letter`, счётчики.\n- **`design.md`** — решения по реализации и риски.\n- **`tasks.md`** — 5 групп задач с проверкой в каждой. Последняя задача сверяет публичный API с proposal и specs.\n\nИсходя из обсуждения в тикете, зафиксировал такие правила:\n- **Порядок решения воркера:** нет политики → `FAILED`; неповторяемая ошибка → `FAILED` (даже на последней попытке); `attempts >= max_attempts` → `DEAD_LETTERED`; иначе `RETRY_SCHEDULED`.\n- **Особые случаи:** `max_attempts=1` ведёт в dead-letter. Задание без обработчика сразу получает `FAILED`.\n- **Политика:** берётся в момент ошибки. Политика типа заменяет дефолт целиком, без слияния.\n- **`rng`:** используется только при реальном планировании повтора, один `uniform` на задержку.\n\nДопущения, которых в тикете нет:\n- `retry_policy_for` возвращает действующую политику: политику типа, а если её нет — дефолт очереди.\n- `requeue_dead_letter` не сбрасывает `attempts`. Вернувшееся задание после первой же повторяемой ошибки снова попадёт в dead-letter, если не увеличить `max_attempts`.\n- `cancel` разрешён для `RETRY_SCHEDULED`, но не для `DEAD_LETTERED`.\n- `purge_finished` не удаляет `DEAD_LETTERED`, иначе запись в dead-letter осталась бы без задания.\n- `mark_succeeded` очищает `error`, чтобы после успешного повтора у `SUCCEEDED` не осталось старой ошибки.\n\nОставшиеся допущения (поведение `rng` по умолчанию, хранение dead-letter в памяти) записаны в `proposal.md` и `design.md`.\n\n`dashboard.py` и `cli.py` менять не нужно: отчёт перебирает `JobStatus`, поэтому подписи «Ожидает повтора» и «В dead-letter» появятся в нём сами. В `store.py` изменение нужно, потому что `due` сейчас выбирает только `PENDING`.\n\nАртефакты готовы к review. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 12.3,
+      "cost_usd": 0.0696234,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 15471,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 759,
+        "output_tokens_details": {
+          "thinking_tokens": 303
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 15471,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 759,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 15471,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 15471
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Счётчик попыток при возврате из dead-letter** (design.md, п. 6; proposal.md, «Допущения» и «Risks»; spec dead-letter, требование «Возврат из dead-letter»). В документе `attempts` при `requeue_dead_letter` не сбрасывается, и вернувшееся задание после первой же повторяемой ошибки снова попадёт в dead-letter. Так быть не должно. При ручном возврате счётчик попыток начинается заново, и у задания снова полный набор попыток, как у нового. Нужно убрать «`attempts` не меняется» из спеки и допущений, а риск про повторное попадание в dead-letter снять.\n\n2. **Джиттер и максимальная задержка** (design.md, п. 2; spec retry-policy, требование «Расчёт задержки delay_for» и сценарий «Jitter применяется после ограничения»). В документе джиттер умножает уже ограниченную задержку, поэтому результат может превысить `max_delay`. В сценарии при `max_delay=10` получается 12. Так быть не должно: `max_delay` — жёсткий потолок, и джиттер его тоже не превышает. Если с разбросом выходит больше максимума, ждём ровно `max_delay`. Сценарий нужно исправить: ожидаемый результат 10, а не 12."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 189.2,
+      "cost_usd": 0.5738567,
+      "duration_ms": 187256,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 60853,
+        "cache_read_input_tokens": 588207,
+        "output_tokens": 27156,
+        "output_tokens_details": {
+          "thinking_tokens": 1115
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 60853,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 858,
+            "cache_read_input_tokens": 65635,
+            "cache_creation_input_tokens": 1154,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1154
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-job-retry-dead-letter (schema: spec-driven)\n**Progress:** 16/16 tasks complete ✓\n\nВсе 76 тестов проходят (36 старых без изменений и 40 новых в `tests/test_retry.py`). `openspec validate` проходит. `dashboard.py`, `cli.py` и старые тесты не тронуты. Отчёт показывает подписи «Ожидает повтора» и «В dead-letter».\n\n### Правки артефактов по замечаниям\n1. **`attempts` при возврате из dead-letter.**\n   - В proposal, design и spec dead-letter убрано «`attempts` не меняется»: при `requeue_dead_letter` счётчик сбрасывается в 0.\n   - В design снят риск про повторное попадание в dead-letter.\n   - В spec добавлен сценарий «Полный набор попыток после возврата».\n   - В tasks.md уточнена задача 3.4.\n2. **Джиттер и `max_delay`.**\n   - Результат с джиттером теперь ограничивается `max_delay` повторно (`min(delay * uniform, max_delay)`).\n   - Сценарий в spec retry-policy исправлен: при `uniform = 1.2` и `max_delay=10` результат 10, а не 12.\n   - Добавлен сценарий, где джиттер уменьшает задержку (8).\n   - Правки внесены в design и задачу 2.2.\n\n### Реализация\n- **Новый код:** `jobq/retry.py` (`RetryPolicy`) и `PermanentJobError`.\n- **Статусы и записи:** статусы `RETRY_SCHEDULED` и `DEAD_LETTERED`, `DeadLetterEntry`.\n- **Очередь:** политики и dead-letter в `JobQueue`, новые переходы.\n- **Воркер и хранилище:** `rng` и решение при падении обработчика в `Worker`, выборка заданий с `RETRY_SCHEDULED` в `InMemoryJobStore.due`.\n- **Метрики и экспорт:** счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued` и экспорт новых имён из `jobq`.\n- **README:** добавлен раздел о повторах и dead-letter.\n\nНеоднозначных мест, требующих отдельного решения, не встретилось, поэтому в design.md сверх замечаний ничего не добавлял. Можно архивировать: `/opsx:archive`."
+    }
+  ]
+}

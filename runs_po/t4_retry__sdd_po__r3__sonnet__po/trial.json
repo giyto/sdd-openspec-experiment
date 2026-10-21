@@ -1,0 +1,145 @@
+{
+  "trial_id": "t4_retry__sdd_po__r3__sonnet__po",
+  "task": "t4_retry",
+  "condition": "sdd_po",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9f54ecf60c",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9f54ecf60c\\project",
+  "base_commit": "fe52f2cb1e4ba5979449264bfa1ba3688794d368",
+  "po_comments": "1. **Сброс счётчика попыток при возврате из dead-letter.** В документе сказано обратное: в Non-Goals и в допущениях `attempts` не сбрасывается, а в спецификации `requeue_dead_letter` написано, что `attempts` сохраняется. Допущение о том, что возвращённое задание при первом же падении снова попадёт в dead-letter, тоже неверно. Должно быть так: при возврате счётчик попыток обнуляется, и у задания снова полный набор попыток, как у нового. Сброс нужно сделать в рамках этой задачи, а не отдельным тикетом. Из спецификации, сценария «Успешный возврат» и сквозного теста нужно убрать «`attempts` сохраняется».\n\n2. **Jitter и максимальная задержка.** В документе jitter может поднять задержку выше `max_delay` (до `max_delay * (1 + jitter)`), а сценарий «Jitter применяется после ограничения» ожидает `90` при `max_delay=60`. Это неверно: `max_delay` — жёсткий потолок, и jitter его тоже не превышает. Если с разбросом выходит больше, ждём ровно `max_delay`. В этом сценарии результат должен быть `60`, а пункт в «Рисках» и тест, который закрепляет превышение, нужно убрать.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 161.4,
+      "cost_usd": 0.46529289999999995,
+      "duration_ms": 159640,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 51254,
+        "cache_read_input_tokens": 321469,
+        "output_tokens": 22809,
+        "output_tokens_details": {
+          "thinking_tokens": 2829
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 51254,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 947,
+            "cache_read_input_tokens": 56707,
+            "cache_creation_input_tokens": 483,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 483
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал изменение `add-job-retry-dead-letter` со всеми четырьмя артефактами. `openspec validate --strict` проходит, код проекта не менялся.\n\nАртефакты лежат в `openspec/changes/add-job-retry-dead-letter/`:\n- **`proposal.md`**: зачем нужно изменение и что меняется. Описаны две новые возможности (`job-retry`, `dead-letter`). Они оформлены как новые, потому что в `openspec/specs` пока пусто.\n- **`specs/job-retry/spec.md`**: валидация `RetryPolicy`, расчёт задержки без `OverflowError`, классификация ошибок, выбор политики и решение воркера при падении. Ответы из обсуждения тикета записаны как сценарии:\n  - `max_attempts=1` ведёт в dead-letter;\n  - неповторяемая ошибка даёт `FAILED` даже на последней попытке;\n  - при отсутствии обработчика сразу `FAILED`;\n  - `rng` трогается только при реальном планировании повтора;\n  - политика типа заменяет дефолт целиком и берётся на момент ошибки.\n- **`specs/dead-letter/spec.md`**: запись `DeadLetterEntry`, `requeue_dead_letter`, сохранность заданий dead-letter и три новых счётчика.\n- **`design.md`**: решения по реализации, допущения и риски.\n- **`tasks.md`**: 5 групп задач, у каждой указана проверка.\n\nРешения, которых в тикете нет (все записаны как допущения в `design.md`):\n- **Сброс попыток:** `attempts` при `requeue_dead_letter` не сбрасывается, потому что в тикете перечислены только другие поля. Если политика осталась прежней, вернувшееся задание при первом же падении снова попадёт в dead-letter. Если нужно иначе, это стоит решить до реализации.\n- **Отмена:** `cancel` разрешён для `RETRY_SCHEDULED` и запрещён для `DEAD_LETTERED`.\n- **Терминальность:** новые статусы не терминальные, поэтому `purge_finished` не удалит запись dead-letter.\n- **Ошибки `requeue_dead_letter`:** для неизвестного id выбрасывается `JobNotFoundError`, для задания не в dead-letter — `InvalidTransitionError`.\n- **Новые статусы в отчёте:** `dashboard.py` не меняется, потому что отчёт берёт подписи из `JobStatus.label`. `failure_rate` dead-letter не учитывает, это стоит передать команде-владельцу dashboard.\n\nАртефакты готовы к ревью. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 13.8,
+      "cost_usd": 0.0570414,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 12373,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 740,
+        "output_tokens_details": {
+          "thinking_tokens": 282
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12373,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 740,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 12373,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 12373
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Сброс счётчика попыток при возврате из dead-letter.** В документе сказано обратное: в Non-Goals и в допущениях `attempts` не сбрасывается, а в спецификации `requeue_dead_letter` написано, что `attempts` сохраняется. Допущение о том, что возвращённое задание при первом же падении снова попадёт в dead-letter, тоже неверно. Должно быть так: при возврате счётчик попыток обнуляется, и у задания снова полный набор попыток, как у нового. Сброс нужно сделать в рамках этой задачи, а не отдельным тикетом. Из спецификации, сценария «Успешный возврат» и сквозного теста нужно убрать «`attempts` сохраняется».\n\n2. **Jitter и максимальная задержка.** В документе jitter может поднять задержку выше `max_delay` (до `max_delay * (1 + jitter)`), а сценарий «Jitter применяется после ограничения» ожидает `90` при `max_delay=60`. Это неверно: `max_delay` — жёсткий потолок, и jitter его тоже не превышает. Если с разбросом выходит больше, ждём ровно `max_delay`. В этом сценарии результат должен быть `60`, а пункт в «Рисках» и тест, который закрепляет превышение, нужно убрать."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 151.5,
+      "cost_usd": 0.4457323,
+      "duration_ms": 149568,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 50492,
+        "cache_read_input_tokens": 452923,
+        "output_tokens": 19842,
+        "output_tokens_details": {
+          "thinking_tokens": 838
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 50492,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 781,
+            "cache_read_input_tokens": 55737,
+            "cache_creation_input_tokens": 691,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 691
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: add-job-retry-dead-letter\n\nВсе 19 из 19 задач выполнены, `python -m pytest -q` проходит: 88 тестов, из них 41 новый в `tests/test_retry.py`. Файлы `dashboard.py`, `cli.py` и существующие тесты не менялись.\n\n### Правки артефактов по замечаниям\nИзменены proposal, design, оба spec и tasks.\n1. **Сброс попыток.** `requeue_dead_letter` теперь обнуляет `attempts`, и у задания снова полный набор попыток.\n   - Из Non-Goals и допущений убраны слова про «не сбрасывается» и про отдельный тикет.\n   - Из спецификации и сценария «Успешный возврат» убрано «`attempts` сохраняется».\n   - Добавлен сценарий «Полный набор попыток после возврата» и проверка в сквозном тесте.\n2. **Jitter и `max_delay`.** `max_delay` стал жёстким потолком: результат равен `min(delay * uniform, max_delay)`, а к `rng` по-прежнему одно обращение.\n   - Сценарий теперь ожидает `60` вместо `90`, добавлен сценарий «Jitter уменьшает задержку».\n   - Пункт в «Рисках» убран. Теста, закреплявшего превышение, в tasks не было, поэтому вместо него в задачу 2.2 добавлена проверка потолка.\n\n### Решения, принятые без вопросов\n- **Очистка `error` при успехе.** Сквозной тест показал, что после успешных повторов в `error` оставался текст прошлой ошибки. Это нарушало инвариант `Job` («у SUCCEEDED `error` всегда `None`») и требование задачи 4.4. Теперь `mark_succeeded` очищает `error`. Решение записано в design.md.\n- **Защита от переполнения.** В воркере секунды задержки ограничены 3·10⁹, чтобы `timedelta` не падал на огромном `max_delay`. Проверено тестом с `1e20`.\n- **`DeadLetterEntry.attempts`.** Запись хранит число попыток на момент попадания в dead-letter. После возврата задания запись удаляется.\n\nКоммитов я не делал."
+    }
+  ]
+}

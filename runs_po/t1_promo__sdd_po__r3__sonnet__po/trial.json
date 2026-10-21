@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__sdd_po__r3__sonnet__po",
+  "task": "t1_promo",
+  "condition": "sdd_po",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e6f5f6f34e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e6f5f6f34e\\project",
+  "base_commit": "7a2f0addb4049fd980f4fac29176723c6342a97b",
+  "po_comments": "1. **Порог бесплатной доставки.** Документ считает его по сумме товаров до скидки. Это есть в design.md (решение 7, допущения), в spec promo-pricing (требование «Размер скидки», сценарий «Доставка не меняется») и в tasks.md (3.3). Это неверно. Порог нужно сравнивать с суммой товаров после скидки, иначе покупатели будут добирать до порога промокодом. Скидка по-прежнему не уменьшает саму стоимость доставки. В сценарии «Доставка не меняется» при сумме 3100.00 и скидке ниже порога доставка уже не бесплатна.\n\n2. **Отмена заказа.** Документ исключает возврат использования: в Non-goals, в рисках, в допущениях и в spec promo-orders («Отмена заказа счётчик не уменьшает»). Это неверно. При отмене заказа с промокодом использование возвращается, счётчик уменьшается на один, чтобы поддержка могла переоформить клиенту заказ с лимитированным кодом. Это входит в задачу, а не выносится за рамки.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 157.7,
+      "cost_usd": 0.43111320000000003,
+      "duration_ms": 155837,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 46682,
+        "cache_read_input_tokens": 221832,
+        "output_tokens": 22217,
+        "output_tokens_details": {
+          "thinking_tokens": 2700
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 46682,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 833,
+            "cache_read_input_tokens": 52246,
+            "cache_creation_input_tokens": 372,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 372
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-promo-codes` создано в `openspec/changes/add-promo-codes/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта я не менял, в git появилась только папка `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` описывает зачем нужны промокоды, что меняется и какие три новые возможности добавляются. Обратная совместимость сохраняется.\n- `specs/promo-codes/spec.md` описывает определение кода, срок `[starts_at, expires_at)`, реестр, порядок проверок и учёт использований.\n- `specs/promo-pricing/spec.md` описывает участвующие строки, размер скидки, раскладку по строкам без остатка, налог после скидки и условия заказа.\n- `specs/promo-orders/spec.md` описывает `quote`/`place_order`, пустой код как «нет кода», `Order.promo_code` и момент учёта использования.\n- `design.md` содержит решения, риски и список допущений.\n- `tasks.md` разбит на 5 групп, у каждой задачи указано, как проверить её выполнение.\n\n**Допущения, которых нет в тикете** (все записаны в `design.md`)\n- **Минимальная сумма заказа:** сравнивается с суммой участвующих строк до скидки, нестрого (`>=`).\n- **Нет участвующих строк** (например, в корзине только сертификаты): `PromoConditionsError`.\n- **Доставка:** стоимость и порог бесплатной доставки считаются по сумме до скидки.\n- **Раскладка скидки:** по строкам, в копейках, методом наибольших остатков. При равных остатках лишняя копейка достаётся строке, которая раньше в корзине.\n- **Метод `redeem(code)`:** добавлен в реестр сверх API тикета. Он под блокировкой повторно проверяет код и засчитывает использование, чтобы лимит не превышался. Порядок в `place_order`: `resolve`, `calculate_total`, `redeem`, `next_id`, `store.add`.\n- **Отмена заказа:** счётчик использований не уменьшает.\n- **Неизвестный код:** `uses()` для него выбрасывает `UnknownPromoCodeError`. Непустой код без реестра тоже неизвестен.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 11.3,
+      "cost_usd": 0.047679400000000004,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 10125,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 703,
+        "output_tokens_details": {
+          "thinking_tokens": 324
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 10125,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 703,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 10125,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 10125
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Порог бесплатной доставки.** Документ считает его по сумме товаров до скидки. Это есть в design.md (решение 7, допущения), в spec promo-pricing (требование «Размер скидки», сценарий «Доставка не меняется») и в tasks.md (3.3). Это неверно. Порог нужно сравнивать с суммой товаров после скидки, иначе покупатели будут добирать до порога промокодом. Скидка по-прежнему не уменьшает саму стоимость доставки. В сценарии «Доставка не меняется» при сумме 3100.00 и скидке ниже порога доставка уже не бесплатна.\n\n2. **Отмена заказа.** Документ исключает возврат использования: в Non-goals, в рисках, в допущениях и в spec promo-orders («Отмена заказа счётчик не уменьшает»). Это неверно. При отмене заказа с промокодом использование возвращается, счётчик уменьшается на один, чтобы поддержка могла переоформить клиенту заказ с лимитированным кодом. Это входит в задачу, а не выносится за рамки."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 161.8,
+      "cost_usd": 0.5285736999999999,
+      "duration_ms": 157185,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 54412,
+        "cache_read_input_tokens": 490937,
+        "output_tokens": 26178,
+        "output_tokens_details": {
+          "thinking_tokens": 1293
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54412,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1025,
+            "cache_read_input_tokens": 59727,
+            "cache_creation_input_tokens": 621,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 621
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-promo-codes (schema: spec-driven)\n**Progress:** 10/10 tasks complete. Task 4.3 is new, for the cancellation return. `python -m pytest -q` shows 93 passed, and `openspec validate` passes. `git diff` shows no changes to existing tests, `shop/cli.py` or `shop/reports.py`.\n\n### Артефакты по замечаниям\n1. **Порог бесплатной доставки.** Теперь он сравнивается с суммой товаров после скидки.\n   - Правки внесены в design.md (решение 7 и допущения), spec promo-pricing, tasks.md (3.3) и proposal.\n   - Сама стоимость доставки скидкой не уменьшается.\n   - Сценарий «Доставка не меняется» заменён: при 3100.00 и скидке ниже порога доставка платная (299.00). Добавлен сценарий, где после скидки порог достигнут и доставка бесплатна.\n2. **Отмена заказа.** Использование теперь возвращается, счётчик уменьшается на один.\n   - Убрано из Non-goals, рисков и допущений. В design.md добавлены решение 10 и `release`.\n   - В promo-orders вместо «не уменьшает» добавлено требование «Отмена заказа возвращает использование» со сценариями. В promo-codes описан `release`.\n   - В tasks.md добавлена задача 4.3, в 2.2 добавлен `release`.\n\n### Код\n- **Ошибки и реестр.** В `shop/errors.py` добавлены исключения промокодов. В новом `shop/promo.py` лежат `DiscountKind`, `PromoCode` и `PromoRegistry` с методами `add`, `resolve`, `uses`, `redeem`, `release`.\n- **Расчёт.** В `shop/pricing.py` скидка раскладывается по строкам методом наибольших остатков, налог считается с суммы после скидки, а порог доставки проверяется по `subtotal - discount`.\n- **Заказы.** В `shop/orders.py` `quote` и `place_order` принимают `promo_code`. `cancel` вызывает `release` для заказа с кодом.\n- **Тесты.** Новые файлы: `tests/test_promo.py`, `tests/test_pricing_promo.py`, `tests/test_orders_promo.py`.\n\n### Решения, принятые без вопросов (в design.md, решение 10)\n- `release` не проверяет срок и лимит, поэтому заказ с уже истёкшим кодом можно отменить.\n- Если у сервиса нет реестра, возврат при отмене пропускается без ошибки.\n- Счётчик не опускается ниже нуля.\n\nЯ не менял README, хотя в нём сказано, что доставка бесплатна от 3000.00 «по сумме товаров». Эта формулировка не противоречит новому правилу, но про скидку в ней ничего нет.\n\nИзменение можно архивировать командой `/opsx:archive`."
+    }
+  ]
+}

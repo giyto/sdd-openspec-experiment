@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__sdd_po_rules__r3__sonnet__po",
+  "task": "t1_promo",
+  "condition": "sdd_po_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bc9be548c2",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bc9be548c2\\project",
+  "base_commit": "e5fd3b7ec17ed2db293ccae8eb4c764aabf1a028",
+  "po_comments": "1. **Порог бесплатной доставки** (design.md п. 6, proposal.md «Допущения», spec «Доставка»). В документе порог считается по сумме товаров до скидки. Должно быть наоборот: порог сравнивается с суммой товаров после скидки, иначе покупатели будут добирать до порога промокодом. Сценарий «заказ на 3100.00 со скидкой 500.00, доставка остаётся бесплатной» в этом виде неверен. После скидки сумма 2600.00, и бесплатность зависит от того, проходит ли она порог. Верно только то, что сама стоимость доставки скидкой не уменьшается.\n\n2. **Отмена заказа** (design.md: Non-Goals и Risks, «возврат использования при отмене заказа» и «тикет этого не требует»). Это не должно быть вне рамок. Если заказ с промокодом отменён, использование возвращается: счётчик уменьшается на один, и поддержка может переоформить заказ с лимитированным кодом. Определение `uses` в spec («число успешно оформленных заказов») тоже нужно привести в соответствие: отменённые заказы в него не входят.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 147.0,
+      "cost_usd": 0.3773354,
+      "duration_ms": 145214,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 39004,
+        "cache_read_input_tokens": 193274,
+        "output_tokens": 20196,
+        "output_tokens_details": {
+          "thinking_tokens": 1773
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 39004,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 890,
+            "cache_read_input_tokens": 44639,
+            "cache_creation_input_tokens": 301,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 301
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-promo-codes` создано в `openspec/changes/add-promo-codes/`. Все четыре артефакта готовы, `openspec validate add-promo-codes --strict` проходит. Код проекта не менялся.\n\n**Артефакты**\n- **`proposal.md`**: зачем нужна фича, что меняется, две новые возможности (`promo-codes`, `order-discounts`) и раздел с допущениями.\n- **`specs/promo-codes/spec.md`**: поля и проверка `PromoCode`, реестр, порядок проверок (код есть → срок `[starts_at, expires_at)` → лимит), независимые классы ошибок, учёт использований.\n- **`specs/order-discounts/spec.md`**: какие строки участвуют, размер скидки, раскладка по строкам с точной суммой, налог после скидки, доставка, условия заказа, пустой код, счётчик использований только при успешном заказе.\n- **`design.md`**: решения и альтернативы, риски.\n- **`tasks.md`**: пять групп задач, в конце сверка публичного API с proposal и specs.\n\n**Допущения, принятые без вопросов**\n- **Минимальная сумма заказа:** `min_order_amount` сравнивается с суммой участвующих строк до скидки, равенство проходит.\n- **Нет участвующих строк:** код не подходит заказу, выбрасывается `PromoConditionsError`.\n- **Подарочные сертификаты:** никогда не участвуют в скидке, как требует README.\n- **Бесплатная доставка:** порог считается по сумме товаров до скидки.\n- **Раскладка копеек:** метод наибольших остатков, при равенстве выигрывает более ранняя строка корзины.\n- **Фиксированная скидка:** значение `FIXED` с больше чем двумя знаками после запятой отвергается через `ValidationError`.\n- **Неизвестный код:** `uses()` для него выбрасывает `UnknownPromoCodeError`.\n- **Решения из обсуждения тикета:** не начавшаяся акция даёт `PromoExpiredError`. Пустой или пробельный `promo_code` в `quote`/`place_order` означает «без кода», а `resolve(\"\")` остаётся неизвестным кодом.\n\nВ реестр сверх API тикета добавлен служебный метод `redeem(code)`. Его вызывает `place_order` после успешного сохранения заказа, поэтому `quote` и неудачные попытки счётчик не расходуют.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 14.7,
+      "cost_usd": 0.0484674,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 9772,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 923,
+        "output_tokens_details": {
+          "thinking_tokens": 527
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 9772,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 923,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 9772,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 9772
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Порог бесплатной доставки** (design.md п. 6, proposal.md «Допущения», spec «Доставка»). В документе порог считается по сумме товаров до скидки. Должно быть наоборот: порог сравнивается с суммой товаров после скидки, иначе покупатели будут добирать до порога промокодом. Сценарий «заказ на 3100.00 со скидкой 500.00, доставка остаётся бесплатной» в этом виде неверен. После скидки сумма 2600.00, и бесплатность зависит от того, проходит ли она порог. Верно только то, что сама стоимость доставки скидкой не уменьшается.\n\n2. **Отмена заказа** (design.md: Non-Goals и Risks, «возврат использования при отмене заказа» и «тикет этого не требует»). Это не должно быть вне рамок. Если заказ с промокодом отменён, использование возвращается: счётчик уменьшается на один, и поддержка может переоформить заказ с лимитированным кодом. Определение `uses` в spec («число успешно оформленных заказов») тоже нужно привести в соответствие: отменённые заказы в него не входят."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 156.0,
+      "cost_usd": 0.5083793999999999,
+      "duration_ms": 154201,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 51555,
+        "cache_read_input_tokens": 440914,
+        "output_tokens": 25802,
+        "output_tokens_details": {
+          "thinking_tokens": 774
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 51555,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1086,
+            "cache_read_input_tokens": 57210,
+            "cache_creation_input_tokens": 281,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 281
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-promo-codes (schema: spec-driven). **Progress:** 9/9 tasks complete. `python -m pytest -q` дал 83 passed, `openspec validate` проходит. `shop/cli.py`, `shop/reports.py` и существующие тесты не менялись.\n\n### Правки артефактов по замечаниям\n1. **Порог доставки.** Во всех артефактах порог теперь сравнивается с суммой после скидки (`subtotal - discount`). Стоимость доставки скидкой не уменьшается.\n   - Сценарий «3100.00 со скидкой 500.00» переписан: после скидки 2600.00, доставка платная.\n   - Добавлены сценарии: 3600.00 → 3100.00 даёт бесплатную доставку, ровно порог тоже даёт бесплатную.\n   - Правки внесены в proposal («Допущения»), design (п. 6) и spec «Доставка».\n   - В README добавлено уточнение «с промокодом — после скидки».\n2. **Отмена заказа.** Возврат использования больше не вне рамок: убран из Non-Goals и Risks, добавлено решение 12 в design.\n   - В spec `order-discounts` новое требование «Возврат использования при отмене» со сценариями: отмена, переоформление лимитированного кода, повторная отмена.\n   - Определение `uses` теперь: «число успешно оформленных и не отменённых заказов».\n   - Tasks дополнены: `release`, порог по сумме после скидки, отмена.\n\n### Реализация\n- **`shop/errors.py`:** `PromoError` и три независимых наследника.\n- **`shop/promo.py`:** новый модуль с `DiscountKind`, `PromoCode` и `PromoRegistry` (`add`, `resolve`, `uses`).\n- **Служебные методы реестра.** Добавлены `redeem` и `release`, оба вызываются только из `OrderService`. Первый засчитывает использование, второй возвращает его. `release` не уходит ниже нуля.\n- **`shop/pricing.py`:**\n  - `calculate_total(..., *, promo=None)`, поля `discount` в `LineTotal` и `OrderTotal`.\n  - Скидка раскладывается по строкам методом наибольших остатков.\n  - Налог считается с суммы строки после скидки.\n- **`shop/orders.py`:**\n  - `promos`, `quote(cart, promo_code)`, `place_order(cart, promo_code)`, `Order.promo_code`.\n  - `redeem` вызывается после успешного `store.add`.\n  - `cancel` вызывает `release` для заказа с кодом.\n- **`shop/__init__.py`:** экспортированы новые имена.\n- **Тесты:** `tests/test_promo.py`, `tests/test_pricing_promo.py`, `tests/test_orders_promo.py`.\n\nОдно автономное решение, записанное в design: если реестра нет, возврат при отмене пропускается. Заказ с кодом без реестра создать нельзя, так что это не должно случаться.\n\nИзменения не закоммичены. Можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

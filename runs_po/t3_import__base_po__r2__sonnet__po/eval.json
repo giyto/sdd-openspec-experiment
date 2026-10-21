@@ -1,0 +1,268 @@
+{
+  "trial_id": "t3_import__base_po__r2__sonnet__po",
+  "task": "t3_import",
+  "condition": "base_po",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "hidden_total": 61,
+  "hidden_passed": 58,
+  "hidden_pass_rate": 0.9508,
+  "req_total": 14,
+  "req_satisfied": 12,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": false,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": false
+  },
+  "api_compat_pass": [
+    4,
+    5
+  ],
+  "regress_total": 41,
+  "regress_passed": 41,
+  "own_tests_total": 47,
+  "own_tests_passed": 47,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "ledger/errors.py",
+    "ledger/importer.py",
+    "tests/test_import_statement.py"
+  ],
+  "loc": {
+    "prod_added": 236,
+    "prod_removed": 46,
+    "test_added": 71,
+    "spec_added": 0,
+    "other_files": []
+  },
+  "new_test_funcs": 6,
+  "changed_funcs": 12,
+  "cc_mean": 4.75,
+  "cc_max": 15,
+  "funcs_cc_gt10": 2,
+  "cost_usd": 0.3301,
+  "wall_s": 136.2,
+  "num_turns": 17,
+  "output_tokens": 16125,
+  "input_tokens_total": 248000,
+  "session_rcs": [
+    0,
+    0,
+    0
+  ],
+  "session_subtypes": [
+    "success",
+    "success",
+    "success"
+  ],
+  "hidden_by_func": {
+    "test_API_cli_import_still_works": [
+      true
+    ],
+    "test_API_import_csv_errors_are_statement_errors": [
+      false
+    ],
+    "test_API_import_csv_returns_int": [
+      true
+    ],
+    "test_API_import_csv_signature": [
+      true
+    ],
+    "test_API_models_and_storage_unchanged": [
+      true
+    ],
+    "test_R01_explicit_format": [
+      true
+    ],
+    "test_R01_nova_via_import_statement": [
+      true
+    ],
+    "test_R01_result_and_row_error_are_frozen_dataclasses": [
+      true
+    ],
+    "test_R02_nbsp_thousands_separator": [
+      true
+    ],
+    "test_R02_quoted_description_with_semicolon": [
+      true
+    ],
+    "test_R02_sfera_parsing": [
+      true
+    ],
+    "test_R02_sfera_signs_and_short_fractions": [
+      true
+    ],
+    "test_R03_bad_dates_are_row_errors": [
+      true
+    ],
+    "test_R03_dot_in_sfera_amount_is_row_error": [
+      true
+    ],
+    "test_R03_more_than_two_decimals_is_row_error": [
+      true
+    ],
+    "test_R04_both_or_neither_filled_is_row_error": [
+      true
+    ],
+    "test_R04_income_and_expense_columns": [
+      true
+    ],
+    "test_R04_sign_in_split_columns_is_row_error": [
+      true
+    ],
+    "test_R04_zero_in_unused_column_means_empty": [
+      true
+    ],
+    "test_R05_detect_format": [
+      true
+    ],
+    "test_R05_empty_file_is_unknown_format": [
+      true
+    ],
+    "test_R05_explicit_format_mismatch": [
+      true
+    ],
+    "test_R05_header_case_order_and_extra_columns": [
+      false
+    ],
+    "test_R05_split_header_in_other_order": [
+      false
+    ],
+    "test_R05_unknown_header_raises_and_saves_nothing": [
+      true
+    ],
+    "test_R06_cp1251_sfera_with_nbsp": [
+      true
+    ],
+    "test_R06_cp1251_split": [
+      true
+    ],
+    "test_R06_encoding_detected_for_whole_file": [
+      true
+    ],
+    "test_R06_utf8_bom_nova": [
+      true
+    ],
+    "test_R06_utf8_bom_sfera": [
+      true
+    ],
+    "test_R07_dedup_across_formats": [
+      true
+    ],
+    "test_R07_key_includes_date_and_amount": [
+      true
+    ],
+    "test_R07_normalize_description": [
+      true
+    ],
+    "test_R07_skips_transactions_already_in_store": [
+      true
+    ],
+    "test_R07_yo_and_case_do_not_matter": [
+      true
+    ],
+    "test_R08_duplicates_are_counted_by_quantity": [
+      true
+    ],
+    "test_R08_identical_rows_in_one_file_are_not_duplicates": [
+      true
+    ],
+    "test_R08_overlapping_period_adds_only_new": [
+      true
+    ],
+    "test_R08_reimport_same_file_adds_nothing": [
+      true
+    ],
+    "test_R09_errors_collected_and_valid_rows_imported": [
+      true
+    ],
+    "test_R09_line_numbers_count_blank_lines": [
+      true
+    ],
+    "test_R09_missing_fields_is_row_error": [
+      true
+    ],
+    "test_R09_multiline_record_line_number": [
+      true
+    ],
+    "test_R09_zero_amount_and_empty_description_are_row_errors": [
+      true
+    ],
+    "test_R10_strict_allows_duplicates_and_blank_lines": [
+      true
+    ],
+    "test_R10_strict_raises_row_error_with_line": [
+      true
+    ],
+    "test_R10_strict_row_error_on_split_rule": [
+      true
+    ],
+    "test_R10_strict_saves_nothing_in_json_file": [
+      true
+    ],
+    "test_R10_strict_saves_nothing_in_memory": [
+      true
+    ],
+    "test_R11_blank_lines_in_nova": [
+      true
+    ],
+    "test_R11_crlf_line_endings": [
+      true
+    ],
+    "test_R11_header_only_file": [
+      true
+    ],
+    "test_R11_trailing_blank_lines_ignored": [
+      true
+    ],
+    "test_R12_categorizer_applied": [
+      true
+    ],
+    "test_R12_description_stored_as_in_file": [
+      true
+    ],
+    "test_R12_duplicates_do_not_change_existing": [
+      true
+    ],
+    "test_R12_imported_at_from_clock": [
+      true
+    ],
+    "test_R13_import_csv_bom_and_cp1251": [
+      true
+    ],
+    "test_R13_import_csv_is_atomic": [
+      true
+    ],
+    "test_R13_import_csv_reimport_adds_nothing": [
+      true
+    ],
+    "test_R13_import_csv_skips_blank_lines": [
+      true
+    ]
+  },
+  "hidden_out_tail": "etected = name\n                break\n        if detected is None:\n            if not text.strip():\n                raise UnknownFormatError(\"empty file: no header\")\n>           raise UnknownFormatError(\"unrecognized header\", line_no=1)\nE           ledger.errors.UnknownFormatError: line 1: unrecognized header\n\nledger\\importer.py:109: UnknownFormatError\n_______________ test_API_import_csv_errors_are_statement_errors _______________\n\nwrite = <function write.<locals>._write at 0x0000016DDBC9B060>\nclock = <ledger.clock.FixedClock object at 0x0000016DDBC85770>\n\n    def test_API_import_csv_errors_are_statement_errors(write, clock):\n        with pytest.raises(StatementError) as info:\n            import_csv(write(\"date,amount,description\\n2026-03-01,-1.00,ok\\n2026-03-02,x,bad\\n\"), MemoryStore(), clock=clock)\n        assert info.value.line_no == 3\n>       with pytest.raises(StatementError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ledger.errors.StatementError'>\n\ntests_hidden\\test_hidden.py:752: Failed\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bd9e49f385\\project\\_hidden.xml -\n=========================== short test summary info ===========================\nFAILED tests_hidden/test_hidden.py::test_R05_header_case_order_and_extra_columns\nFAILED tests_hidden/test_hidden.py::test_R05_split_header_in_other_order - le...\nFAILED tests_hidden/test_hidden.py::test_API_import_csv_errors_are_statement_errors\n3 failed, 58 passed in 1.04s\n",
+  "decisions_total": 5,
+  "decisions_ok": 4,
+  "decision_status": {
+    "D1": true,
+    "D2": true,
+    "D3": true,
+    "D4": true,
+    "D5": false
+  },
+  "non_decision_pass_rate": 0.9796,
+  "po_comments_n": 1
+}

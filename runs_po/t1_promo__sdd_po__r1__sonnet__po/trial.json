@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__sdd_po__r1__sonnet__po",
+  "task": "t1_promo",
+  "condition": "sdd_po",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2429d1c079",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2429d1c079\\project",
+  "base_commit": "948c010097acf5cb64084a63312c6ac39bbd3fd3",
+  "po_comments": "1. **Бесплатная доставка** (design.md п. 8, spec order-discounts «Налог и итоги», сценарий «Бесплатная доставка сохраняется», tasks 3.3). В документе порог сравнивается с суммой товаров до скидки, и скидка не должна лишать бесплатной доставки. Это неверно: порог надо сравнивать с суммой товаров после скидки, иначе покупатели будут добирать до порога промокодом. Сценарий «subtotal 3100.00, скидка опускает сумму ниже 3000.00» должен давать платную доставку. То, что скидка не уменьшает саму стоимость доставки, указано верно.\n\n2. **Отмена заказа** (design.md Non-Goals и Assumptions, spec «Учёт использований», фраза «Отмена заказа счётчик не уменьшает»). В документе возврат использования при отмене исключён. Это неверно: при отмене заказа с промокодом счётчик должен уменьшаться на единицу, чтобы поддержка могла переоформить клиенту заказ с лимитированным кодом. Возврат нужно включить в рамки задачи, убрать из Non-Goals и Assumptions и поменять формулировку в спецификации.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 148.2,
+      "cost_usd": 0.38398960000000004,
+      "duration_ms": 146430,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 41498,
+        "cache_read_input_tokens": 227416,
+        "output_tokens": 19522,
+        "output_tokens_details": {
+          "thinking_tokens": 2295
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 41498,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 864,
+            "cache_read_input_tokens": 47095,
+            "cache_creation_input_tokens": 339,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 339
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал изменение `add-promo-codes` в `openspec/changes/add-promo-codes/` со всеми четырьмя артефактами. `openspec validate add-promo-codes --strict` прошла без ошибок. Код проекта не менял, в git добавилась только папка `openspec/changes/`.\n\n- **`proposal.md`**: зачем нужны промокоды, что меняется, что вне рамок (CLI, отчёты, существующие тесты).\n- **`specs/promo-codes/spec.md`**:\n  - модель кода и его проверки;\n  - реестр: дубли, поиск без учёта регистра и пробелов, порядок проверок «есть → действует → лимит»;\n  - счётчик использований;\n  - три независимых исключения под `PromoError`.\n- **`specs/order-discounts/spec.md`**:\n  - какие строки участвуют в скидке (сертификаты — никогда);\n  - размер скидки: проценты с округлением `HALF_UP`, фиксированная сумма не больше базы;\n  - точная раскладка по строкам;\n  - налог с суммы после скидки;\n  - пустой `promo_code` означает «без кода»;\n  - использование засчитывается только при успешном `place_order`;\n  - старые вызовы работают как раньше.\n- **`design.md`**: решения, риски и список допущений.\n- **`tasks.md`**: 5 групп задач, у каждой указана проверка.\n\nДопущения, которые я принял сам и записал в `design.md`; их стоит проверить:\n1. `min_order_amount` сравнивается с суммой участвующих строк, а не со всей корзиной, чтобы сертификаты и исключённые категории не помогали набрать минимум. Сравнение нестрогое: равенство проходит.\n2. Если участвующих строк нет, возникает `PromoConditionsError`, а не тихая нулевая скидка.\n3. Бесплатная доставка определяется по сумме товаров до скидки: скидка не должна лишать бесплатной доставки.\n4. Остаток копеек при раскладке получают строки с наибольшей дробной частью доли; при равенстве — та, что добавлена в корзину раньше.\n5. Отмена заказа не возвращает использование кода.\n6. Реестру нужен дополнительный метод `record_use`, которого нет в API тикета. Он нужен, чтобы использование засчитывалось только после успешной сборки заказа и лимит перепроверялся.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 13.1,
+      "cost_usd": 0.0514194,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 10745,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 829,
+        "output_tokens_details": {
+          "thinking_tokens": 411
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 10745,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 829,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 10745,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 10745
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Бесплатная доставка** (design.md п. 8, spec order-discounts «Налог и итоги», сценарий «Бесплатная доставка сохраняется», tasks 3.3). В документе порог сравнивается с суммой товаров до скидки, и скидка не должна лишать бесплатной доставки. Это неверно: порог надо сравнивать с суммой товаров после скидки, иначе покупатели будут добирать до порога промокодом. Сценарий «subtotal 3100.00, скидка опускает сумму ниже 3000.00» должен давать платную доставку. То, что скидка не уменьшает саму стоимость доставки, указано верно.\n\n2. **Отмена заказа** (design.md Non-Goals и Assumptions, spec «Учёт использований», фраза «Отмена заказа счётчик не уменьшает»). В документе возврат использования при отмене исключён. Это неверно: при отмене заказа с промокодом счётчик должен уменьшаться на единицу, чтобы поддержка могла переоформить клиенту заказ с лимитированным кодом. Возврат нужно включить в рамки задачи, убрать из Non-Goals и Assumptions и поменять формулировку в спецификации."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 160.5,
+      "cost_usd": 0.5286508,
+      "duration_ms": 158834,
+      "num_turns": 22,
+      "usage": {
+        "input_tokens": 36,
+        "cache_creation_input_tokens": 53061,
+        "cache_read_input_tokens": 613148,
+        "output_tokens": 25502,
+        "output_tokens_details": {
+          "thinking_tokens": 1103
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53061,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 889,
+            "cache_read_input_tokens": 58237,
+            "cache_creation_input_tokens": 760,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 760
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: add-promo-codes\n\nВыполнены все 10 задач из 10 (9 прежних плюс новая 4.3). `python -m pytest -q` проходит целиком: 100 тестов. `openspec validate add-promo-codes` тоже проходит. `shop/cli.py`, `shop/reports.py` и существующие тесты не менялись.\n\n### Правки артефактов по замечаниям\n1. **Доставка:**\n   - Порог бесплатной доставки сравнивается с суммой товаров после скидки (`subtotal - discount`). Сама стоимость доставки скидкой не уменьшается.\n   - Исправлены design.md (п. 8), спецификация «Налог и итоги» и tasks 3.3.\n   - Сценарий «Бесплатная доставка сохраняется» заменён на «Скидка лишает бесплатной доставки» (3100.00 → платные 299.00). Добавлен парный сценарий, где сумма остаётся выше порога.\n2. **Отмена заказа:**\n   - Возврат использования убран из Non-Goals и Assumptions и добавлен в рамки задачи.\n   - В Assumptions записано, что возврат делается и для истёкшего кода.\n   - В спецификации «Учёт использований» заменена фраза про отмену и добавлены сценарии: возврат при отмене, отмена заказа без кода, повторная отмена.\n   - В `promo-codes` добавлено требование на `release_use`.\n   - В tasks добавлена задача 4.3. Правки отражены и в proposal.\n\n### Решения, которых не было в замечаниях (записаны в design.md)\n- Возврат делается новым методом `PromoRegistry.release_use`. Он уменьшает счётчик на единицу, но не ниже 0, и не проверяет срок и лимит.\n- `OrderService.cancel` вызывает возврат только если у заказа есть `promo_code` и в сервисе задан реестр. Повторная отмена падает с `InvalidOrderStateError` до возврата, поэтому возврат происходит один раз.\n- Если у сервиса нет реестра, возврат при отмене пропускается, и отмена не падает.\n\n### Код\n- Новые файлы: `shop/promo.py` и четыре файла тестов (`tests/test_promo.py`, `test_promo_registry.py`, `test_pricing_promo.py`, `test_orders_promo.py`).\n- Изменены `shop/errors.py`, `shop/pricing.py`, `shop/orders.py` и README.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__base_po__r3__sonnet__po",
+  "task": "t1_promo",
+  "condition": "base_po",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3aa8a61b5a",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3aa8a61b5a\\project",
+  "base_commit": "53d839afe72c913bcec58f8f33d1539fed5cdb03",
+  "po_comments": "1. **Порог бесплатной доставки (п. 4).** Порог нужно сравнивать с суммой товаров после скидки, а не до неё. Иначе покупатель сможет добрать до порога промокодом. Саму стоимость доставки скидка по-прежнему не уменьшает.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 102.1,
+      "cost_usd": 0.28625249999999997,
+      "duration_ms": 100369,
+      "num_turns": 9,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 28038,
+        "cache_read_input_tokens": 125325,
+        "output_tokens": 16154,
+        "output_tokens_details": {
+          "thinking_tokens": 1544
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 28038,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1278,
+            "cache_read_input_tokens": 30734,
+            "cache_creation_input_tokens": 3240,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3240
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды реализованы. Все 57 тестов проходят: старые не менялись, новые лежат в `tests/test_promo.py`.\n\n## Что сделано\n- **`shop/promo.py`**: `DiscountKind`, `PromoCode` и `PromoRegistry`. Модель проверяет свои поля при создании, код нормализуется через `normalize_key`. Реестр проверяет по порядку: код существует, действует сейчас, не исчерпан лимит. Срок — полуоткрытый интервал `[starts_at, expires_at)`, время берётся только из `Clock` реестра. «Ещё не началась» даёт `PromoExpiredError`.\n- **`shop/errors.py`**: `PromoError` и три независимых наследника (`UnknownPromoCodeError`, `PromoExpiredError`, `PromoConditionsError`).\n- **`shop/pricing.py`**: `calculate_total(..., *, promo=None)`, поле `discount` в `LineTotal` и `OrderTotal` (по умолчанию `0.00`).\n  - Процент считается от суммы участвующих строк и округляется `ROUND_HALF_UP`.\n  - Фиксированная скидка ограничена этой суммой.\n  - Скидка раскладывается по строкам пропорционально, остаток копеек уходит строкам с наибольшим остатком, при равенстве — более ранней строке. Сумма по строкам совпадает с общей скидкой.\n  - Налог считается с суммы строки после скидки.\n- **`shop/orders.py`**: `OrderService(..., promos=)`, `quote` и `place_order` принимают `promo_code`, в `Order` добавлено поле `promo_code`.\n  - Счётчик использований растёт только после сохранения заказа. `quote`, `calculate_total` и неудачные попытки его не меняют.\n  - `None`, `\"\"` и пробелы в `promo_code` означают «без кода». `resolve(\"\")` даёт `UnknownPromoCodeError`.\n- Старые вызовы дают те же суммы. `cli.py` и `reports.py` не тронуты. Новые имена добавил в `shop/__init__.py`.\n\n## Решения там, где тикет неоднозначен\n1. **Участвующие строки.** Подарочные сертификаты никогда не участвуют (по README), плюс категории из `excluded_categories` кода.\n2. **Минимальная сумма заказа** сравнивается с суммой участвующих строк, а не со всей корзиной. Так сертификат или исключённая категория не помогают набрать порог.\n3. **Заказ без участвующих товаров** (например, только сертификаты) даёт `PromoConditionsError`, а не скидку 0.\n4. **Бесплатная доставка** определяется по сумме товаров до скидки: скидка на доставку не влияет, и порог она тоже не меняет.\n5. **Учёт использований.** Метод `PromoRegistry.record_use` я добавил сам, в тикете его нет; его вызывает `place_order`. `uses()` для неизвестного кода возвращает 0.\n6. **Несколько ошибок сразу.** В `place_order` и `quote` сначала проверяются реестр и лимит, потом условия заказа. Если код неизвестен и корзина пуста, вернётся ошибка промокода, а не `EmptyCartError`.\n7. **Повторное `add` того же кода** (после нормализации) даёт `ValidationError`, как в проекте.\n8. **Потокобезопасность.** Блокировок нет. При одновременном оформлении заказов с кодом, у которого остался один запуск, лимит теоретически можно превысить. Для внутрипроцессного хранилища я счёл это приемлемым.\n\nНичего не коммитил."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 10.2,
+      "cost_usd": 0.0170774,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2962,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 508,
+        "output_tokens_details": {
+          "thinking_tokens": 408
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2962,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 508,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 2962,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2962
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Порог бесплатной доставки (п. 4).** Порог нужно сравнивать с суммой товаров после скидки, а не до неё. Иначе покупатель сможет добрать до порога промокодом. Саму стоимость доставки скидка по-прежнему не уменьшает."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 30.5,
+      "cost_usd": 0.0822119,
+      "duration_ms": 28515,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 12218,
+        "cache_read_input_tokens": 90319,
+        "output_tokens": 2428,
+        "output_tokens_details": {
+          "thinking_tokens": 62
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12218,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 352,
+            "cache_read_input_tokens": 17661,
+            "cache_creation_input_tokens": 493,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 493
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Порог бесплатной доставки теперь сравнивается с суммой товаров после скидки. Стоимость доставки скидка по-прежнему не уменьшает. Все 58 тестов проходят.\n\n- **`shop/pricing.py`**: скидка считается до расчёта доставки, и в `shipping.cost_for` передаётся `subtotal - discount_total`. Поле `OrderTotal.subtotal` осталось суммой до скидки, как в тикете. Докстринг модуля приведён к новому поведению.\n- **`tests/test_promo.py`**: добавлен тест порога. Заказ на 3149.90 без кода идёт с бесплатной доставкой. С фиксированной скидкой 150 остаётся 2999.90, и доставка платная (299.00). Со скидкой 149.90 остаётся ровно 3000.00, и доставка бесплатная, потому что порог включает границу.\n\nСтарые вызовы без промокода дают те же суммы, потому что скидка в них равна нулю. Ничего не коммитил."
+    }
+  ]
+}

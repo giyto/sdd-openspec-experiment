@@ -1,0 +1,145 @@
+{
+  "trial_id": "t4_retry__sdd_po__r2__sonnet__po",
+  "task": "t4_retry",
+  "condition": "sdd_po",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a5514ef5d",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a5514ef5d\\project",
+  "base_commit": "d1cb83ee718090ddb236605fea0db39cc574f1a6",
+  "po_comments": "1. **Возврат из dead-letter и счётчик попыток** (design.md, «Допущения»; spec dead-letter, «Возврат из dead-letter»; «Риски»). Документ говорит, что `requeue_dead_letter` не сбрасывает `attempts` и что вернувшееся задание после первого же падения снова уходит в dead-letter. Так быть не должно. При ручном возврате счётчик попыток начинается заново, и у задания снова полный набор попыток, как у нового. Сколько попыток было раньше, смотрим в логах. Это решение продукта, а не открытый вопрос, поэтому допущение и пункт в рисках нужно убрать.\n\n2. **Jitter и `max_delay`** (design.md, п. 2 «Jitter применяется после ограничения»; spec retry-policy, «Расчёт задержки» и сценарий «Jitter применяется после ограничения», где получается 75.0 при `max_delay=60`). `max_delay` должен быть жёстким потолком, и jitter его тоже не превышает. Если с разбросом задержка получается больше `max_delay`, ждём ровно `max_delay`. Сценарий с результатом 75.0 неверен: правильный результат там 60.0.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 192.4,
+      "cost_usd": 0.53372,
+      "duration_ms": 190535,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 54365,
+        "cache_read_input_tokens": 249980,
+        "output_tokens": 29123,
+        "output_tokens_details": {
+          "thinking_tokens": 3086
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54365,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 935,
+            "cache_read_input_tokens": 59947,
+            "cache_creation_input_tokens": 354,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 354
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все четыре артефакта для `add-job-retry-dead-letter` готовы, `openspec validate --strict` проходит. Код проекта не менялся, в git появилась только папка `openspec/changes/`.\n\nФайлы лежат в `openspec/changes/add-job-retry-dead-letter/`:\n- **`proposal.md`**: зачем нужна правка, список изменений и три новых capability. Существующих спецификаций в проекте нет, поэтому изменённых capability нет.\n- **`specs/retry-policy/`**: параметры `RetryPolicy` и их проверка (`ConfigError`), расчёт `delay_for` без `OverflowError` (в том числе при `base_delay=0` и `attempt` 5000/10000), `is_retryable`, политика очереди и типа задания (тип заменяет дефолт целиком, политика берётся на момент ошибки).\n- **`specs/job-retry/`**: порядок решения воркера при падении (нет обработчика, нет политики, неповторяемая ошибка, исчерпанные попытки, иначе повтор), `max_attempts=1` ведёт в dead-letter, `rng` используется только при реальном повторе. Там же новые статусы, подписи в отчёте, счётчики и обратная совместимость.\n- **`specs/dead-letter/`**: журнал `dead_letters()` и `requeue_dead_letter` (то же задание, `PENDING`, ошибки для неизвестного id и для задания не в dead-letter).\n- **`design.md`**: решения и допущения, ниже самые заметные.\n- **`tasks.md`**: 5 групп задач, у каждой указан способ проверки.\n\nДопущения, которые ты можешь захотеть пересмотреть:\n- **`attempts` после requeue не сбрасывается.** В тикете перечислены только `status`, `run_at` и `error`. Из-за этого при прежней политике первое же падение вернувшегося задания снова отправляет его в dead-letter. Если нужен сброс, это отдельное решение.\n- **Отмена из `RETRY_SCHEDULED` разрешена**, потому что задание ещё не выполняется. Из `DEAD_LETTERED` отмена запрещена.\n- **`purge_finished` не удаляет задания в `DEAD_LETTERED`.** Иначе запись в журнале ссылалась бы на удалённое задание.\n- **Новые статусы попадают в `stats()` и в отчёт сами**, потому что `dashboard.py` обходит все значения `JobStatus`. Существующие тесты, судя по их коду, от этого не ломаются, но я их не запускал.\n\nАртефакты готовы к проверке. Когда будешь готов реализовывать, запусти `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 13.0,
+      "cost_usd": 0.0598154,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 13064,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 741,
+        "output_tokens_details": {
+          "thinking_tokens": 322
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13064,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 741,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 13064,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 13064
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Возврат из dead-letter и счётчик попыток** (design.md, «Допущения»; spec dead-letter, «Возврат из dead-letter»; «Риски»). Документ говорит, что `requeue_dead_letter` не сбрасывает `attempts` и что вернувшееся задание после первого же падения снова уходит в dead-letter. Так быть не должно. При ручном возврате счётчик попыток начинается заново, и у задания снова полный набор попыток, как у нового. Сколько попыток было раньше, смотрим в логах. Это решение продукта, а не открытый вопрос, поэтому допущение и пункт в рисках нужно убрать.\n\n2. **Jitter и `max_delay`** (design.md, п. 2 «Jitter применяется после ограничения»; spec retry-policy, «Расчёт задержки» и сценарий «Jitter применяется после ограничения», где получается 75.0 при `max_delay=60`). `max_delay` должен быть жёстким потолком, и jitter его тоже не превышает. Если с разбросом задержка получается больше `max_delay`, ждём ровно `max_delay`. Сценарий с результатом 75.0 неверен: правильный результат там 60.0."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 145.3,
+      "cost_usd": 0.4837068,
+      "duration_ms": 143513,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 53684,
+        "cache_read_input_tokens": 482548,
+        "output_tokens": 22066,
+        "output_tokens_details": {
+          "thinking_tokens": 758
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53684,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 964,
+            "cache_read_input_tokens": 59410,
+            "cache_creation_input_tokens": 210,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 210
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Артефакты приведены в соответствие с замечаниями, все 17 задач выполнены. `python -m pytest -q` проходит: 92 теста, из них новые в `tests/test_retry.py`. `jobq/dashboard.py`, `jobq/cli.py` и существующие тесты не менялись.\n\n## Правки артефактов\n1. **Возврат из dead-letter.**\n   - Из `design.md` убраны допущение про несброс `attempts` и пункт в «Рисках». Добавлено решение: `attempts` сбрасывается в 0, прежнее число попыток остаётся в записи журнала и пишется в лог при возврате.\n   - В spec dead-letter сброс описан в требовании «Возврат из dead-letter». Добавлен сценарий «Полный набор попыток после возврата».\n   - В `tasks.md` поправлены задачи 3.4 и 5.1.\n2. **Jitter и `max_delay`.**\n   - Жёсткий потолок прописан в `design.md` (п. 2), в spec retry-policy и в `tasks.md`.\n   - Сценарий теперь называется «Jitter не превышает max_delay» и даёт 60.0 вместо 75.0.\n\n## Реализация\n- **Политика:** `jobq/retry.py` с `RetryPolicy`, `delay_for` и `is_retryable`; `delay_for` не падает с `OverflowError`.\n- **Ошибка, статусы и модель:** `PermanentJobError`, статусы `RETRY_SCHEDULED` и `DEAD_LETTERED`, `DeadLetterEntry`.\n- **Метрики:** счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **Очередь:** `default_retry_policy`, `set_retry_policy`, `retry_policy_for`, `mark_retry_scheduled`, `mark_dead_lettered`, `dead_letters()` и `requeue_dead_letter()`. `purge_finished` пропускает `DEAD_LETTERED`.\n- **Хранилище:** `due()` выбирает и `RETRY_SCHEDULED`.\n- **Воркер:** принимает `rng` и решает, что делать с упавшим заданием: `FAILED`, повтор или dead-letter.\n- **README:** добавлен раздел про повторы и dead-letter.\n\n## Решения, которых в спецификации не было\n- **`mark_succeeded` обнуляет `job.error`:** иначе задание, успешное после повторов, сохраняло бы ошибку прошлой попытки, а spec требует `error=None`.\n- **`delay_for` проверяет `attempt`:** `bool` и не-целые значения тоже дают `ConfigError`, а не только `attempt < 1`.\n\nРешения я в `design.md` не записывал."
+    }
+  ]
+}

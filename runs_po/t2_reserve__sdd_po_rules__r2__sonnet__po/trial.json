@@ -1,0 +1,145 @@
+{
+  "trial_id": "t2_reserve__sdd_po_rules__r2__sonnet__po",
+  "task": "t2_reserve",
+  "condition": "sdd_po_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a0000def4",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a0000def4\\project",
+  "base_commit": "9b27ba9b16a0c92ce655767752861cf865e7d706",
+  "po_comments": "1. **Продление (`extend`)**: в документе срок сдвигается от старого срока (`expires_at += ttl`, допущение в proposal, design п.7, spec, сценарий «Успешное продление»). Это неверно. Продление считается от момента запроса: `новый срок = now + ttl`. Срок никогда не сокращается: если `now + ttl` не позже текущего `expires_at`, ничего не меняем, `RESERVE_EXTEND` в журнал не пишем и возвращаем резерв как есть. По вашему примеру (срок T+15m, продление на 10 минут в T+5m) срок останется T+15m, а не станет T+25m. Сценарий нужно заменить, а для «не сокращать» добавить отдельный.\n\n2. **Повторный резерв на тот же `order_id`**: в документе `order_id` уникален навсегда, и ошибка `DuplicateReservationError` возникает при любом прежнем статусе (допущения, design п.5, Non-Goals, spec «Создание резерва», сценарий «Повторный order_id», Risks). Это неверно. Ошибка «на заказ уже есть резерв» нужна, только если прежний резерв действующий или подтверждённый. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый. Тогда старая запись не должна оставаться в хранилище или в `get_reservation`. Сценарий нужно разделить на два случая: «активный или подтверждённый, ошибка» и «истёкший или отменённый, замена».",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 197.6,
+      "cost_usd": 0.47488379999999997,
+      "duration_ms": 195750,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 48537,
+        "cache_read_input_tokens": 255398,
+        "output_tokens": 25516,
+        "output_tokens_details": {
+          "thinking_tokens": 2338
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 48537,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 811,
+            "cache_read_input_tokens": 54128,
+            "cache_creation_input_tokens": 345,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 345
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `add-stock-reservations` создан, все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся, изменений вне `openspec/changes/` нет.\n\nАртефакты лежат в `openspec/changes/add-stock-reservations/`:\n- **`proposal.md`**: зачем нужна задача, что меняется, список допущений. Публичный API перенесён дословно, `DEFAULT_RESERVATION_TTL` = 15 минут по обновлению от 13.10.\n- **`specs/stock-reservations/spec.md`**: новая capability, 9 требований со сценариями. Покрыты дубли строк с проверкой по сумме (в том числе при `confirm`), окончательные `CONFIRMED`/`CANCELLED`, идемпотентная отмена, события журнала.\n- **`design.md`**: хранение резервов в `InMemoryStore`, ленивое вычисление `EXPIRED`, общий помощник проверки остатков, порядок проверок.\n- **`tasks.md`**: 4 группы задач, у каждой указано, как проверить. Последняя задача сверяет публичный API с proposal и specs.\n\n**Допущения** (в задаче не оговорено; записаны в proposal):\n- Резерв истёк, когда `now >= expires_at`.\n- `extend` сдвигает существующий `expires_at` на `ttl`, а не отсчитывает от текущего момента.\n- `order_id` нельзя использовать повторно, даже если прежний резерв истёк, отменён или подтверждён.\n- Отмена истёкшего резерва не ошибка: статус остаётся `EXPIRED`, журнал не пишется.\n- `available` не опускается ниже 0, если `adjust` уменьшил остаток под резервы.\n- `confirm` проверяет физический остаток по сумме строк одной позиции, а не `available`.\n- Ограничение «не забирать чужой резерв» распространено и на источник в `transfer`, потому что его проверки совпадают с `issue`.\n\n**Побочный эффект на отчёты:** `movement_summary` добавит нулевую строку для SKU, по которому были только резервы. Файл `reports.py` по условию не трогаем, суммы от этого не искажаются.\n\nАртефакты готовы к ревью. Когда будете готовы реализовывать, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 14.9,
+      "cost_usd": 0.0584254,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 12054,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 1006,
+        "output_tokens_details": {
+          "thinking_tokens": 481
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12054,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1006,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 12054,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 12054
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Продление (`extend`)**: в документе срок сдвигается от старого срока (`expires_at += ttl`, допущение в proposal, design п.7, spec, сценарий «Успешное продление»). Это неверно. Продление считается от момента запроса: `новый срок = now + ttl`. Срок никогда не сокращается: если `now + ttl` не позже текущего `expires_at`, ничего не меняем, `RESERVE_EXTEND` в журнал не пишем и возвращаем резерв как есть. По вашему примеру (срок T+15m, продление на 10 минут в T+5m) срок останется T+15m, а не станет T+25m. Сценарий нужно заменить, а для «не сокращать» добавить отдельный.\n\n2. **Повторный резерв на тот же `order_id`**: в документе `order_id` уникален навсегда, и ошибка `DuplicateReservationError` возникает при любом прежнем статусе (допущения, design п.5, Non-Goals, spec «Создание резерва», сценарий «Повторный order_id», Risks). Это неверно. Ошибка «на заказ уже есть резерв» нужна, только если прежний резерв действующий или подтверждённый. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый. Тогда старая запись не должна оставаться в хранилище или в `get_reservation`. Сценарий нужно разделить на два случая: «активный или подтверждённый, ошибка» и «истёкший или отменённый, замена»."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 162.4,
+      "cost_usd": 0.5347852999999999,
+      "duration_ms": 160724,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 54956,
+        "cache_read_input_tokens": 561773,
+        "output_tokens": 25872,
+        "output_tokens_details": {
+          "thinking_tokens": 941
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54956,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 753,
+            "cache_read_input_tokens": 60386,
+            "cache_creation_input_tokens": 506,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 506
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: add-stock-reservations (13/13 задач)\n\n`python -m pytest -q` проходит целиком: 76 тестов, из них 36 новых в `tests/test_reservations.py`. `cli.py`, `reports.py` и существующие тесты не изменены.\n\n**Правки артефактов по замечаниям** (proposal, spec, design, tasks):\n1. **`extend`**: срок теперь `now + ttl`. Если `now + ttl` не позже текущего `expires_at`, резерв возвращается как есть и `RESERVE_EXTEND` не пишется. Сценарий «Успешное продление» заменён, добавлен отдельный сценарий «Срок не сокращается» (T+15m, +10 минут в T+5m, срок остаётся T+15m).\n2. **Повторный `order_id`**: `DuplicateReservationError` выбрасывается только при `ACTIVE` или `CONFIRMED`. Если прежний резерв `EXPIRED` или `CANCELLED`, новый полностью заменяет старый: старая запись удаляется из хранилища и из `get_reservation`. Сценарий разделён на два. Правки внесены также в Non-Goals и Risks в design.\n\n**Решения, которых в замечаниях не было** (записаны в `design.md`):\n- В `extend` ошибки (`ValidationError`, резерв не найден, статус) проверяются раньше правила «не сокращать».\n- Замена старого резерва происходит только после всех проверок, поэтому при ошибке состояние не меняется. В журнал пишутся только события нового резерва.\n\n**Код:**\n- `models.py`, `errors.py`: новые модели и ошибки резервирования.\n- `warehouse/reservations.py` (новый): `DEFAULT_RESERVATION_TTL` и помощники.\n- `storage.py`: хранение резервов.\n- `inventory.py`: `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `reserved`, `available`. `issue` и `transfer` теперь проверяют остаток по `available`.\n- `__init__.py`: экспорт новых имён.\n\nИзменение можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__sdd_po_rules__r2__sonnet__po",
+  "task": "t1_promo",
+  "condition": "sdd_po_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\25bca4a8d9",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\25bca4a8d9\\project",
+  "base_commit": "b53e93574c0a09367ee7eb03f2b1af627edcbd72",
+  "po_comments": "1. **Порог бесплатной доставки.** В документе порог считается по сумме товаров до скидки (design.md, proposal.md, Assumptions, spec «Налог и доставка при скидке»). Так неверно. Порог нужно сравнивать с суммой товаров уже после скидки, иначе люди будут добирать до порога промокодом. Саму стоимость доставки скидка по-прежнему не уменьшает, это верно. Сценарий «Бесплатная доставка сохраняется» (3000 и скидка 10%) надо пересмотреть под это правило.\n\n2. **Отмена заказа.** В документе возврат использования при отмене вынесен в Non-Goals, а в допущениях и в spec «Учёт использований» сказано, что отмена счётчик не уменьшает. Так неверно. Если заказ с промокодом отменили, использование возвращается: счётчик уменьшается на один. Тогда поддержка сможет переоформить клиенту заказ с лимитированным кодом.",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 184.7,
+      "cost_usd": 0.44438310000000003,
+      "duration_ms": 182869,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 46273,
+        "cache_read_input_tokens": 318671,
+        "output_tokens": 22738,
+        "output_tokens_details": {
+          "thinking_tokens": 3204
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 46273,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 823,
+            "cache_read_input_tokens": 51866,
+            "cache_creation_input_tokens": 343,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 343
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал change `add-promo-codes` в `openspec/changes/add-promo-codes/` со всеми четырьмя артефактами. `openspec validate add-promo-codes --strict` проходит. Код проекта не менялся, git показывает только новую папку `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` описывает зачем и что меняется. API из тикета перенесён дословно, а допущения вынесены в отдельный раздел.\n- `specs/promo-codes/spec.md` описывает модель `PromoCode`, реестр, иерархию ошибок и порядок проверок: существование, срок, лимит.\n- `specs/order-discounts/spec.md` описывает `calculate_total`, участвующие товары, раскладку скидки, налог и доставку. Туда же входят `quote`/`place_order` и обработка пустого кода.\n- `design.md` содержит решения, риски и допущения.\n- `tasks.md` содержит 8 задач в 5 группах. Последняя сверяет публичный API с proposal и specs, как требует `config.yaml`.\n\n**Решения из обсуждения в задаче**\n- Акция, которая ещё не началась, даёт `PromoExpiredError`.\n- Пустой или пробельный `promo_code` в `quote`/`place_order` означает «без кода». `resolve(\"\")` даёт `UnknownPromoCodeError`.\n\n**Допущения** (вопросов я не задавал, все записаны в артефактах)\n- Подарочные сертификаты не получают скидку и не входят в базу расчёта и в `min_order_amount` (по README).\n- `min_order_amount` сравнивается с суммой участвующих строк до скидки, с условием `>=`.\n- Если участвующих строк нет, заказ не подходит и выбрасывается `PromoConditionsError`.\n- Порог бесплатной доставки считается по сумме товаров до скидки.\n- Копейки скидки раскладываются по строкам методом наибольших остатков. При равных остатках побеждает более ранняя строка корзины.\n- Отмена заказа не уменьшает счётчик использований. `uses()` неизвестного кода даёт `UnknownPromoCodeError`.\n- Счётчик увеличивается через внутренний `_record_use`, чтобы не расширять публичный API из тикета.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 16.5,
+      "cost_usd": 0.0585074,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 12742,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 739,
+        "output_tokens_details": {
+          "thinking_tokens": 400
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 12742,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 739,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 12742,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 12742
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Порог бесплатной доставки.** В документе порог считается по сумме товаров до скидки (design.md, proposal.md, Assumptions, spec «Налог и доставка при скидке»). Так неверно. Порог нужно сравнивать с суммой товаров уже после скидки, иначе люди будут добирать до порога промокодом. Саму стоимость доставки скидка по-прежнему не уменьшает, это верно. Сценарий «Бесплатная доставка сохраняется» (3000 и скидка 10%) надо пересмотреть под это правило.\n\n2. **Отмена заказа.** В документе возврат использования при отмене вынесен в Non-Goals, а в допущениях и в spec «Учёт использований» сказано, что отмена счётчик не уменьшает. Так неверно. Если заказ с промокодом отменили, использование возвращается: счётчик уменьшается на один. Тогда поддержка сможет переоформить клиенту заказ с лимитированным кодом."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 144.4,
+      "cost_usd": 0.4764947,
+      "duration_ms": 142577,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 50033,
+        "cache_read_input_tokens": 524927,
+        "output_tokens": 22381,
+        "output_tokens_details": {
+          "thinking_tokens": 712
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 50033,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 784,
+            "cache_read_input_tokens": 55610,
+            "cache_creation_input_tokens": 359,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 359
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `add-promo-codes` готов: все 10 из 10 задач выполнены, `python -m pytest -q` проходит (81 тест). `shop/cli.py`, `shop/reports.py` и старые тесты не изменены.\n\n**Правки артефактов (proposal, design, specs, tasks)**\n1. **Порог бесплатной доставки.** Теперь он сравнивается с суммой товаров после скидки. Саму стоимость доставки скидка по-прежнему не уменьшает. Сценарий «Бесплатная доставка сохраняется» я переписал: при 3000 и скидке 10% (2700 после скидки) доставка 299.00. Добавил парный сценарий: при 4000 и скидке 10% (3600) доставка 0.00.\n2. **Отмена заказа.** Из Non-Goals возврат использования убран. В допущениях и в spec «Учёт использований» записано, что отмена заказа с промокодом уменьшает счётчик на один. Добавил сценарии про отмену, переоформление при лимите и отмену заказа без кода. В tasks.md в соответствующие задачи добавлены тесты на это.\n\n**Реализация**\n- `shop/errors.py` и `shop/promo.py` (новый): иерархия ошибок промокодов, `PromoCode`, `PromoRegistry`.\n- `shop/pricing.py`: промокод в `calculate_total`, поле `discount` у строки и у заказа, налог с суммы после скидки.\n- `shop/orders.py`: `promo_code` в `quote` и `place_order`, поле `Order.promo_code`, возврат использования в `cancel`.\n- `README.md` обновлён, добавлены три файла тестов: `tests/test_promo.py`, `tests/test_pricing_promo.py`, `tests/test_orders_promo.py`.\n\n**Решения, которых не было в замечаниях** (записаны в design.md)\n- Возврат использования не опускает счётчик ниже нуля.\n- Если у сервиса нет реестра или код в нём неизвестен, возврат пропускается без ошибки, и отмена всё равно проходит.\n- Повторная отмена невозможна, поэтому использование возвращается ровно один раз.\n\nChange можно архивировать через `/opsx:archive`. Ничего не закоммичено."
+    }
+  ]
+}

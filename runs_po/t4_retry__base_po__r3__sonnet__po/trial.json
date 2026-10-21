@@ -1,0 +1,145 @@
+{
+  "trial_id": "t4_retry__base_po__r3__sonnet__po",
+  "task": "t4_retry",
+  "condition": "base_po",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4601a173f7",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4601a173f7\\project",
+  "base_commit": "1370f2e36f48622570d1cd192e9f3986b0173e6c",
+  "po_comments": "1. **Счётчик попыток при возврате из dead-letter.** Попытки не должны оставаться как есть: при ручном возврате счётчик начинается заново, и у задания снова полный набор попыток, как у нового. Прежнее число попыток смотрим в логах.\n\n2. **`DEAD_LETTERED` и ночная очистка.** Вывод верный (очистка не должна удалять такие задания), но причина другая. Dead-letter не трогается очисткой вообще: задания лежат там, пока их не перезапустят вручную, сколько бы времени ни прошло.\n\n3. **Jitter и `max_delay`.** Так быть не должно: максимальная задержка — жёсткий потолок. Если с джиттером выходит больше, ждём ровно `max_delay`.\n\n4. **Отмена из `RETRY_SCHEDULED`.** Здесь всё верно, но поправка к `DEAD_LETTERED` не нужна: я о нём ничего не решал, так что это не расхождение.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 112.5,
+      "cost_usd": 0.29623590000000005,
+      "duration_ms": 108153,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 28228,
+        "cache_read_input_tokens": 193279,
+        "output_tokens": 16396,
+        "output_tokens_details": {
+          "thinking_tokens": 2318
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 28228,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1361,
+            "cache_read_input_tokens": 32091,
+            "cache_creation_input_tokens": 2073,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2073
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Политика повторов и dead-letter очередь готовы. Все 48 тестов проходят: 36 прежних, которые я не менял, и 12 новых в `tests/test_retry.py`. Ничего не закоммичено.\n\n## Что сделано\n- **`jobq/retry.py`:** новый модуль с `RetryPolicy`, `delay_for` и `is_retryable`.\n- **Переполнение:** `delay_for` не падает при `max_attempts=10000`. При `OverflowError` возвращается `max_delay`, а при `base_delay=0` задержка равна 0.\n- **Валидация:** все перечисленные в тикете случаи дают `ConfigError`. `non_retryable` принимает список и хранит tuple.\n- **Ошибки и модели:** добавлены `PermanentJobError`, статусы `RETRY_SCHEDULED` и `DEAD_LETTERED` (подписи «Ожидает повтора» и «В dead-letter») и `DeadLetterEntry`.\n- **Очередь:** новые keyword-only параметр `default_retry_policy` и методы `set_retry_policy`, `retry_policy_for`, `dead_letters`, `requeue_dead_letter`. Политика типа заменяет дефолт целиком. Берётся та, что действует в момент ошибки.\n- **Worker:** новый keyword-only параметр `rng`. Логика при падении обработчика:\n  - Нет политики, ошибка неповторяемая (включая наследников `non_retryable` и `PermanentJobError`) или нет обработчика для типа: `FAILED`, даже на последней попытке.\n  - Попытки кончились: `DEAD_LETTERED`, запись попадает в `dead_letters()`.\n  - Иначе: `RETRY_SCHEDULED` с `run_at = now + delay_for(job.attempts, rng)`. `rng` используется только в этой ветке и только при `jitter > 0`.\n- **Счётчики:** `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **Остальное:** `store.due` берёт и `RETRY_SCHEDULED`, новые сущности экспортированы из `jobq`. `dashboard.py` и `cli.py` не тронуты: отчёт сам подхватывает новые статусы через `JobStatus`.\n\n## Решения там, где тикет не был однозначным\n- **`attempts` при `requeue_dead_letter`:** не сбрасываются, потому что тикет перечисляет, что меняется, а `attempts` там нет. Возвращённое задание при первой же ошибке снова попадёт в dead-letter, если `max_attempts` уже выбран. Если нужен свежий бюджет попыток, это одна строка в `requeue_dead_letter`.\n- **`DEAD_LETTERED` не считается терминальным:** иначе `purge_finished` мог бы удалить задание, а запись в dead-letter осталась бы без него. `finished_at` при попадании в dead-letter ставится и при возврате очищается.\n- **Отмена и требеование к статусу:**\n  - `cancel` разрешён из `RETRY_SCHEDULED`, но не из `DEAD_LETTERED`.\n  - `requeue_dead_letter` для несуществующего id бросает `JobNotFoundError`, для задания не в dead-letter — `InvalidTransitionError`.\n- **Состояние dead-letter:** хранится в памяти очереди, а не в `store`. С персистентным хранилищем записи нужно будет восстанавливать из заданий со статусом `DEAD_LETTERED`.\n- **Jitter может превысить `max_delay`:** по тикету множитель применяется к уже ограниченной задержке.\n- **Проверка типов:** `set_retry_policy` и `default_retry_policy` принимают только `RetryPolicy` или `None`, иначе `ConfigError`. `attempt` в `delay_for` должен быть целым числом ≥ 1."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 10.1,
+      "cost_usd": 0.014661400000000002,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2778,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 340,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2778,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 340,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 2778,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2778
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Счётчик попыток при возврате из dead-letter.** Попытки не должны оставаться как есть: при ручном возврате счётчик начинается заново, и у задания снова полный набор попыток, как у нового. Прежнее число попыток смотрим в логах.\n\n2. **`DEAD_LETTERED` и ночная очистка.** Вывод верный (очистка не должна удалять такие задания), но причина другая. Dead-letter не трогается очисткой вообще: задания лежат там, пока их не перезапустят вручную, сколько бы времени ни прошло.\n\n3. **Jitter и `max_delay`.** Так быть не должно: максимальная задержка — жёсткий потолок. Если с джиттером выходит больше, ждём ровно `max_delay`.\n\n4. **Отмена из `RETRY_SCHEDULED`.** Здесь всё верно, но поправка к `DEAD_LETTERED` не нужна: я о нём ничего не решал, так что это не расхождение."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 32.5,
+      "cost_usd": 0.10067190000000001,
+      "duration_ms": 30690,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 15166,
+        "cache_read_input_tokens": 109699,
+        "output_tokens": 2901,
+        "output_tokens_details": {
+          "thinking_tokens": 279
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 15166,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 628,
+            "cache_read_input_tokens": 20608,
+            "cache_creation_input_tokens": 494,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 494
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Исправил по замечаниям 1–3. Замечание 4 правок не требует. Все 50 тестов проходят: 48 прежних и 2 новых в `tests/test_retry.py`.\n\n1. **Счётчик попыток.** `requeue_dead_letter` теперь обнуляет `job.attempts`, и у задания снова полный набор попыток. Прежнее число попыток пишется в лог, например «attempts reset (was 3)». Запись `DeadLetterEntry` после возврата удаляется, как и раньше.\n2. **Очистка и dead-letter.** `purge_finished` явно пропускает задания в `DEAD_LETTERED` независимо от возраста, они остаются там до `requeue_dead_letter`. Статус по-прежнему не терминальный. Новый тест проверяет, что очистка их не трогает.\n3. **Jitter и `max_delay`.** В `delay_for` результат с джиттером теперь ограничивается: `min(delay * uniform, max_delay)`. Новый тест проверяет это на максимальном множителе. `rng` по-прежнему вызывается один раз и только при `jitter > 0`.\n4. **Отмена из `RETRY_SCHEDULED`.** Оставил как есть. `cancel` из `DEAD_LETTERED` по-прежнему запрещён. Это моё решение: о нём в замечаниях ничего не сказано.\n\nВ новом тесте на очистку вызов `clock.advance(...)` стоит под условием `hasattr`. Я не проверял, есть ли такой метод у `clock` в `conftest`. Если его нет, тест не сдвигает время и проверяет только то, что очистка сразу после dead-letter ничего не удаляет. Для проверки «сколько бы времени ни прошло» это слабее, чем хотелось.\n\nНичего не закоммичено."
+    }
+  ]
+}

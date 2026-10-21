@@ -1,0 +1,145 @@
+{
+  "trial_id": "t2_reserve__base_po__r3__sonnet__po",
+  "task": "t2_reserve",
+  "condition": "base_po",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\f0e1188fed",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\f0e1188fed\\project",
+  "base_commit": "5da6697e9730dddee0bd3f816c49aef13dbc98ff",
+  "po_comments": "1. **Продление (`extend`).** Сейчас продлевает от прежнего `expires_at`. Должно быть от момента запроса: «продлить на 10 минут» означает «текущий момент + 10 минут». Если новый срок не позже действующего, ничего не меняем и в журнал не пишем (срок никогда не сокращается).\n\n2. **Повторный `order_id`.** Сейчас `DuplicateReservationError` выбрасывается для любого существующего резерва, включая истёкший и отменённый. Должно быть так: ошибка «на заказ уже есть резерв» только если резерв действующий или подтверждённый. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 92.2,
+      "cost_usd": 0.2761789,
+      "duration_ms": 90553,
+      "num_turns": 10,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 29059,
+        "cache_read_input_tokens": 180109,
+        "output_tokens": 14190,
+        "output_tokens_details": {
+          "thinking_tokens": 1987
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 29059,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1151,
+            "cache_read_input_tokens": 33362,
+            "cache_creation_input_tokens": 1633,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1633
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Резервы реализованы в `Inventory` по тикету: `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `available`, `reserved`. Все 44 теста проходят: 40 прежних без изменений и 4 новых в `tests/test_reservations.py`. Изменения не закоммичены.\n\n## Что сделано\n- **Модели и ошибки:** добавлены `ReservationStatus`, `ReservationLine`, `Reservation` и пять ошибок резерва, у каждой есть `order_id`. Всё экспортируется из `warehouse/__init__.py`.\n- **Новый модуль:** `warehouse/reservations.py` с `DEFAULT_RESERVATION_TTL = 15 минут` (по обновлению Анны Беловой, не 30) и внутренней записью резерва.\n- **Хранение:** резервы лежат в `store.reservations`, поле добавлено в `InMemoryStore`.\n- **Истечение:** вычисляется при каждом обращении по часам сервиса, ничего не пишется в журнал. `CONFIRMED` и `CANCELLED` от времени не меняются.\n- **Строки с одной позицией:** проверка наличия идёт по сумме строк, при `confirm` тоже. В резерве строки хранятся как пришли.\n- **События журнала:** `RESERVE` на каждую строку, при подтверждении `ISSUE` с `ref` = номер заказа и затем `RESERVE_CONFIRM`, плюс `RESERVE_CANCEL` и `RESERVE_EXTEND`. Время в `expires` пишется тем же форматом, что и время события.\n- **Атомарность:** все проверки идут до изменений.\n- **Рамки:** `cli.py` и `reports.py` не тронуты, существующие тесты не менялись, зависимостей нет.\n\n## Решения там, где тикет не давал ответа\n1. **Граница истечения:** резерв истёк, когда `now >= expires_at`.\n2. **`extend`:** продлевает от прежнего `expires_at`, а не от текущего момента.\n3. **`cancel` истёкшего резерва:** ничего не делает и не пишет в журнал, возвращает снимок со статусом `EXPIRED`. Ошибку не бросает, потому что цель отмены уже достигнута.\n4. **Повторный `order_id`:** `DuplicateReservationError` для любого существующего резерва, в том числе истёкшего или отменённого. Номер заказа нельзя использовать заново.\n5. **`transfer`:** тоже не берёт товар из чужих резервов, как и `issue`. Ticket про это молчит, но иначе резерв обходился бы перемещением.\n6. **`adjust`:** по-прежнему фиксирует факт без проверок. Если остаток упал ниже резервов, `available` показывает 0, а не отрицательное число.\n7. **`confirm` при нехватке физического остатка** (например, после инвентаризации): `InsufficientStockError`, ничего не меняется.\n8. **Порядок проверок в `reserve`:** сначала `order_id`, `ttl` и строки, затем дубликат заказа, затем наличие товара.\n9. **Строки резерва:** принимаются кортежи из трёх элементов или `ReservationLine`. Любой другой вид строки даёт `ValidationError`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 7.9,
+      "cost_usd": 0.0138134,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2791,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 250,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2791,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 250,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 2791,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2791
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Продление (`extend`).** Сейчас продлевает от прежнего `expires_at`. Должно быть от момента запроса: «продлить на 10 минут» означает «текущий момент + 10 минут». Если новый срок не позже действующего, ничего не меняем и в журнал не пишем (срок никогда не сокращается).\n\n2. **Повторный `order_id`.** Сейчас `DuplicateReservationError` выбрасывается для любого существующего резерва, включая истёкший и отменённый. Должно быть так: ошибка «на заказ уже есть резерв» только если резерв действующий или подтверждённый. Если прежний резерв истёк или отменён, новый резерв разрешён и полностью заменяет старый."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 30.4,
+      "cost_usd": 0.0964729,
+      "duration_ms": 28619,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 12,
+        "cache_creation_input_tokens": 15381,
+        "cache_read_input_tokens": 93349,
+        "output_tokens": 2559,
+        "output_tokens_details": {
+          "thinking_tokens": 147
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 15381,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 417,
+            "cache_read_input_tokens": 20307,
+            "cache_creation_input_tokens": 1010,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1010
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Оба замечания исправлены в `warehouse/inventory.py`. Все 46 тестов проходят.\n\n1. **`extend`.** Новый срок теперь считается от момента запроса: `now + ttl`. Если он не позже действующего `expires_at`, ничего не меняется и в журнал ничего не пишется. В этом случае метод возвращает текущий снимок. Ошибки по статусам остались прежними.\n2. **`reserve` с повторным `order_id`.** `DuplicateReservationError` теперь только если прежний резерв активный или подтверждённый. Если он истёк или отменён, новый резерв заменяет старый. Замена происходит только после всех проверок, так что при ошибке (например, нехватке товара) старая запись остаётся нетронутой.\n\nВ `tests/test_reservations.py` я изменил существующий тест `test_cancel_idempotent_and_extend`, потому что его старое ожидание (продление от прежнего срока) противоречит новому правилу. Заодно я добавил два теста: продление от текущего момента, и замену истёкшего или отменённого резерва с ошибкой для подтверждённого. Тестов из набора, который был до тикета, это не касается.\n\nИзменения не закоммичены."
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "trial_id": "t1_promo__base_po__r2__sonnet__po",
+  "task": "t1_promo",
+  "condition": "base_po",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bc70e146bc",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bc70e146bc\\project",
+  "base_commit": "fc64f28cd9eaf3597ef94733fcfa17ed6964a50e",
+  "po_comments": "1. **Порог бесплатной доставки (п. 1 «Решения»).** Порог нужно сравнивать с суммой товаров после скидки, а не до неё. Иначе покупатели смогут добирать до порога с помощью промокода. Стоимость самой доставки скидка по-прежнему не уменьшает.\n\n2. **Отмена заказа (п. 4 «Решения»).** Отмена должна возвращать использование промокода: счётчик уменьшается на один. Тогда поддержка сможет переоформить клиенту заказ с лимитированным кодом.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 121.2,
+      "cost_usd": 0.32696499999999995,
+      "duration_ms": 119389,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 30755,
+        "cache_read_input_tokens": 253410,
+        "output_tokens": 17856,
+        "output_tokens_details": {
+          "thinking_tokens": 1850
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 30755,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1308,
+            "cache_read_input_tokens": 36467,
+            "cache_creation_input_tokens": 224,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 224
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Реализовано, все 57 тестов проходят: 38 старых без изменений и 19 новых в `tests/test_promo.py`. Коммит я не делал.\n\n## Что сделано\n- **`shop/promo.py`** (новый): `DiscountKind`, `PromoCode` и `PromoRegistry`.\n  - `PromoCode` проверяет входные данные: код нормализуется и не бывает пустым, процент лежит в (0, 100], фиксированная сумма больше 0 и не длиннее двух знаков после запятой, `max_uses ≥ 1`, даты aware, а начало строго раньше конца.\n  - `PromoRegistry` работает на внедрённых часах. `resolve` проверяет по порядку: код существует, действует сейчас (интервал `[начало, конец)`), лимит не исчерпан. Повторное `add` того же кода даёт `ValidationError`.\n  - `PromoRegistry` получил метод `record_use`. В тикете его нет, он нужен, чтобы засчитывать только оформленные заказы.\n- **`shop/errors.py`**: `PromoError` и три независимых наследника.\n- **`shop/pricing.py`**: параметр `promo`, поля `discount` в `LineTotal` и `OrderTotal`.\n  - Участвуют строки, кроме подарочных сертификатов и исключённых категорий кода.\n  - Процент считается от суммы участвующих строк с округлением `ROUND_HALF_UP`. Фиксированная скидка ограничена этой суммой.\n  - Скидка раскладывается по строкам пропорционально их сумме. Остаточные копейки получают строки с наибольшим остатком, при равенстве — более ранняя. Сумма по строкам равна общей скидке.\n  - Налог считается с суммы строки после скидки, `total = subtotal - discount + shipping + tax`.\n- **`shop/orders.py`**: `promos` в `OrderService`, `promo_code` в `quote` и `place_order`, `Order.promo_code` (нормализованный код или `None`). Пустой или пробельный код означает «без промокода». `resolve(\"\")` остаётся неизвестным кодом. Без реестра любой непустой код неизвестен.\n- Счётчик использований растёт только после сохранения заказа. `quote` и неудачные попытки его не меняют.\n- Новые типы экспортированы в `shop/__init__.py`. `cli.py` и `reports.py` не тронуты.\n\n## Решения там, где тикет не дал ответа\n1. **Порог бесплатной доставки** считается по сумме товаров до скидки. Я понял «скидка не влияет на доставку» так, что доставка не зависит от скидки вообще. Если нужен порог по сумме после скидки, это правка в одном месте.\n2. **Минимальная сумма заказа** сравнивается с суммой участвующих строк. Подарочные сертификаты и исключённые категории в неё не входят.\n3. **Заказ без участвующих товаров** (например, только сертификаты) даёт `PromoConditionsError`, а не нулевую скидку.\n4. **Отмена заказа** использование не возвращает: заказ был оформлен успешно, и тикет про возврат ничего не говорит.\n5. **Пустая корзина с промокодом** даёт `EmptyCartError` раньше, чем проверка кода.\n6. **Не начавшийся код** даёт `PromoExpiredError`, как решила Ольга Смирнова.\n7. **Дробный процент** (например, 12.5) допустим. Фиксированная сумма и минимальная сумма заказа не могут иметь больше двух знаков после запятой.\n8. **README** я не обновлял, правило расчёта `total = subtotal + shipping + tax` там теперь устарело. Описание скидок есть в docstring модуля `pricing.py`."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 11.7,
+      "cost_usd": 0.0179114,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2993,
+        "cache_read_input_tokens": 1454,
+        "output_tokens": 579,
+        "output_tokens_details": {
+          "thinking_tokens": 386
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2993,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 579,
+            "cache_read_input_tokens": 1454,
+            "cache_creation_input_tokens": 2993,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2993
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **Порог бесплатной доставки (п. 1 «Решения»).** Порог нужно сравнивать с суммой товаров после скидки, а не до неё. Иначе покупатели смогут добирать до порога с помощью промокода. Стоимость самой доставки скидка по-прежнему не уменьшает.\n\n2. **Отмена заказа (п. 4 «Решения»).** Отмена должна возвращать использование промокода: счётчик уменьшается на один. Тогда поддержка сможет переоформить клиенту заказ с лимитированным кодом."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 33.3,
+      "cost_usd": 0.0963787,
+      "duration_ms": 31265,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 14707,
+        "cache_read_input_tokens": 105927,
+        "output_tokens": 2693,
+        "output_tokens_details": {
+          "thinking_tokens": 189
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 14707,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 383,
+            "cache_read_input_tokens": 19749,
+            "cache_creation_input_tokens": 894,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 894
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Оба замечания исправлены, все 60 тестов проходят: 57 прежних и 3 новых. Коммит я не делал.\n\n1. **Порог бесплатной доставки.** В `shop/pricing.py` порог теперь сравнивается с суммой товаров после скидки. Сама стоимость доставки по-прежнему не уменьшается. Если промокода нет, расчёт не изменился.\n2. **Отмена заказа.** В `PromoRegistry` добавлен метод `release_use`, который уменьшает счётчик на один и не опускает его ниже нуля. `OrderService.cancel` вызывает его, если у заказа есть промокод. После отмены заказ с лимитированным кодом можно оформить снова.\n\nЯ также поправил `README.md` и docstring в `pricing.py`. В README формула стала `total = subtotal - discount + shipping + tax`, а правило порога доставки уточнено. Новые тесты лежат в `tests/test_promo_followup.py`. Они проверяют порог доставки после скидки, возврат использования при отмене и то, что отмена заказа без промокода счётчик не трогает."
+    }
+  ]
+}

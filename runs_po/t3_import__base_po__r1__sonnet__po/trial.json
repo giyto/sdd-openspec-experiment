@@ -1,0 +1,145 @@
+{
+  "trial_id": "t3_import__base_po__r1__sonnet__po",
+  "task": "t3_import",
+  "condition": "base_po",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "po",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\6dfac6bf0e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\6dfac6bf0e\\project",
+  "base_commit": "64d56bcd3ff3e3f194dc72b1074e65db8cecb57f",
+  "po_comments": "1. **`import_csv` и ошибки для CLI (п. 1 «Решения»).** Снаружи загрузка «Новы» должна остаться как раньше: тот же вызов, на выходе число добавленных операций, ошибки того же вида. По документу при заголовке не «Новы» вместо прежней ошибки про колонки вылетает новая `UnknownFormatError` с `line_no=1`. Это другой вид ошибки. Должна остаться прежняя ошибка про колонки.",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 95.3,
+      "cost_usd": 0.2476064,
+      "duration_ms": 91066,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 24953,
+        "cache_read_input_tokens": 126764,
+        "output_tokens": 13509,
+        "output_tokens_details": {
+          "thinking_tokens": 2892
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 24953,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1166,
+            "cache_read_input_tokens": 30664,
+            "cache_creation_input_tokens": 225,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 225
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "`import_statement` готов: он сам определяет формат («Нова», «Сфера», «Сфера» с раздельными колонками), не задваивает операции и возвращает список битых строк. Все 47 тестов проходят: 41 прежний без изменений и 6 новых. Коммит я не делал.\n\nИзменения в `ledger/importer.py`, `ledger/errors.py` (добавлены `UnknownFormatError` и `StatementRowError`), в тестах и в одной строке `README.md`. `cli.py` и `reports.py` не тронуты.\n\n**Что делает импорт**\n- **Запись в хранилище.** Файл целиком разбирается заранее и пишется в хранилище одним атомарным вызовом, поэтому кривая строка не оставляет в хранилище половину файла. В строгом режиме при ошибке не пишется ничего, ни в память, ни в JSON.\n- **Мусорные строки.** Пустые, из пробелов и из одних разделителей (`;;;`, `,,`) пропускаются где угодно и нигде не учитываются.\n- **Нумерация строк.** Номера физические, заголовок — строка 1, запись в кавычках на несколько строк получает номер первой.\n\n**Решения там, где тикет не был однозначным**\n1. **`import_csv`.** Теперь это обёртка над `import_statement(strict=True)` с автоопределением формата, так что CLI начнёт понимать и «Сферу». Прежние тесты проходят. Если у вас заголовок не «Новы», вместо старой ошибки про колонки будет `UnknownFormatError` с `line_no=1`. Побочный эффект: повторный импорт через CLI тоже перестаёт задваивать операции, и «Imported N» показывает только новые.\n2. **Одинаковые строки внутри одного файла.** Две одинаковые покупки в один день — это две операции. Дублем считается совпадение с тем, что уже лежит в хранилище, причём одно совпадение гасит одну имеющуюся запись. Повторный импорт того же файла поэтому даёт 0 добавленных.\n3. **Лишние поля в строке.** Непустое поле сверх колонок заголовка считается ошибкой строки, например несэкранированная запятая в описании «Новы». Пустые лишние поля, как в `a;b;c;`, игнорируются.\n4. **Заголовок.** Регистр и пробелы вокруг названий колонок не важны, пустые колонки в конце тоже. Заголовок должен быть первой строкой файла. Неизвестное значение `fmt` даёт `UnknownFormatError`.\n5. **Суммы «Сферы».** Тысячи отделяются обычным пробелом, U+00A0 или U+202F, знак может быть `+`, `-` или `−` (U+2212), дробная часть через запятую. Даты только в виде `ДД.ММ.ГГГГ`.\n6. **Кодировка.** Если файл не читается ни как UTF-8, ни как cp1251 (в cp1251 есть незанятые байты), это `UnknownFormatError`.\n7. **Нечитаемая CSV-запись.** Ошибка парсера `csv` превращается в ошибку строки, и чтение на этом останавливается.\n8. **Мелочи.** Категоризация не влияет на проверку дублей. `imported_at` берётся один раз на весь импорт, а описание обрезается по краям, как раньше."
+    },
+    {
+      "phase": "po",
+      "rc": 0,
+      "wall_s": 13.0,
+      "cost_usd": 0.0243735,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 3844,
+        "cache_read_input_tokens": 535,
+        "output_tokens": 894,
+        "output_tokens_details": {
+          "thinking_tokens": 726
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 3844,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 894,
+            "cache_read_input_tokens": 535,
+            "cache_creation_input_tokens": 3844,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3844
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "1. **`import_csv` и ошибки для CLI (п. 1 «Решения»).** Снаружи загрузка «Новы» должна остаться как раньше: тот же вызов, на выходе число добавленных операций, ошибки того же вида. По документу при заголовке не «Новы» вместо прежней ошибки про колонки вылетает новая `UnknownFormatError` с `line_no=1`. Это другой вид ошибки. Должна остаться прежняя ошибка про колонки."
+    },
+    {
+      "phase": "fix",
+      "rc": 0,
+      "wall_s": 41.3,
+      "cost_usd": 0.10679530000000001,
+      "duration_ms": 39439,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 14419,
+        "cache_read_input_tokens": 120273,
+        "output_tokens": 3706,
+        "output_tokens_details": {
+          "thinking_tokens": 805
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 14419,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 538,
+            "cache_read_input_tokens": 19462,
+            "cache_creation_input_tokens": 893,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 893
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "`import_csv` теперь при неподходящем заголовке бросает прежнюю ошибку про колонки, а не `UnknownFormatError`. Все 48 тестов проходят: 47 прежних и один новый, который я добавил для этого случая.\n\n**Что изменилось** (`ledger/importer.py`)\n- Вызов, возвращаемое число добавленных операций и строгий режим остались прежними.\n- Если заголовок не распознан, `import_csv` бросает обычный `StatementError` с текстом `missing columns: …` и `line_no=1`. Это не `UnknownFormatError` и не его наследник.\n- В списке недостающих колонок перечислены колонки «Новы», которых нет в заголовке. Для пустого файла перечислены все три.\n- Ошибку декодирования файла я не менял. Она остаётся `UnknownFormatError` без номера строки.\n- `import_statement` не менялся, `UnknownFormatError` остаётся там как в тикете.\n\n**Новый тест** (`tests/test_importer.py`)\n- Заголовок `date,amount` даёт ровно `StatementError` с `line_no=1` и сообщением `missing columns: description`.\n\n**Что осталось прежним, хотя в замечании не упомянуто**\n- `import_csv` по-прежнему принимает и выписки «Сферы», потому что формат определяется автоматически.\n- Кривая строка в строгом режиме по-прежнему даёт `StatementRowError`. Это наследник `StatementError`, поэтому прежний `except StatementError` его ловит.\n\nКоммит не делал."
+    }
+  ]
+}
