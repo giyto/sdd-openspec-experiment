@@ -1,0 +1,59 @@
+{
+  "trial_id": "t2_reserve__baseline__r1__sonnet__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\56710e69c9\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7d0faf036a",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7d0faf036a\\project",
+  "base_commit": "e5685efe12885e1aa469754dc7f66f99e522ce6b",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 78.7,
+      "cost_usd": 0.21643899999999996,
+      "duration_ms": 76783,
+      "num_turns": 19,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 23272,
+        "cache_read_input_tokens": 190910,
+        "output_tokens": 10422,
+        "output_tokens_details": {
+          "thinking_tokens": 1550
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 23272,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 867,
+            "cache_read_input_tokens": 28503,
+            "cache_creation_input_tokens": 705,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 705
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все семь пунктов тикета реализованы. Существующие 40 тестов проходят. Новые тесты я не писал, а новое поведение проверил одним коротким прогоном. В нём замена резерва, `availability()` и `sweep_expired()` сработали как в тикете. Возврат подтверждённого заказа, `extend` и `ttl` сверх предела не прогонялись.\n\nЧто сделано:\n- **Замена резерва.** Повторный `reserve` на заказ с активным резервом заменяет его. Товар старого резерва при проверке наличия считается свободным. В журнале сначала `RESERVE_CANCEL`, потом `RESERVE` по новым строкам. У нового резерва свой `created_at` и свой срок. Для подтверждённого заказа по-прежнему `DuplicateReservationError`.\n- **Возврат.** `cancel` подтверждённого заказа возвращает товар на те же склады, пишет `RECEIVE` по каждой строке с `ref` = номер заказа, затем `RESERVE_CANCEL`. Статус становится `CANCELLED`.\n- **TTL и предел.** TTL по умолчанию 20 минут. `MAX_RESERVATION_LIFETIME` = 2 часа, как в уточнении Ольги, а не час из текста тикета. `reserve` с `ttl` больше предела даёт `ValidationError`. `extend` сверх предела ставит срок ровно на предел.\n- **`Availability`, `reservations()`, `availability()`.** Добавлены по описанию в тикете. Я экспортировал `Availability` из пакета `warehouse`.\n- **`sweep_expired()`.** Пишет `RESERVE_EXPIRE` один раз на каждый резерв и не меняет статусы и остатки. Если заказ зарезервировали заново, новый резерв считается отдельным, как просил Игорь.\n\nВ тикете не сказано, что делать, если истёкший и ещё не отмеченный резерв заменили новым. Я решил, что его истечение всё равно попадёт в следующий `sweep_expired()`, поэтому один `order_id` может вернуться дважды. Если нужно иначе, это легко поменять.\n\nИзменения в `warehouse/inventory.py`, `models.py`, `reservations.py` и `__init__.py`. `cli.py` и `reports.py` не трогал.\n\nВ `models.py` и `__init__.py` на `git diff` появилось предупреждение про замену LF на CRLF. Я не проверял, как это повлияло на сами файлы."
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "trial_id": "t1_promo__sdd_rules__r3__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "sdd_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0b7b4de32d\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\61e358847d",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\61e358847d\\project",
+  "base_commit": "283f59b450d1fb4f0bf2b3b856e8983ae3b9be88",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 188.1,
+      "cost_usd": 0.5734505000000001,
+      "duration_ms": 186012,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 58358,
+        "cache_read_input_tokens": 424405,
+        "output_tokens": 29753,
+        "output_tokens_details": {
+          "thinking_tokens": 2370
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 58358,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 921,
+            "cache_read_input_tokens": 63047,
+            "cache_creation_input_tokens": 1247,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1247
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `promo-autumn-limits` создано в `openspec/changes/promo-autumn-limits/`. `openspec validate --strict` проходит. Код проекта я не менял, реализацию не начинал.\n\n**Артефакты**\n- `proposal.md` описывает, зачем нужны правки и что меняется, и перечисляет допущения.\n- `specs/` содержит три дельты к существующим спекам: `promo-codes`, `promo-pricing`, `promo-orders`. Все требования там изменённые (MODIFIED), кроме одного нового в `promo-pricing`: условия заказа для `FREE_SHIPPING`.\n- `design.md` фиксирует решения и риски.\n- `tasks.md` разбит на 5 групп. Последняя группа — сверка публичного API с proposal и specs.\n\n**Допущения, принятые без вопросов**\n- **Потолок фиксированной скидки — 50 %, а не 30 %.** Так сказано в более поздней поправке Ольги Смирновой от 22.10. Это одна константа, при необходимости легко поменять.\n- **Лишняя копейка при равных остатках** идёт строке с большей суммой, затем строке, раньше попавшей в корзину. Это решение Натальи Кравец.\n- **Отмена ровно через 24 часа** использование не возвращает: интервал `[created_at, created_at + 24 ч)`, как ответила Анна Лебедева. Время берётся из часов `OrderService`. Заказ в любом случае становится `CANCELLED`. Возврат касается и общего счётчика, и счётчика клиента.\n- **Условия заказа для `FREE_SHIPPING`:** они такие же, как у других видов. Нужны участвующие строки и `min_order_amount`, иначе `PromoConditionsError`.\n- **`shipping_discount`** равен доставке, которую клиент заплатил бы без кода. Если платить и так не пришлось, там `0.00`.\n- **`max_discount`** допускает не больше двух знаков после запятой.\n- **`customer_id`** сравнивается как есть, пустая строка считается обычным значением. Клиент учитывается и для кодов без лимита на клиента. `consume` и `release` получают необязательный `customer_id`.\n\n**Конфликт с рамками тикета.** Новые правила противоречат двум существующим тестам: `test_shipping_threshold_after_discount` и `test_fixed_capped`. По требованию тикета они станут красными. Тесты менять нельзя, поэтому в задачах записано: не править их, а перечислить в отчёте как устаревшие.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 759.2,
+      "cost_usd": 0.49357119999999993,
+      "duration_ms": 6369,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 3325,
+        "cache_read_input_tokens": 58892,
+        "output_tokens": 226,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 3325,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 226,
+            "cache_read_input_tokens": 58892,
+            "cache_creation_input_tokens": 3325,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3325
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Это уведомление о фоновой команде, которая зависла в начале сессии: из-за лишнего `cat > ...` она ждала stdin, и по таймауту её остановили. Перезапускать её не нужно. Те же правки в `shop/promo.py` я потом применил отдельным скриптом, и они на месте.\n\nСостояние работы не изменилось: все 15 задач выполнены, в `pytest` 133 теста проходят и 3 падают. Падают три теста, которые закрепляют отменённые правила: `test_fixed_capped`, `test_shipping_threshold_after_discount` и `test_cancel_after_expiry_releases`. Я их не правил."
+    }
+  ]
+}

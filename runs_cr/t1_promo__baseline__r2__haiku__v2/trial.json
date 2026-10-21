@@ -1,0 +1,59 @@
+{
+  "trial_id": "t1_promo__baseline__r2__haiku__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b4a889b532\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4340e663b3",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4340e663b3\\project",
+  "base_commit": "53e0f894adfc6d04e38ac39923f1c4d8db7a88b2",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 121.9,
+      "cost_usd": 0.02701738,
+      "duration_ms": 119813,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 52485,
+        "cache_read_input_tokens": 392668,
+        "output_tokens": 25183,
+        "output_tokens_details": {
+          "thinking_tokens": 13309
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52485,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1300,
+            "cache_read_input_tokens": 57953,
+            "cache_creation_input_tokens": 1248,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1248
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "SHOP-447 is implemented, but two existing tests now fail, and I left them unchanged because the ticket says existing tests stay as they are. Test run: 91 passed, 2 failed.\n\n**The two failing tests** both encode the summer rules that the ticket reverts:\n- `test_shipping_threshold_uses_goods_after_discount` expects the 299 fee after a discount. The threshold now uses the pre-discount subtotal, so shipping is 0.\n- `test_fixed_discount_is_capped_by_eligible_amount` expects a 5000 fixed code to give 2950. The new cap is 50% of the eligible amount, so it gives 1475.\n\nBoth need an owner's decision to update. I have not committed anything.\n\n**What changed**\n- **`shop/pricing.py`**\n  - The shipping threshold is compared with the subtotal before discount.\n  - Fixed discounts are capped at `quantize_money(base * 0.50)`. The ticket's correction from 30 % to 50 % is applied.\n  - Percent discounts are capped by `max_discount`.\n  - `FREE_SHIPPING` gives no goods discount and zeroes the fee. `OrderTotal.shipping_discount` holds the waived fee, or `0.00`.\n  - Kopeck tie-break: largest discarded remainder first, then the larger amount, then the earlier cart line.\n- **`shop/promo.py`**\n  - New `DiscountKind.FREE_SHIPPING`, `max_discount` and `max_uses_per_customer`, with the validations from the ticket.\n  - `resolve`, `uses`, `record_use` and `release_use` take an optional `customer_id`. Per-customer counts are kept only for orders that name a customer.\n- **`shop/orders.py`**\n  - `quote` and `place_order` take a keyword-only `customer_id`, and `Order` stores it.\n  - Cancel returns the use only if `now - created_at < 24h`. Cancelling at exactly 24h does not return it.\n- **`README.md`**: the shipping sentence now says the threshold is taken \"до скидки\".\n\nI checked the new rules with a scratch script outside the repo. Percent cap, the 50% cap, free shipping, validation errors, per-customer limits, the cancel window and the kopeck tie-break all behave as specified.\n\n**Choices I made**\n- A `FREE_SHIPPING` code still goes through the eligible-items and `min_order_amount` checks. A gift-card-only cart is rejected with `PromoConditionsError`, as other codes already are.\n- The 50% cap follows the ticket's \"round as any money\" rule. Rounding half up can let a tiny cap exceed 50% by one kopeck, for example a base of 0.03 gives a cap of 0.02.\n- `customer_id` is compared as given. Only `None` means \"no customer\", so `\"\"` counts as a customer.\n- `__version__` is still 1.4.0. I did not bump it."
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "trial_id": "t2_reserve__baseline__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\5055c514c4\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\46edc16ed2",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\46edc16ed2\\project",
+  "base_commit": "a0de5956fe453105d08c5b55ae41a94451b6b8d6",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 54.3,
+      "cost_usd": 0.14411759999999998,
+      "duration_ms": 52488,
+      "num_turns": 7,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 18623,
+        "cache_read_input_tokens": 108276,
+        "output_tokens": 5877,
+        "output_tokens_details": {
+          "thinking_tokens": 1245
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 18623,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 865,
+            "cache_read_input_tokens": 23504,
+            "cache_creation_input_tokens": 1055,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1055
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все семь пунктов тикета реализованы. Существующие 40 тестов проходят. Новых тестов я не писал, а новые сценарии проверил только вручную коротким прогоном.\n\nВ прогоне повторный `reserve` заменил резерв, и в журнале пошли `RESERVE_CANCEL`, затем `RESERVE`. `sweep_expired` сообщил об истёкшем резерве один раз. После `confirm` и `cancel` товар вернулся на склад двумя событиями, `RECEIVE` и `RESERVE_CANCEL`. Проверок на `ttl` выше предела, `extend` сверх предела и `reservations()` не было.\n\n- **Замена резерва:** повторный `reserve` на заказ с активным резервом заменяет его. Товар старого резерва при проверке наличия считается свободным. Новый резерв получает свой `created_at` и срок от момента замены. Подтверждённый заказ по-прежнему даёт `DuplicateReservationError`.\n- **Возврат:** `cancel` подтверждённого заказа возвращает товар на те же склады и ставит `CANCELLED`. В журнал пишутся `RECEIVE` (`ref` = номер заказа) по каждой строке, затем `RESERVE_CANCEL`.\n- **TTL и предел:** TTL по умолчанию 20 минут. `MAX_RESERVATION_LIFETIME` равен двум часам, как согласовала Ольга Смирнова в комментарии (в тексте тикета был час). `reserve` с `ttl` выше предела даёт `ValidationError`, а `extend` ставит срок ровно на предел.\n- **Новые методы:** добавлены `Availability`, `reservations()`, `availability()` и `sweep_expired()`. Всё экспортировано из `warehouse/__init__.py`.\n- **`sweep_expired`:** «уже писали» определяется по тройке (заказ, `created_at`, `expires_at`). Поэтому повторно оформленный и снова истёкший резерв считается новым, как просил Игорь Левин. Истёкший резерв, который заменили новым до вызова метода, тоже не теряется: я сохраняю его в `Inventory`.\n\nЭта память о заменённых и уже учтённых резервах живёт только в самом `Inventory` и не сохраняется между его пересозданиями.\n\n`cli.py` и `reports.py` не менял. Изменения в `inventory.py`, `reservations.py`, `models.py` и `__init__.py`, в git не закоммичены."
+    }
+  ]
+}

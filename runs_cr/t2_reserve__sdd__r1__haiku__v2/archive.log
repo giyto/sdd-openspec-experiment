@@ -1,0 +1,15 @@
+$ openspec archive add-stock-reservations --yes
+
+Proposal warnings in proposal.md (non-blocking):
+  ⚠ Consider splitting changes with more than 10 deltas
+Task status: ✓ Complete
+
+Specs to update:
+  inventory-reservations: create
+Applying changes to openspec/specs/inventory-reservations/spec.md:
+  + 12 added
+Totals: + 12, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-stock-reservations' archived as '2026-10-18-add-stock-reservations'.
+
+

@@ -1,0 +1,56 @@
+{
+  "trial_id": "t3_import__sdd__r2__haiku__v2",
+  "stage": "cr",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "cr_total": 32,
+  "cr_passed": 32,
+  "cr_pass_rate": 1.0,
+  "cr_req_total": 10,
+  "cr_req_satisfied": 10,
+  "cr_req_status": {
+    "C01": true,
+    "C02": true,
+    "C03": true,
+    "C04": true,
+    "C05": true,
+    "C06": true,
+    "C07": true,
+    "C08": true,
+    "C09": true,
+    "C10": true
+  },
+  "stage1_was_ok": 56,
+  "stage1_preserved": 56,
+  "preserved_rate": 1.0,
+  "stage1_broken_tests": [],
+  "stage1_valid_total": 56,
+  "stage1_valid_passed": 56,
+  "stage1_valid_pass_rate": 1.0,
+  "regress_total": 41,
+  "regress_passed": 41,
+  "protected_touched": [
+    "tests/test_importer.py"
+  ],
+  "foreign_deps": [],
+  "prod_loc": 111,
+  "files_changed": [
+    "ledger/errors.py",
+    "ledger/importer.py",
+    "tests/test_errors.py",
+    "tests/test_importer.py"
+  ],
+  "cc_mean": 4.89,
+  "cost_usd": 0.0776,
+  "wall_s": 351.9,
+  "num_turns": 53,
+  "output_tokens": 61978,
+  "session_subtypes": [
+    "success",
+    "success"
+  ],
+  "cr_out_tail": "................................                                         [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b08594985f\\project\\_cr.xml -\n32 passed in 0.43s\n"
+}

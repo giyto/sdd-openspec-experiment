@@ -1,0 +1,103 @@
+{
+  "trial_id": "t2_reserve__sdd__r3__sonnet__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\43dce91416\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\579d80e273",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\579d80e273\\project",
+  "base_commit": "342c89b285c55b7c2ce9733db31b80cce296d233",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 167.1,
+      "cost_usd": 0.4886644,
+      "duration_ms": 165302,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 54063,
+        "cache_read_input_tokens": 513624,
+        "output_tokens": 22099,
+        "output_tokens_details": {
+          "thinking_tokens": 2502
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54063,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 923,
+            "cache_read_input_tokens": 59099,
+            "cache_creation_input_tokens": 900,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 900
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `reservations-post-launch-rework` создан в `openspec/changes/`, все четыре артефакта готовы. `openspec validate --strict` проходит. Код проекта я не менял.\n\n**Артефакты**\n- `proposal.md` — зачем и что меняется. Помечено **BREAKING**: замена активного резерва, возврат при `cancel`, TTL 20 минут.\n- `specs/order-reservations/spec.md` — дельта к существующей спеке.\n  - Изменены требования: создание резерва, истечение, отмена, продление, повторное резервирование и события журнала.\n  - Добавлены требования: предельный срок, `reservations()`, `availability()` и `sweep_expired()`.\n- `design.md` — решения и допущения.\n- `tasks.md` — 4 группы задач, у каждой есть проверка тестами.\n\n**Допущения и решения**\n- **Предел срока — 2 часа.** Так сказано в позднем комментарии Ольги Смирновой, он перекрывает «один час» из тела тикета.\n- **Как `sweep_expired` помнит записанное.** Учёт идёт по ключу `(order_id, created_at)`. Заказ, зарезервированный заново, считается другим резервом, как просил Игорь Левин.\n- **Потеря истечения при перезаписи.** Хранилище держит один резерв на заказ. Если истёкший резерв перезаписать новым `reserve` до вызова `sweep_expired`, о нём событие не запишется. Историю резервов я не вводил. Это допущение зафиксировано в `design.md`.\n- **Если замена не проходит.** При ошибке наличия или входных данных (в том числе `ttl` выше предела) старый резерв остаётся `ACTIVE`, журнал не меняется.\n- **Возврат.** Возвращает товар без проверок и от срока резерва не зависит. Повторный `cancel` ничего не делает.\n- **`extend` на пределе.** Если срок уже равен пределу, резерв и журнал не меняются.\n\n**Конфликт с запретом менять тесты.** Новые правила противоречат нескольким существующим тестам в `tests/test_reservations.py`. Они проверяют TTL 15 минут, `DuplicateReservationError` для активного резерва и `ReservationStateError` при отмене подтверждённого заказа. Тикет запрещает менять существующие тесты, поэтому в задачах их правка не предусмотрена. Это отражено в `design.md` и `tasks.md` (задача 4.1). При применении эти тесты упадут, и об этом надо будет сообщить явно.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 141.6,
+      "cost_usd": 0.49864329999999996,
+      "duration_ms": 139903,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 55355,
+        "cache_read_input_tokens": 496273,
+        "output_tokens": 22754,
+        "output_tokens_details": {
+          "thinking_tokens": 845
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 55355,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 977,
+            "cache_read_input_tokens": 60768,
+            "cache_creation_input_tokens": 523,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 523
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** reservations-post-launch-rework (schema: spec-driven)\n**Progress:** 10/10 tasks complete. 6 old tests now fail, as the design predicted.\n\n**Tests:** `python -m pytest -q` gives 105 passed and 6 failed. I wrote the new tests in `tests/test_reservations_rework.py`, and they all pass. Nothing was committed.\n\n**What changed:**\n- **Constants and model:** the default TTL is 20 minutes, and `MAX_RESERVATION_LIFETIME` is 2 hours. `Availability` is new, and both new names are exported from the package.\n- **`reserve`:** a `ttl` above the limit raises `ValidationError` before the stock check. An active reservation is now replaced, with `RESERVE_CANCEL` and then `RESERVE` events. A failed replacement leaves the old reservation and the log untouched. A confirmed order still raises `DuplicateReservationError`.\n- **`cancel`:** cancelling a confirmed order is now a refund. Stock goes back to the same warehouses, a `RECEIVE` event is logged per line with `ref` set to the order, then `RESERVE_CANCEL`. Cancelling again does nothing.\n- **`extend`:** the new expiry is capped at `created_at + MAX_RESERVATION_LIFETIME`, with no error. If the expiry doesn't change, no event is logged.\n- **New methods:** `reservations(status=None)`, `availability(warehouse=None)` and `sweep_expired()`.\n- **Expiry tracking:** `InMemoryStore` remembers which expiries were already recorded, keyed by `(order_id, created_at)`. This is how `sweep_expired()` writes `RESERVE_EXPIRE` only once per reservation.\n\n**Old tests that now fail (not edited):** all six are in `tests/test_reservations.py`.\n- `test_helpers`, `test_reserve_success`, `test_reserve_events` and `test_extend_never_shortens` assert the old 15-minute TTL.\n- `test_duplicate_active_and_confirmed` expects an error when reserving over an active reservation, which is now a replacement.\n- `test_cancel_expired_and_confirmed` expects an error when cancelling a confirmed order, which is now a refund.\n\n`git diff` shows no changes to `cli.py`, `reports.py` or the existing tests.\n\n**One call I made, recorded in `design.md`:** when replacing a reservation, free stock is `max(0, on_hand - other orders' reservations)`. This matches the spec's \"available plus the replaced quantity\" except after a stock adjustment drops `on_hand` below the reserved total. In that case the literal formula would allow more than the physical stock.\n\nAll tasks are done, so you can archive the change with `/opsx:archive`. The six failing tests need an owner decision first, since I left them as they were."
+    }
+  ]
+}

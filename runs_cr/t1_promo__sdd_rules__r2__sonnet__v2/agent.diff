@@ -1,0 +1,600 @@
+diff --git a/README.md b/README.md
+index 861b72d..7adb9b4 100644
+--- a/README.md
++++ b/README.md
+@@ -22,7 +22,8 @@
+ * Налог начисляется сверху, построчно, по ставке категории товара (книги и еда — 10 %,
+   подарочные сертификаты — 0 %, остальное — 20 %), округляется в каждой строке отдельно.
+   Налог заказа — сумма налогов строк.
+-* Доставка — фиксированные 299.00, бесплатно от 3000.00 по сумме товаров. Если в корзине только
++* Доставка — фиксированные 299.00, бесплатно от 3000.00 по сумме товаров
++  до применения скидки по промокоду. Если в корзине только
+   подарочные сертификаты (`Category.GIFT_CARD`), доставки нет вовсе. Доставка налогом не облагается.
+ * Подарочный сертификат — это предоплата, а не товар: налога на него нет, доставки нет, и на него
+   никогда не распространяются скидки и акции.
+diff --git a/shop/orders.py b/shop/orders.py
+index abf6c1e..8a54e9d 100644
+--- a/shop/orders.py
++++ b/shop/orders.py
+@@ -5,17 +5,19 @@ from __future__ import annotations
+ import logging
+ from collections.abc import Iterator
+ from dataclasses import dataclass, replace
+-from datetime import datetime
++from datetime import datetime, timedelta
+ from enum import StrEnum
+ 
+ from .catalog import Cart, normalize_key
+ from .clock import Clock, SystemClock
+-from .errors import InvalidOrderStateError, OrderNotFoundError, UnknownPromoCodeError
++from .errors import InvalidOrderStateError, OrderNotFoundError, UnknownPromoCodeError, ValidationError
+ from .pricing import OrderTotal, ShippingPolicy, TaxPolicy, calculate_total
+ from .promo import PromoCode, PromoRegistry
+ 
+ logger = logging.getLogger(__name__)
+ 
++PROMO_REFUND_WINDOW = timedelta(hours=24)
++
+ 
+ class OrderStatus(StrEnum):
+     PLACED = "placed"
+@@ -29,6 +31,7 @@ class Order:
+     total: OrderTotal
+     status: OrderStatus = OrderStatus.PLACED
+     promo_code: str | None = None
++    customer_id: str | None = None
+ 
+ 
+ class OrderStore:
+@@ -79,7 +82,11 @@ class OrderService:
+         self._tax = tax
+         self._promos = promos
+ 
+-    def _resolve_promo(self, cart: Cart, promo_code: str | None) -> PromoCode | None:
++    def _resolve_promo(
++        self, cart: Cart, promo_code: str | None, customer_id: str | None
++    ) -> PromoCode | None:
++        if customer_id is not None and not isinstance(customer_id, str):
++            raise ValidationError("customer_id must be a string or None")
+         if promo_code is None:
+             return None
+         key = normalize_key(promo_code)
+@@ -89,25 +96,30 @@ class OrderService:
+             return None  # calculate_total raises EmptyCartError first
+         if self._promos is None:
+             raise UnknownPromoCodeError(f"unknown promo code: {promo_code!r}")
+-        return self._promos.resolve(key)
++        return self._promos.resolve(key, customer_id)
+ 
+-    def quote(self, cart: Cart, promo_code: str | None = None) -> OrderTotal:
++    def quote(
++        self, cart: Cart, promo_code: str | None = None, *, customer_id: str | None = None
++    ) -> OrderTotal:
+         """Totals the customer would pay right now; nothing is stored."""
+-        promo = self._resolve_promo(cart, promo_code)
++        promo = self._resolve_promo(cart, promo_code, customer_id)
+         return calculate_total(cart, self._shipping, self._tax, promo=promo)
+ 
+-    def place_order(self, cart: Cart, promo_code: str | None = None) -> Order:
+-        promo = self._resolve_promo(cart, promo_code)
++    def place_order(
++        self, cart: Cart, promo_code: str | None = None, *, customer_id: str | None = None
++    ) -> Order:
++        promo = self._resolve_promo(cart, promo_code, customer_id)
+         total = calculate_total(cart, self._shipping, self._tax, promo=promo)
+         order = Order(
+             order_id=self.store.next_id(),
+             created_at=self._clock.now(),
+             total=total,
+             promo_code=promo.code if promo is not None else None,
++            customer_id=customer_id,
+         )
+         self.store.add(order)
+         if promo is not None and self._promos is not None:
+-            self._promos.record_use(promo.code)
++            self._promos.record_use(promo.code, customer_id)
+         logger.info("order %s placed, total=%s", order.order_id, total.total)
+         return order
+ 
+@@ -117,7 +129,8 @@ class OrderService:
+             raise InvalidOrderStateError(f"order {order_id} is {order.status}, cannot cancel")
+         cancelled = replace(order, status=OrderStatus.CANCELLED)
+         self.store.save(cancelled)
+-        if order.promo_code is not None and self._promos is not None:
+-            self._promos.release_use(order.promo_code)
++        within_window = self._clock.now() - order.created_at < PROMO_REFUND_WINDOW
++        if order.promo_code is not None and self._promos is not None and within_window:
++            self._promos.release_use(order.promo_code, order.customer_id)
+         logger.info("order %s cancelled", order_id)
+         return cancelled
+diff --git a/shop/pricing.py b/shop/pricing.py
+index d8d3158..7dbe397 100644
+--- a/shop/pricing.py
++++ b/shop/pricing.py
+@@ -5,7 +5,7 @@ Rules (see README):
+ * line amount = unit price x quantity;
+ * tax is charged on top of the price, per line, at the rate of the line's category,
+   and rounded per line (ROUND_HALF_UP); the order tax is the sum of line taxes;
+-* shipping is a flat fee, free when the goods subtotal reaches the threshold;
++* shipping is a flat fee, free when the goods subtotal (before any promo discount) reaches the threshold;
+   carts with gift cards only are not shipped at all;
+ * shipping is not taxed.
+ """
+@@ -25,6 +25,7 @@ from .promo import DiscountKind, PromoCode
+ 
+ logger = logging.getLogger(__name__)
+ 
++FIXED_DISCOUNT_CAP = Decimal("0.5")
+ DEFAULT_TAX_RATE = Decimal("0.20")
+ DEFAULT_TAX_RATES: Mapping[Category, Decimal] = MappingProxyType(
+     {
+@@ -90,6 +91,7 @@ class OrderTotal:
+     tax: Decimal
+     total: Decimal
+     discount: Decimal = ZERO
++    shipping_discount: Decimal = ZERO
+ 
+     @property
+     def items_count(self) -> int:
+@@ -107,7 +109,7 @@ def _kopecks(amount: Decimal) -> int:
+ def _split_discount(discount: Decimal, amounts: list[Decimal]) -> list[Decimal]:
+     """Split ``discount`` over ``amounts`` in whole kopecks, largest remainder first.
+ 
+-    Ties are resolved in favour of the earlier line.
++    Ties are resolved in favour of the larger line amount, then the earlier line.
+     """
+     base = sum(_kopecks(a) for a in amounts)
+     total = _kopecks(discount)
+@@ -118,7 +120,7 @@ def _split_discount(discount: Decimal, amounts: list[Decimal]) -> list[Decimal]:
+         parts.append(numerator // base)
+         remainders.append(numerator % base)
+     left = total - sum(parts)
+-    order = sorted(range(len(amounts)), key=lambda i: (-remainders[i], i))
++    order = sorted(range(len(amounts)), key=lambda i: (-remainders[i], -_kopecks(amounts[i]), i))
+     for i in order[:left]:
+         parts[i] += 1
+     return [Decimal(p).scaleb(-2).quantize(Decimal("0.01")) for p in parts]
+@@ -160,10 +162,16 @@ def calculate_total(
+             )
+         if promo.kind is DiscountKind.PERCENT:
+             discount_total = quantize_money(base * promo.value / 100)
++            if promo.max_discount is not None:
++                discount_total = min(discount_total, quantize_money(promo.max_discount))
++        elif promo.kind is DiscountKind.FIXED:
++            cap = quantize_money(base * FIXED_DISCOUNT_CAP)
++            discount_total = min(to_money(promo.value), base, cap)
+         else:
+-            discount_total = min(to_money(promo.value), base)
+-        for i, part in zip(eligible, _split_discount(discount_total, eligible_amounts)):
+-            discounts[i] = part
++            discount_total = ZERO
++        if discount_total > 0:
++            for i, part in zip(eligible, _split_discount(discount_total, eligible_amounts)):
++                discounts[i] = part
+ 
+     lines: list[LineTotal] = []
+     for cart_line, discount in zip(cart_lines, discounts):
+@@ -184,7 +192,10 @@ def calculate_total(
+     subtotal = sum_money(line.amount for line in lines)
+     discount_sum = sum_money(line.discount for line in lines)
+     needs_delivery = any(line.product.is_physical for line in cart_lines)
+-    shipping_cost = shipping.cost_for(subtotal - discount_sum, needs_delivery=needs_delivery)
++    shipping_cost = shipping.cost_for(subtotal, needs_delivery=needs_delivery)
++    shipping_saved = ZERO
++    if promo is not None and promo.kind is DiscountKind.FREE_SHIPPING:
++        shipping_saved, shipping_cost = shipping_cost, ZERO
+     tax_total = sum_money(line.tax for line in lines)
+     total = subtotal - discount_sum + shipping_cost + tax_total
+ 
+@@ -203,4 +214,5 @@ def calculate_total(
+         tax=tax_total,
+         total=total,
+         discount=discount_sum,
++        shipping_discount=shipping_saved,
+     )
+diff --git a/shop/promo.py b/shop/promo.py
+index 2f15ec3..5962db7 100644
+--- a/shop/promo.py
++++ b/shop/promo.py
+@@ -25,12 +25,18 @@ MAX_PERCENT = Decimal("100")
+ class DiscountKind(StrEnum):
+     PERCENT = "percent"
+     FIXED = "fixed"
++    FREE_SHIPPING = "free_shipping"
+ 
+ 
+ def _is_aware(value: datetime) -> bool:
+     return value.tzinfo is not None and value.utcoffset() is not None
+ 
+ 
++def _check_customer_id(customer_id: object) -> None:
++    if customer_id is not None and not isinstance(customer_id, str):
++        raise ValidationError("customer_id must be a string or None")
++
++
+ @dataclass(frozen=True)
+ class PromoCode:
+     code: str
+@@ -41,6 +47,8 @@ class PromoCode:
+     expires_at: datetime | None = None
+     max_uses: int | None = None
+     excluded_categories: frozenset[Category] = frozenset()
++    max_discount: Decimal | None = None
++    max_uses_per_customer: int | None = None
+ 
+     def __post_init__(self) -> None:
+         object.__setattr__(self, "code", normalize_key(self.code))
+@@ -53,6 +61,9 @@ class PromoCode:
+         if self.kind is DiscountKind.PERCENT:
+             if not Decimal("0") < self.value <= MAX_PERCENT:
+                 raise ValidationError(f"promo {self.code}: percent must be in (0, 100]")
++        elif self.kind is DiscountKind.FREE_SHIPPING:
++            if self.value != 0:
++                raise ValidationError(f"promo {self.code}: free shipping value must be 0")
+         else:
+             if self.value <= 0:
+                 raise ValidationError(f"promo {self.code}: fixed discount must be positive")
+@@ -77,6 +88,18 @@ class PromoCode:
+                 raise ValidationError(f"promo {self.code}: max_uses must be an int")
+             if self.max_uses < 1:
+                 raise ValidationError(f"promo {self.code}: max_uses must be at least 1")
++        if self.max_discount is not None:
++            cap = self.max_discount
++            if self.kind is not DiscountKind.PERCENT:
++                raise ValidationError(f"promo {self.code}: max_discount is only for percent codes")
++            if not isinstance(cap, Decimal) or not cap.is_finite() or cap <= 0:
++                raise ValidationError(f"promo {self.code}: max_discount must be a positive Decimal")
++        if self.max_uses_per_customer is not None:
++            limit = self.max_uses_per_customer
++            if isinstance(limit, bool) or not isinstance(limit, int):
++                raise ValidationError(f"promo {self.code}: max_uses_per_customer must be an int")
++            if limit < 1:
++                raise ValidationError(f"promo {self.code}: max_uses_per_customer must be at least 1")
+         if not all(isinstance(c, Category) for c in self.excluded_categories):
+             raise ValidationError(f"promo {self.code}: excluded_categories must be Categories")
+ 
+@@ -91,15 +114,18 @@ class PromoRegistry:
+         self._clock = clock
+         self._promos: dict[str, PromoCode] = {}
+         self._uses: dict[str, int] = {}
++        self._customer_uses: dict[str, dict[str, int]] = {}
+ 
+     def add(self, promo: PromoCode) -> None:
+         if promo.code in self._promos:
+             raise ValidationError(f"duplicate promo code: {promo.code}")
+         self._promos[promo.code] = promo
+         self._uses[promo.code] = 0
++        self._customer_uses[promo.code] = {}
+         logger.debug("promo: added %s", promo.code)
+ 
+-    def resolve(self, code: str) -> PromoCode:
++    def resolve(self, code: str, customer_id: str | None = None) -> PromoCode:
++        _check_customer_id(customer_id)
+         key = normalize_key(code)
+         promo = self._promos.get(key)
+         if promo is None:
+@@ -111,19 +137,36 @@ class PromoRegistry:
+             raise PromoExpiredError(f"promo code {key} has expired")
+         if promo.max_uses is not None and self._uses[key] >= promo.max_uses:
+             raise PromoConditionsError(f"promo code {key} usage limit is exhausted")
++        if promo.max_uses_per_customer is not None:
++            if customer_id is None:
++                raise PromoConditionsError(f"promo code {key} requires a customer id")
++            if self._customer_uses[key].get(customer_id, 0) >= promo.max_uses_per_customer:
++                raise PromoConditionsError(f"promo code {key} customer limit is exhausted")
+         return promo
+ 
+-    def uses(self, code: str) -> int:
+-        return self._uses[self._known(code)]
++    def uses(self, code: str, customer_id: str | None = None) -> int:
++        _check_customer_id(customer_id)
++        key = self._known(code)
++        if customer_id is None:
++            return self._uses[key]
++        return self._customer_uses[key].get(customer_id, 0)
+ 
+-    def record_use(self, code: str) -> None:
++    def record_use(self, code: str, customer_id: str | None = None) -> None:
++        _check_customer_id(customer_id)
+         key = self._known(code)
+         self._uses[key] += 1
++        if customer_id is not None:
++            per_customer = self._customer_uses[key]
++            per_customer[customer_id] = per_customer.get(customer_id, 0) + 1
+         logger.info("promo %s used, uses=%d", key, self._uses[key])
+ 
+-    def release_use(self, code: str) -> None:
++    def release_use(self, code: str, customer_id: str | None = None) -> None:
++        _check_customer_id(customer_id)
+         key = self._known(code)
+         self._uses[key] = max(0, self._uses[key] - 1)
++        if customer_id is not None:
++            per_customer = self._customer_uses[key]
++            per_customer[customer_id] = max(0, per_customer.get(customer_id, 0) - 1)
+         logger.debug("promo %s released, uses=%d", key, self._uses[key])
+ 
+     def _known(self, code: str) -> str:
+diff --git a/tests/test_autumn_promo.py b/tests/test_autumn_promo.py
+new file mode 100644
+index 0000000..7a837f8
+--- /dev/null
++++ b/tests/test_autumn_promo.py
+@@ -0,0 +1,243 @@
++from datetime import timedelta
++from decimal import Decimal
++
++import pytest
++
++from shop.catalog import Cart, Category, Product
++from shop.errors import (
++    InvalidOrderStateError,
++    PromoConditionsError,
++    UnknownPromoCodeError,
++    ValidationError,
++)
++from shop.orders import OrderService, OrderStatus
++from shop.pricing import ShippingPolicy, TaxPolicy, calculate_total
++from shop.promo import DiscountKind, PromoCode, PromoRegistry
++
++D = Decimal
++
++
++def code(kind=DiscountKind.PERCENT, value="10", name="C", **kw):
++    return PromoCode(name, kind, D(value), **kw)
++
++
++def pct(v, **kw):
++    return code(DiscountKind.PERCENT, v, **kw)
++
++
++def fixed(v, **kw):
++    return code(DiscountKind.FIXED, v, **kw)
++
++
++def free(**kw):
++    return code(DiscountKind.FREE_SHIPPING, "0", **kw)
++
++
++def cart_of(*items):
++    cart = Cart()
++    for i, (cat, price, qty) in enumerate(items):
++        cart.add(Product(f"SKU-{i}", f"Item {i}", D(price), cat), qty)
++    return cart
++
++
++def one(price, cat=Category.CLOTHING):
++    return cart_of((cat, price, 1))
++
++
++@pytest.mark.parametrize(
++    "kwargs",
++    [
++        dict(kind=DiscountKind.FIXED, value=D("10"), max_discount=D("5")),
++        dict(kind=DiscountKind.FREE_SHIPPING, value=D("0"), max_discount=D("5")),
++        dict(kind=DiscountKind.PERCENT, value=D("10"), max_discount=D("0")),
++        dict(kind=DiscountKind.PERCENT, value=D("10"), max_discount=D("-1")),
++        dict(kind=DiscountKind.PERCENT, value=D("10"), max_discount=5),
++        dict(kind=DiscountKind.FREE_SHIPPING, value=D("1")),
++        dict(kind=DiscountKind.PERCENT, value=D("10"), max_uses_per_customer=0),
++        dict(kind=DiscountKind.PERCENT, value=D("10"), max_uses_per_customer=True),
++        dict(kind=DiscountKind.PERCENT, value=D("10"), max_uses_per_customer="1"),
++    ],
++)
++def test_invalid_new_fields(kwargs):
++    with pytest.raises(ValidationError):
++        PromoCode("X", **kwargs)
++
++
++def test_valid_new_fields():
++    assert pct("10", max_discount=D("1.50"), max_uses_per_customer=2).max_discount == D("1.50")
++    assert free().kind is DiscountKind.FREE_SHIPPING
++    assert free(max_uses_per_customer=1).max_uses_per_customer == 1
++
++
++@pytest.fixture
++def registry(clock):
++    reg = PromoRegistry(clock)
++    reg.add(pct("10", name="LIM", max_uses_per_customer=1))
++    reg.add(pct("10", name="FREE"))
++    return reg
++
++
++def test_customer_counters(registry):
++    registry.record_use("LIM", "u1")
++    registry.record_use("LIM", "User-1")
++    assert registry.uses("LIM", "u1") == 1
++    assert registry.uses("LIM", "user-1") == 0
++    assert registry.uses("LIM") == 2
++    registry.release_use("LIM", "u1")
++    registry.release_use("LIM", "u1")
++    assert registry.uses("LIM", "u1") == 0
++    assert registry.uses("LIM") == 0
++    with pytest.raises(UnknownPromoCodeError):
++        registry.uses("NOPE", "u1")
++
++
++def test_resolve_customer_limit(registry):
++    with pytest.raises(PromoConditionsError):
++        registry.resolve("LIM")
++    assert registry.resolve("LIM", "u1").code == "LIM"
++    registry.record_use("LIM", "u1")
++    with pytest.raises(PromoConditionsError):
++        registry.resolve("LIM", "u1")
++    assert registry.resolve("LIM", "u2")
++    assert registry.resolve("FREE").code == "FREE"
++    with pytest.raises(ValidationError):
++        registry.resolve("FREE", 1)
++
++
++def test_threshold_before_discount():
++    assert calculate_total(one("3100.00"), promo=fixed("200")).shipping == D("0.00")
++    assert calculate_total(one("3000.00"), promo=fixed("100")).shipping == D("0.00")
++    assert calculate_total(one("2999.99")).shipping == D("299.00")
++
++
++def test_fixed_cap():
++    assert calculate_total(one("300.00"), promo=fixed("500")).discount == D("150.00")
++    for v, want in (("400", "400.00"), ("500", "500.00"), ("600", "500.00")):
++        assert calculate_total(one("1000.00"), promo=fixed(v)).discount == D(want)
++    assert calculate_total(one("333.33"), promo=fixed("200")).discount == D("166.67")
++
++
++def test_percent_cap():
++    cap = D("1500")
++    assert calculate_total(one("10000.00"), promo=pct("20", max_discount=cap)).discount == D("1500.00")
++    assert calculate_total(one("5000.00"), promo=pct("20", max_discount=cap)).discount == D("1000.00")
++    equal = pct("20", max_discount=D("1000"))
++    assert calculate_total(one("5000.00"), promo=equal).discount == D("1000.00")
++    assert calculate_total(one("1000.00"), promo=pct("80")).discount == D("800.00")
++
++
++def split(discount, *prices):
++    cart = cart_of(*[(Category.CLOTHING, p, 1) for p in prices])
++    t = calculate_total(cart, promo=fixed(discount))
++    assert sum(line.discount for line in t.lines) == t.discount
++    return [line.discount for line in t.lines]
++
++
++def test_split_ties():
++    assert split("0.02", "1.00", "3.00") == [D("0.00"), D("0.02")]
++    assert split("0.02", "3.00", "1.00") == [D("0.02"), D("0.00")]
++    assert split("10.00", "100.00", "100.00", "100.00") == [D("3.34"), D("3.33"), D("3.33")]
++
++
++def test_free_shipping():
++    t = calculate_total(one("1000.00"), promo=free())
++    assert (t.discount, t.shipping, t.shipping_discount) == (D("0.00"), D("0.00"), D("299.00"))
++    assert t.total == t.subtotal + t.tax
++    t = calculate_total(one("3000.00"), promo=free())
++    assert (t.shipping, t.shipping_discount) == (D("0.00"), D("0.00"))
++    shipping = ShippingPolicy(fee=D("50.00"), free_threshold=None)
++    t = calculate_total(one("1000.00"), shipping, TaxPolicy(), promo=free())
++    assert (t.shipping, t.shipping_discount) == (D("0.00"), D("50.00"))
++
++
++def test_free_shipping_conditions():
++    with pytest.raises(PromoConditionsError):
++        calculate_total(one("1000.00", Category.GIFT_CARD), promo=free())
++    with pytest.raises(PromoConditionsError):
++        calculate_total(one("100.00"), promo=free(min_order_amount=D("200.00")))
++
++
++def test_other_kinds_no_shipping_discount():
++    for p in (pct("10"), fixed("10")):
++        t = calculate_total(one("1000.00"), promo=p)
++        assert t.shipping_discount == D("0.00") and t.shipping == D("299.00")
++        assert t.total == t.subtotal - t.discount + t.shipping + t.tax
++    assert calculate_total(one("1000.00")).shipping_discount == D("0.00")
++
++
++@pytest.fixture
++def svc_registry(clock):
++    reg = PromoRegistry(clock)
++    reg.add(pct("10", name="ONCE", max_uses_per_customer=1, max_uses=5))
++    reg.add(pct("10", name="MIN", min_order_amount=D("5000.00"), max_uses_per_customer=1))
++    return reg
++
++
++@pytest.fixture
++def svc(clock, svc_registry):
++    return OrderService(clock=clock, promos=svc_registry)
++
++
++def test_customer_id_keyword_only_and_type(svc):
++    cart = one("1000.00")
++    with pytest.raises(TypeError):
++        svc.quote(cart, "ONCE", "u1")
++    with pytest.raises(TypeError):
++        svc.place_order(cart, "ONCE", "u1")
++    with pytest.raises(ValidationError):
++        svc.quote(cart, customer_id=42)
++    assert svc.place_order(cart, customer_id="u1").customer_id == "u1"
++    assert svc.place_order(cart).customer_id is None
++
++
++def test_customer_limit_flow(svc, svc_registry):
++    cart = one("1000.00")
++    with pytest.raises(PromoConditionsError):
++        svc.quote(cart, "ONCE")
++    with pytest.raises(PromoConditionsError):
++        svc.place_order(cart, "ONCE")
++    assert len(svc.store) == 0
++    svc.quote(cart, "ONCE", customer_id="u1")
++    assert svc_registry.uses("ONCE") == 0
++    svc.place_order(cart, "ONCE", customer_id="u1")
++    assert svc_registry.uses("ONCE", "u1") == 1
++    with pytest.raises(PromoConditionsError):
++        svc.place_order(cart, "ONCE", customer_id="u1")
++    svc.place_order(cart, "ONCE", customer_id="u2")
++    assert svc_registry.uses("ONCE") == 2
++
++
++def test_failed_attempt_keeps_counters(svc, svc_registry):
++    with pytest.raises(PromoConditionsError):
++        svc.place_order(one("1000.00"), "MIN", customer_id="u1")
++    assert svc_registry.uses("MIN") == 0 and svc_registry.uses("MIN", "u1") == 0
++
++
++@pytest.mark.parametrize(
++    "delta, refunded",
++    [
++        (timedelta(0), True),
++        (timedelta(hours=23, minutes=59, seconds=59), True),
++        (timedelta(hours=24), False),
++        (timedelta(days=5), False),
++    ],
++)
++def test_cancel_window(svc, svc_registry, clock, delta, refunded):
++    order = svc.place_order(one("1000.00"), "ONCE", customer_id="u1")
++    clock.advance(delta)
++    assert svc.cancel(order.order_id).status is OrderStatus.CANCELLED
++    want = 0 if refunded else 1
++    assert svc_registry.uses("ONCE") == want
++    assert svc_registry.uses("ONCE", "u1") == want
++    with pytest.raises(InvalidOrderStateError):
++        svc.cancel(order.order_id)
++    assert svc_registry.uses("ONCE") == want
++    if refunded:
++        svc.place_order(one("1000.00"), "ONCE", customer_id="u1")
++
++
++def test_cancel_no_code_no_registry(clock):
++    bare = OrderService(clock=clock)
++    order = bare.place_order(one("1000.00"), customer_id="u1")
++    clock.advance(timedelta(days=2))
++    assert bare.cancel(order.order_id).status is OrderStatus.CANCELLED
+diff --git a/tests/test_orders_promo.py b/tests/test_orders_promo.py
+index 9e29988..92a7929 100644
+--- a/tests/test_orders_promo.py
++++ b/tests/test_orders_promo.py
+@@ -121,7 +121,7 @@ def test_cancel_after_expiry(service, registry, clock, cart):
+     order = service.place_order(cart, "SUMMER10")
+     clock.advance(timedelta(days=5))
+     service.cancel(order.order_id)
+-    assert registry.uses("SUMMER10") == 0
++    assert registry.uses("SUMMER10") == 1
+ 
+ 
+ def test_cancel_without_code_keeps_counter(service, registry, cart):
+diff --git a/tests/test_pricing_promo.py b/tests/test_pricing_promo.py
+index 9614a4d..1d34ebc 100644
+--- a/tests/test_pricing_promo.py
++++ b/tests/test_pricing_promo.py
+@@ -66,7 +66,7 @@ def test_percent_rounding_and_fixed_cap():
+     t = calculate_total(cart_of((Category.CLOTHING, "333.30", 1)), promo=pct("15"))
+     assert t.discount == D("50.00")
+     t = calculate_total(cart_of((Category.CLOTHING, "300.00", 1)), promo=fixed("500"))
+-    assert t.discount == D("300.00") and t.tax == D("0.00")
++    assert t.discount == D("150.00") and t.tax == D("30.00")
+ 
+ 
+ def test_hundred_percent():
+@@ -138,7 +138,7 @@ def test_line_discounts_sum_to_total(items, promo):
+ 
+ def test_free_shipping_threshold_after_discount():
+     cart = cart_of((Category.CLOTHING, "3100.00", 1))
+-    assert calculate_total(cart, promo=fixed("200")).shipping == D("299.00")
++    assert calculate_total(cart, promo=fixed("200")).shipping == D("0.00")
+     assert calculate_total(cart, promo=fixed("100")).shipping == D("0.00")
+     assert calculate_total(cart).shipping == D("0.00")
+ 

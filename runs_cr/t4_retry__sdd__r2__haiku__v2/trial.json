@@ -1,0 +1,103 @@
+{
+  "trial_id": "t4_retry__sdd__r2__haiku__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3b0fbc3bfa\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4716f68b80",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4716f68b80\\project",
+  "base_commit": "84987d6f3ab6a9c679c2ea3f854bab67d9436ded",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 216.6,
+      "cost_usd": 0.05925675,
+      "duration_ms": 214796,
+      "num_turns": 25,
+      "usage": {
+        "input_tokens": 48,
+        "cache_creation_input_tokens": 93520,
+        "cache_read_input_tokens": 1540743,
+        "output_tokens": 37414,
+        "output_tokens_details": {
+          "thinking_tokens": 15860
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 93520,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1087,
+            "cache_read_input_tokens": 99908,
+            "cache_creation_input_tokens": 328,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 328
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "The change `jobq-retry-revisions` is created with all four planning artifacts, and `openspec validate --strict` passes. No project code was edited.\n\n**Artifacts** (in `openspec/changes/jobq-retry-revisions/`)\n- `proposal.md`: the why and the changes, modifying the existing `job-retry` and `dead-letter` capabilities.\n- `specs/job-retry/spec.md`: jitter becomes `uniform(1 - jitter, 1)`. The worker outcome rules change so that non-retryable errors go to dead-letter with reason `non_retryable`, and the reason takes priority over the attempt count. `RetryLaterError` is added: its delay is `min(retry_after, max_delay)`, with no jitter and no rng use.\n- `specs/dead-letter/spec.md`: `reason` on entries, purge by age from the dead-letter moment, `requeue_all_dead_letters`. The \"not purged\" requirement is removed.\n- `design.md`: the implementation decisions, the test conflict below, and the assumptions.\n- `tasks.md`: the implementation steps, with tests in new files only.\n\n**Conflict you need to decide on:** the ticket says not to change existing tests, but four of them assert the behaviour JOBQ-237 reverses. They will fail after implementation:\n- `tests/test_dead_letter.py::test_permanent_error_fails_job`\n- `tests/test_dead_letter.py::test_non_retryable_error_fails_even_on_last_attempt`\n- `tests/test_dead_letter.py::test_rng_is_not_consulted_for_non_retryable_failure`\n- `tests/test_dead_letter.py::test_purge_keeps_dead_letters`\n\nMy plan is to leave them unchanged and report the failures. Updating them needs the team's agreement, and I'd suggest a separate commit for that.\n\n**Assumptions I made** (recorded in `design.md`):\n- `DeadLetterEntry.reason` defaults to `EXHAUSTED`. Without a default, the existing `test_dead_letter_entry_is_frozen` would break.\n- `RetryLaterError` without a retry policy fails the job, as before.\n- `RetryLaterError` with a bad `retry_after` raises `ConfigError` at construction. The worker then treats it as an ordinary retryable failure.\n- `requeue_all_dead_letters(\"\")` raises `ConfigError`, matching `set_retry_policy`.\n- The jitter `min` cap stays in `delay_for`, because the existing jitter test depends on it.\n- `RetryLaterError` and `DeadLetterReason` are exported from the package, and the README is updated.\n\nTwo scenario names in the `job-retry` delta are kept from the current spec even though their content changes (for example, \"PermanentJobError fails the job\"). The validator requires this, so the names can read slightly stale.\n\nThe apply step is not started. Run `/opsx:apply` when you are ready."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 124.9,
+      "cost_usd": 0.03376125,
+      "duration_ms": 123227,
+      "num_turns": 43,
+      "usage": {
+        "input_tokens": 38,
+        "cache_creation_input_tokens": 65871,
+        "cache_read_input_tokens": 812175,
+        "output_tokens": 24923,
+        "output_tokens_details": {
+          "thinking_tokens": 4567
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 65871,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1224,
+            "cache_read_input_tokens": 69834,
+            "cache_creation_input_tokens": 2753,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2753
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 17 задач из `tasks.md` выполнены, статус change — `all_done`. Четыре падения в существующих тестах ожидаемые; они перечислены в design.md и требуют согласия команды.\n\n## Что сделано\n\n- **Ошибки и модели:** `RetryLaterError` в `jobq/errors.py` (проверка `retry_after` через `ConfigError`), `DeadLetterReason` и поле `DeadLetterEntry.reason` со значением по умолчанию `EXHAUSTED`.\n- **Джиттер:** `RetryPolicy.delay_for` использует `rng.uniform(1 - jitter, 1)`, `min(..., max_delay)` сохранён.\n- **Очередь:** `mark_dead_lettered(..., *, reason=...)`, `purge_finished` очищает dead-letter по возрасту от `dead_lettered_at` вместе с записью, `requeue_all_dead_letters(job_type=None)`.\n- **Воркер:** `_handle_failure` идёт в порядке из spec: нет политики → `FAILED`; неповторяемая → `DEAD_LETTERED/NON_RETRYABLE`; исчерпание → `EXHAUSTED`; `RetryLaterError` → `min(retry_after, max_delay)` без `rng`; иначе прежняя задержка.\n- **Экспорт и README:** `RetryLaterError` и `DeadLetterReason` в `__init__.py`; раздел «Соглашения» обновлён.\n- **Тесты:** новый файл `tests/test_retry_revisions.py`, 33 теста. Существующие тесты не менял.\n\n## Вывод `python -m pytest -q`\n\n```\nFAILED tests/test_dead_letter.py::test_non_retryable_error_fails_even_on_last_attempt\nFAILED tests/test_dead_letter.py::test_permanent_error_fails_job - AssertionError\nFAILED tests/test_dead_letter.py::test_rng_is_not_consulted_for_non_retryable_failure\nFAILED tests/test_dead_letter.py::test_purge_keeps_dead_letters - assert 1 == 0\n4 failed, 123 passed in 0.32s\n```\n\nЭто ровно четыре теста из таблицы «Конфликт с существующими тестами» в design.md. До изменений было 94 passed. Других падений нет.\n\n## Решения и замечания\n\n- Два моих теста сначала падали из-за ошибок в самих тестах: `uniform` вернул 1.5, что не соответствует контракту, и неверное ожидание при `factor=1.0`. Исправил тесты, реализацию не менял.\n- `jobq/dashboard.py`, `jobq/cli.py`, существующие тесты, `pytest.ini` не изменены (проверено через `git diff`).\n- Обновление четырёх ожиданий (задача 6.2) не делал: нужно согласие команды. Design рекомендует для этого отдельный коммит.\n- Коммитов не создавал: вы их не просили. Изменения лежат в рабочем дереве, плюс новый файл `tests/test_retry_revisions.py`."
+    }
+  ]
+}

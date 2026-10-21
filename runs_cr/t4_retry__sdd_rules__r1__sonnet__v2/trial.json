@@ -1,0 +1,103 @@
+{
+  "trial_id": "t4_retry__sdd_rules__r1__sonnet__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "sdd_rules",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\00b31b1d72\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bc1f47040b",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bc1f47040b\\project",
+  "base_commit": "085169ab048b9bd73b1f96a94a0072eca963cc33",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 158.9,
+      "cost_usd": 0.4511368,
+      "duration_ms": 157061,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 50315,
+        "cache_read_input_tokens": 419048,
+        "output_tokens": 20792,
+        "output_tokens_details": {
+          "thinking_tokens": 1878
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 50315,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1009,
+            "cache_read_input_tokens": 55515,
+            "cache_creation_input_tokens": 736,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 736
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `refine-retry-dead-letter` создан в `openspec/changes/refine-retry-dead-letter/`, все четыре артефакта готовы. `openspec validate refine-retry-dead-letter --strict` проходит. Код проекта не менял.\n\n**Артефакты**\n- `proposal.md`: зачем и что меняется, API из тикета перенесён дословно, ниже список допущений.\n- `specs/retry-policy/spec.md`: изменено требование «Расчёт задержки» (множитель `uniform(1 - jitter, 1)`), добавлено требование про `RetryLaterError`.\n- `specs/job-retry-handling/spec.md`: изменены три требования:\n  - исход падения обработчика;\n  - использование `rng`;\n  - dead-letter очередь: `reason`, очистка, `requeue_all_dead_letters`.\n- `design.md`: решения и риски.\n- `tasks.md`: шесть групп задач, в конце сверка публичного API.\n\n**Решения по неоднозначным местам тикета**\n- **Джиттер для `RetryLaterError`:** взял позднее решение тимлида (UPD от 04.11), то есть без джиттера и без обращения к `rng`. Задержка равна `min(retry_after, max_delay)`.\n- **Причина на последней попытке:** неповторяемая ошибка даёт `non_retryable`, `RetryLaterError` даёт `exhausted`.\n- **Без политики и без обработчика:** по-прежнему `FAILED`.\n- **Проверка порядка:** сначала проверяется неповторяемость, потом исчерпание попыток.\n- **Совместимость:**\n  - у `DeadLetterEntry.reason` есть значение по умолчанию `EXHAUSTED`;\n  - `mark_dead_lettered` получает keyword-only `reason` с тем же значением по умолчанию, так что старые вызовы работают.\n- **`purge_finished`:**\n  - возраст dead-letter считается от `dead_lettered_at`;\n  - удалённые dead-letter задания входят в возвращаемое число и в `jobs.purged`.\n- **`requeue_all_dead_letters`:** при пустом `job_type=\"\"` бросает `ConfigError`.\n\n**Конфликт, который надо знать**\nОграничение «существующие тесты не меняем» противоречит самому тикету. Пять тестов проверяют заменённое поведение JOBQ-212 и после реализации упадут:\n- `test_purge_keeps_dead_letter`\n- `test_non_retryable_on_last_attempt`\n- `test_jitter_capped`\n- `test_jitter_applied_once`\n- ветка `y` в `test_rng_usage`\n\nЯ решил, что приоритет у тикета: их придётся обновить, остальные тесты не трогаются. Это записано в proposal и в задаче 5.1.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 108.8,
+      "cost_usd": 0.37239079999999997,
+      "duration_ms": 107048,
+      "num_turns": 22,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 45577,
+        "cache_read_input_tokens": 520088,
+        "output_tokens": 13801,
+        "output_tokens_details": {
+          "thinking_tokens": 512
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 45577,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 838,
+            "cache_read_input_tokens": 51286,
+            "cache_creation_input_tokens": 227,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 227
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** refine-retry-dead-letter\n**Schema:** spec-driven\n**Progress:** 13/13 tasks complete ✓\n\nВсе 109 тестов проходят. `dashboard.py` и `cli.py` не менялись.\n\n### Что сделано\n- **`jobq/models.py`**: добавлен `DeadLetterReason`, а в `DeadLetterEntry` последним полем `reason`.\n- **`jobq/errors.py`**: добавлен `RetryLaterError(message=\"\", *, retry_after)`. Для отрицательных значений, `NaN`, `bool` и нечисловых он бросает `ConfigError`.\n- **`jobq/__init__.py`**: оба новых имени экспортируются.\n- **`jobq/retry.py`**: джиттер теперь `uniform(1 - jitter, 1)`, то есть только уменьшает задержку. Повторное ограничение сверху убрано.\n- **`jobq/queue.py`**:\n  - `mark_dead_lettered(..., *, reason=EXHAUSTED)`.\n  - `purge_finished` удаляет и dead-letter задания по `dead_lettered_at`, чистит `dead_letters()` и учитывает их в возвращаемом числе и в `jobs.purged`.\n  - Новый метод `requeue_all_dead_letters(job_type=None)`.\n- **`jobq/worker.py`**:\n  - Порядок проверок в `_handle_failure`: нет политики → `FAILED`; неповторяемая ошибка → dead-letter с `NON_RETRYABLE` (в том числе на последней попытке); исчерпание попыток → `EXHAUSTED`.\n  - Для `RetryLaterError` задержка равна `min(retry_after, max_delay)`, без джиттера и без обращения к `rng`.\n- **`tests/test_retry.py`**: обновлены тесты заменённого поведения (`test_jitter_capped`, `test_jitter_applied_once`, `test_purge_keeps_dead_letter` переименован в `test_purge_removes_dead_letter`, `test_non_retryable_on_last_attempt`, комментарий в ветке `y` теста `test_rng_usage`). Добавлены тесты по сценариям specs.\n\nНеоднозначностей не возникло, `design.md` не менялся. Все 13 задач в `tasks.md` отмечены. Можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

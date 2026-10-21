@@ -1,0 +1,103 @@
+{
+  "trial_id": "t1_promo__sdd_rules__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c4b08e8448\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\030f5a33c3",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\030f5a33c3\\project",
+  "base_commit": "e5be3fbcf09ba4710c2dfb4cc169e22d38e2f5c9",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 246.6,
+      "cost_usd": 0.6947020999999999,
+      "duration_ms": 244674,
+      "num_turns": 24,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 71094,
+        "cache_read_input_tokens": 642021,
+        "output_tokens": 34606,
+        "output_tokens_details": {
+          "thinking_tokens": 5518
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 71094,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 938,
+            "cache_read_input_tokens": 74248,
+            "cache_creation_input_tokens": 2782,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2782
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `promo-autumn-campaign` создано в `openspec/changes/promo-autumn-campaign/`, все четыре артефакта готовы. `openspec validate promo-autumn-campaign --strict` проходит. Код проекта я не менял.\n\n## Артефакты\n- **`proposal.md`**: зачем нужны правки, список изменений, допущения. Затронуты три существующие спецификации, новых нет.\n- **`specs/`**: дельты для `promo-codes`, `promo-pricing` и `order-promos`. Сигнатуры и поля взяты из тикета дословно.\n- **`design.md`**: решения по реализации.\n- **`tasks.md`**: 5 групп задач, у каждой указана проверка. Последняя задача сверяет публичный API с proposal и specs.\n\n## Решения, которые стоит проверить\n- **Потолок фиксированной скидки — 50 %, а не 30 %.** Беру поправку Ольги Смирновой от 22.10, она позже тикета. Значение вынесено в одну константу.\n- **Ровно 24 часа после оформления:** использование не возвращается. Граница строгая: возврат только при `now − created_at < 24 ч`, время по часам сервиса заказов.\n- **Копейки при равных остатках:** лишняя копейка идёт строке с большей суммой, при равных суммах — строке раньше в корзине. Для этого есть сценарии с суммами 1.00 и 3.00.\n- **Порог бесплатной доставки:** снова от суммы до скидки. В спецификации я переименовал требование в «Порог бесплатной доставки».\n- **`FREE_SHIPPING`:** `shipping_discount` равен доставке, которую клиент заплатил бы без кода. Если доставка и так бесплатна, она не нужна или в корзине только сертификаты, поле равно `0.00`.\n- **Лимит на клиента:** проверяется после общего лимита. `customer_id` сравнивается как есть, а пустая строка считается обычным идентификатором (отсутствием считается только `None`).\n- **Сгоревшее использование:** при поздней отмене не возвращается ни в общий, ни в клиентский счётчик.\n\n## Конфликт с рамками тикета\nДва существующих теста закрепляют отменённые правила: `test_free_shipping_threshold_after_discount` и `test_cancel_after_expiry`. Они противоречат тикету, поэтому в `tasks.md` (задача 4.3) запланировано минимально обновить именно их. Остальные существующие тесты не меняются. Если нужно оставить их нетронутыми, это придётся решить до начала реализации.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 119.3,
+      "cost_usd": 0.4126809000000001,
+      "duration_ms": 116457,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 52036,
+        "cache_read_input_tokens": 460309,
+        "output_tokens": 15845,
+        "output_tokens_details": {
+          "thinking_tokens": 449
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52036,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 851,
+            "cache_read_input_tokens": 57009,
+            "cache_creation_input_tokens": 963,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 963
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена\n\n**Change:** promo-autumn-campaign (schema: spec-driven)\n**Progress:** 13/13 задач выполнено, все отмечены в `tasks.md`. `python -m pytest -q` проходит: 126 тестов.\n\n### Что сделано\n- **`shop/promo.py`:**\n  - добавлен `DiscountKind.FREE_SHIPPING`;\n  - в конец `PromoCode` добавлены поля `max_discount` и `max_uses_per_customer` с проверками;\n  - реестр ведёт клиентские счётчики;\n  - `resolve`, `uses`, `record_use` и `release_use` принимают необязательный `customer_id`.\n- **`shop/pricing.py`:**\n  - порог бесплатной доставки считается от суммы до скидки;\n  - фиксированная скидка ограничена 50 %;\n  - `max_discount` ограничивает процентную скидку;\n  - при равных остатках лишняя копейка уходит строке с большей суммой, затем строке раньше в корзине;\n  - `FREE_SHIPPING` обнуляет доставку, а `OrderTotal.shipping_discount` хранит сэкономленную сумму.\n- **`shop/orders.py`:**\n  - `customer_id` только именованным аргументом в `quote` и `place_order`, плюс поле `Order.customer_id`;\n  - при отмене использование возвращается только в течение 24 часов (ровно 24:00:00 уже поздно).\n- **`README.md`:** обновлено правило порога доставки.\n- **Тесты:** новые лежат в `tests/test_autumn_promo.py`.\n\n### Отступления от плана\n- Упал ещё один старый тест, не входивший в список из двух: `test_percent_rounding_and_fixed_cap`. Он ждал скидку 300.00 для `FIXED 500` на 300.00, а спецификация требует 150.00. Я обновил его вторую половину (скидка 150.00, налог 30.00).\n- Два тестa, которые планировалось обновить (`test_free_shipping_threshold_after_discount`, `test_cancel_after_expiry`), обновлены под новые правила.\n- Все три случая записаны в `design.md`.\n- `shop/cli.py` и `shop/reports.py` не затронуты, новых зависимостей нет.\n- Расхождений публичного API с proposal и specs не нашёл.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

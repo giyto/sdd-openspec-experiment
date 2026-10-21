@@ -1,0 +1,15 @@
+$ openspec archive add-order-reservations --yes
+
+Proposal warnings in proposal.md (non-blocking):
+  ⚠ Consider splitting changes with more than 10 deltas
+Task status: ✓ Complete
+
+Specs to update:
+  order-reservations: create
+Applying changes to openspec/specs/order-reservations/spec.md:
+  + 12 added
+Totals: + 12, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-order-reservations' archived as '2026-10-18-add-order-reservations'.
+
+

@@ -1,0 +1,12 @@
+$ openspec archive add-order-reservations --yes
+Task status: ✓ Complete
+
+Specs to update:
+  order-reservations: create
+Applying changes to openspec/specs/order-reservations/spec.md:
+  + 10 added
+Totals: + 10, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-order-reservations' archived as '2026-10-18-add-order-reservations'.
+
+

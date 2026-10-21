@@ -1,0 +1,59 @@
+{
+  "trial_id": "t4_retry__baseline__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\83f6d7c8c7\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\762876ea42",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\762876ea42\\project",
+  "base_commit": "e90b494c4a37ce81e6f0882085bc046778f44619",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 40.9,
+      "cost_usd": 0.11218349999999999,
+      "duration_ms": 39158,
+      "num_turns": 5,
+      "usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 16590,
+        "cache_read_input_tokens": 69335,
+        "output_tokens": 3887,
+        "output_tokens_details": {
+          "thinking_tokens": 710
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 16590,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 875,
+            "cache_read_input_tokens": 21629,
+            "cache_creation_input_tokens": 897,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 897
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Реализовал все пункты тикета. В репозитории два существующих теста теперь падают, потому что проверяют старое поведение. По условию тикета их не менял. Остальные 46 тестов проходят, новых тестов я не писал.\n\nПадающие тесты в `tests/test_retry.py`:\n- **`test_retry_then_dead_letter_then_requeue`** ждёт, что `purge_finished()` не трогает dead-letter.\n- **`test_permanent_fails_and_cancel_retry`** ждёт, что `PermanentJobError` даёт `FAILED`.\n\n**Что изменилось**\n- **Неповторяемые ошибки:** для типов с политикой повторов такая ошибка сразу отправляет задание в dead-letter с `reason=NON_RETRYABLE`, в том числе на последней попытке. Без политики задание по-прежнему уходит в `FAILED`.\n- **Джиттер:** множитель теперь `rng.uniform(1 - jitter, 1)`.\n- **Очистка:** `purge_finished` удаляет и записи dead-letter старше порога, считая от `dead_lettered_at`. Само задание из хранилища и запись из `dead_letters()` убираются вместе. Такие записи входят в возвращаемое число и в метрику `jobs.purged`.\n- **`DeadLetterReason` и `DeadLetterEntry.reason`:** поле добавлено последним, значение по умолчанию `EXHAUSTED`, чтобы старые вызовы работали. У `mark_dead_lettered` появился необязательный аргумент `reason`.\n- **`RetryLaterError`:** следующая попытка планируется через `min(retry_after, max_delay)`, без джиттера, и `rng` не вызывается (с учётом правки тимлида от 04.11). На последней попытке это обычное исчерпание, `reason=EXHAUSTED`.\n- **`requeue_all_dead_letters(job_type=None)`:** перезапускает задания в порядке `dead_letters()` через `requeue_dead_letter` и возвращает их список. Если перезапускать нечего, список пустой.\n- **Экспорт:** `DeadLetterReason` и `RetryLaterError` добавлены в `jobq/__init__.py`.\n\n`RetryLaterError` с отрицательным `retry_after` (и с NaN, и с не числом) выбрасывает `ConfigError` прямо в конструкторе, то есть при создании исключения в обработчике, а не при планировании повтора.\n\n`dashboard.py` и `cli.py` не трогал."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+$ openspec archive add-stock-reservations --yes
+Task status: ✓ Complete
+
+Specs to update:
+  stock-reservations: create
+Applying changes to openspec/specs/stock-reservations/spec.md:
+  + 10 added
+Totals: + 10, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-stock-reservations' archived as '2026-10-18-add-stock-reservations'.
+
+

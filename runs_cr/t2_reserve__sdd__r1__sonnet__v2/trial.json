@@ -1,0 +1,103 @@
+{
+  "trial_id": "t2_reserve__sdd__r1__sonnet__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\85960cadf8\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\6c707e6ad6",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\6c707e6ad6\\project",
+  "base_commit": "701fa540f23b21b87379889cf59222bd3893e0fc",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 188.5,
+      "cost_usd": 0.5305007,
+      "duration_ms": 186638,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 55344,
+        "cache_read_input_tokens": 474087,
+        "output_tokens": 26166,
+        "output_tokens_details": {
+          "thinking_tokens": 2755
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 55344,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 830,
+            "cache_read_input_tokens": 59952,
+            "cache_creation_input_tokens": 1328,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1328
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Артефакты для `reservations-followups` готовы, и `openspec validate reservations-followups --strict` проходит. Код проекта я не менял. Изменения только в `openspec/changes/reservations-followups/`.\n\n**Артефакты**\n- `proposal.md`: что и зачем меняется, допущения, воздействие на код и журнал.\n- `specs/stock-reservations/spec.md`: дельта к существующей спецификации. Изменены требования про создание резерва, повторный резерв, истечение, отмену, продление, события журнала и обратную совместимость. Добавлены предельный срок, список резервов, доступность по позициям и `sweep_expired`.\n- `design.md`: решения по реализации, допущения и риски.\n- `tasks.md`: шесть групп задач.\n\n**Допущения и решения**\n- **Предельный срок — 2 часа.** В описании было 1 час, но в обсуждении Ольга Смирнова написала, что склад согласовал 2 часа. Я взял более позднее решение.\n- **Существующие тесты упадут.** Три группы из них проверяют отменяемые правила: TTL 15 минут, ошибка при повторном резерве активного заказа и запрет отмены подтверждённого. Ваше условие «тесты не менять» я сохранил. В `tasks.md` записано: не править их, а перечислить в отчёте реализации. Пункт про совместимость в спецификации я переформулировал под это исключение.\n- **`sweep_expired` помнит резерв, а не заказ.** Признак «о нём уже писали» хранится в записи резерва. Поэтому новый резерв того же заказа, если он тоже истёк, будет отражён отдельно, как просил Игорь Левин.\n- **Заменённый резерв.** Если истёкший резерв заменили новым до вызова `sweep_expired`, о старом событие не пишется.\n- **Время и возврат.** `RESERVE_EXPIRE` пишется со временем вызова `sweep_expired`. Возврат подтверждённого заказа возможен и после его `expires_at`.\n- **Имена сценариев.** Валидатор требует сохранять имена прежних сценариев в изменённых требованиях. Поэтому «Дубликат при активном резерве» и «Отмена подтверждённого» остались с прежними названиями, но с новым содержанием.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 119.3,
+      "cost_usd": 0.4185559,
+      "duration_ms": 117465,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 34,
+        "cache_creation_input_tokens": 49427,
+        "cache_read_input_tokens": 556599,
+        "output_tokens": 16512,
+        "output_tokens_details": {
+          "thinking_tokens": 347
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 49427,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 912,
+            "cache_read_input_tokens": 54656,
+            "cache_creation_input_tokens": 707,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 707
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена\n\n**Change:** reservations-followups. **Progress:** 15/15 задач выполнено.\n\nСделано в `warehouse/`:\n- **`reservations.py`:** TTL по умолчанию 20 минут, добавлена `MAX_RESERVATION_LIFETIME` (2 часа).\n- **`models.py` и `__init__.py`:** frozen-датакласс `Availability`, экспорт `Availability` и `MAX_RESERVATION_LIFETIME`.\n- **`storage.py`:** `ReservationRecord.expire_logged`, перебор резервов `reservation_items()`, `reserved_qty` с параметром `exclude_order`.\n- **`inventory.py`:**\n  - `reserve` проверяет предел TTL, заменяет активный резерв и пишет события `RESERVE_CANCEL`, затем `RESERVE`.\n  - `cancel` подтверждённого заказа возвращает товар на те же склады и пишет `RECEIVE`, затем `RESERVE_CANCEL`.\n  - `extend` ограничивает срок пределом.\n  - Новые методы: `reservations`, `availability`, `sweep_expired`.\n- **`tests/test_reservations_followups.py`:** новый файл, 32 теста по сценариям спецификации.\n\n`cli.py`, `reports.py` и `events.py` не изменены. В `design.md` ничего дописывать не пришлось: неоднозначностей не возникло.\n\n**Тесты:** 106 прошли, 8 упали. Все 8 в `tests/test_reservations.py`, я их не менял, как требует задача. Они проверяют отменённые правила:\n- `test_default_ttl`, `test_reserve_default_ttl_and_queries`: ждут TTL 15 минут.\n- `test_confirm_with_zero_available_and_events`: ждёт срок `10:15` в `RESERVE`.\n- `test_duplicate_active_and_confirmed_even_after_expiry`: ждёт `DuplicateReservationError` при активном резерве.\n- `test_cancel_expired_and_confirmed`: ждёт запрет отмены подтверждённого заказа, а тест падает уже раньше, на проверке отмены истёкшего резерва, из-за нового TTL.\n- `test_confirm_bad_states`, `test_extend_errors`, `test_issue_respects_reservation_then_passes_after_expiry`: рассчитаны на `clock.advance(15 минут)`, а с TTL 20 минут резерв ещё не истёк.\n\nВладельцам этих тестов нужно решить, как их обновить. Архивировать change можно через `/opsx:archive`."
+    }
+  ]
+}

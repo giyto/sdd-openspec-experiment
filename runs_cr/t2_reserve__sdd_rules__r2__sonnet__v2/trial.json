@@ -1,0 +1,103 @@
+{
+  "trial_id": "t2_reserve__sdd_rules__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4aac5a4bf6\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4c45035a34",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4c45035a34\\project",
+  "base_commit": "5ac44a18a0d36adcc465682d809ddf2452225427",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 222.2,
+      "cost_usd": 0.6579901,
+      "duration_ms": 220371,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 67037,
+        "cache_read_input_tokens": 629781,
+        "output_tokens": 32680,
+        "output_tokens_details": {
+          "thinking_tokens": 3386
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 67037,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 902,
+            "cache_read_input_tokens": 71992,
+            "cache_creation_input_tokens": 981,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 981
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `reservation-rework` создано в `openspec/changes/reservation-rework/`, все четыре артефакта готовы. `openspec validate reservation-rework --strict` проходит. Код проекта я не менял.\n\n- **proposal.md** описывает зачем нужны правки и что меняется. Изменения, ломающие старое поведение, помечены **BREAKING**. Затронута одна существующая спецификация, `stock-reservations`.\n- **specs/stock-reservations/spec.md** состоит из двух частей:\n  - **Изменённые требования:** публичный API, создание резерва, истечение, повторный `reserve`, отмена, продление и события журнала.\n  - **Новые требования:** предельный срок, `reservations()`, `availability()` и `sweep_expired()`.\n- **design.md** содержит решения и риски. Каждое требование покрыто сценариями WHEN/THEN.\n- **tasks.md** разбит на 5 групп. У каждой задачи указана проверка, последняя задача сверяет публичный API.\n\nДопущения, которые я принял сам (все записаны в артефактах):\n- **Предельный срок — 2 часа.** Так сказано в комментарии Ольги Смирновой от 10.11, он перекрывает «один час» из текста задачи. `reserve` с `ttl` ровно на пределе допустим, ошибка только при `ttl` больше предела.\n- **`sweep_expired` и вытесненные резервы.** Если истёкший и ещё не отмеченный резерв вытеснен новым `reserve` для того же заказа, он всё равно попадёт в следующий вызов `sweep_expired`. Один `order_id` тогда может встретиться в результате дважды. Альтернатива — терять такие резервы, но тогда поддержка их не увидит.\n- **Возврат подтверждённого заказа** не зависит от `expires_at` и выполняется один раз. Повторный `cancel` ничего не меняет.\n- **`reservations()`** бросает `ValidationError` на значение `status`, которое не соответствует `ReservationStatus`.\n\n**Конфликт с существующими тестами.** `tests/test_reservations.py` проверяет старые правила: ошибку на повторный `reserve` активного резерва, TTL 15 минут и запрет отмены подтверждённого заказа. После реализации эти тесты упадут. Задача запрещает менять существующие тесты, поэтому в плане новые тесты идут в отдельный файл, а ожидаемые падения нужно будет перечислить в отчёте и не править.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 126.6,
+      "cost_usd": 0.4337801,
+      "duration_ms": 124784,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 52241,
+        "cache_read_input_tokens": 518761,
+        "output_tokens": 17288,
+        "output_tokens_details": {
+          "thinking_tokens": 809
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52241,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1003,
+            "cache_read_input_tokens": 57397,
+            "cache_creation_input_tokens": 780,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 780
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена\n\n**Change:** reservation-rework (schema: spec-driven)\n**Progress:** 12/12 задач выполнено\n\nНовые тесты в `tests/test_reservations_rework.py` проходят: 25 из 25. В полном прогоне `python -m pytest -q` 99 тестов прошли и 8 упали. Все 8 упавших лежат в `tests/test_reservations.py`.\n\n**Что сделано**\n- **`warehouse/models.py`:** добавлен `Availability`, frozen-датакласс.\n- **`warehouse/reservations.py`:** `DEFAULT_RESERVATION_TTL` теперь 20 минут, добавлены `MAX_RESERVATION_LIFETIME` (2 часа), поле `expiry_reported` и помощник `cap_expiry`.\n- **`warehouse/storage.py`:** добавлено хранение вытесненных истёкших резервов, об истечении которых ещё не писали.\n- **`warehouse/inventory.py`:**\n  - `reserve` бросает `ValidationError` при `ttl` больше предела.\n  - `reserve` заменяет активный резерв: количество заменяемого считается свободным, в журнал пишется `RESERVE_CANCEL`, затем `RESERVE`. Для подтверждённого по-прежнему `DuplicateReservationError`.\n  - `cancel` подтверждённого заказа делает возврат: `RECEIVE` по каждой строке, затем `RESERVE_CANCEL`, статус `CANCELLED`.\n  - `extend` обрезает срок по `created_at + MAX_RESERVATION_LIFETIME`.\n  - Добавлены `reservations(status=None)`, `availability(warehouse=None)` и `sweep_expired()`.\n\n**Упавшие старые тесты (ожидаемо)**\nВсе они закрепляют правила, которые эта правка отменяет, как и предупреждал design.md. Я их не менял.\n- **TTL 15 минут:** `test_default_ttl`, `test_reserve_multi_warehouse`, `test_event_log_contents`, `test_extend_never_shortens`, `test_expiry_boundary`.\n- **Дубликат активного резерва:** `test_reserve_duplicate`, `test_issue_respects_reserve`.\n- **Отмена подтверждённого:** `test_cancel_expired_and_confirmed`.\n\nВладельцу задачи нужно решить, обновлять ли эти тесты.\n\n`cli.py`, `reports.py`, существующие тесты и зависимости не менялись. Сигнатуры публичного API я сверил скриптом через `inspect.signature` и `dataclasses.fields`, расхождений нет. Список упавших тестов и итог записал в конец `design.md`.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`, но сначала стоит решить вопрос с 8 старыми тестами."
+    }
+  ]
+}

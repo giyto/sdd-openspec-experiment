@@ -1,0 +1,59 @@
+{
+  "trial_id": "t2_reserve__baseline__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\bbf6c6325d\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9a9cd7ad51",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9a9cd7ad51\\project",
+  "base_commit": "1d09618b5659d1e63f8345fa2368570b164b0c18",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 167.5,
+      "cost_usd": 0.03688223000000001,
+      "duration_ms": 163250,
+      "num_turns": 34,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 63951,
+        "cache_read_input_tokens": 689683,
+        "output_tokens": 34384,
+        "output_tokens_details": {
+          "thinking_tokens": 17482
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 63951,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1704,
+            "cache_read_input_tokens": 69592,
+            "cache_creation_input_tokens": 1075,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1075
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача выполнена, но три существующих теста падают. Они проверяют старое поведение, которое тикет меняет, а тикет велит их не трогать, поэтому я их не правил.\n\n## Что сделано\n\n**Резервы** (`warehouse/reservations.py`, `warehouse/inventory.py`, `warehouse/models.py`, `warehouse/errors.py`)\n1. **Замена резерва в `reserve`.** Активный резерв снимается, журнал: `RESERVE_CANCEL`, затем `RESERVE` по строкам. Новый резерв получает свой `created_at` и срок от момента замены. Строки старого резерва при проверке наличия считаются свободными. При ошибке нехватки ничего не меняется. Подтверждённый заказ по-прежнему даёт `DuplicateReservationError`.\n2. **Возврат в `cancel`.** Для `CONFIRMED`: по каждой строке `RECEIVE` с `ref` = заказ на тот же склад, затем `RESERVE_CANCEL`, статус `CANCELLED`. Повторная отмена ничего не пишет.\n3. **TTL по умолчанию** — 20 минут.\n4. **Предел срока.** `MAX_RESERVATION_LIFETIME = timedelta(hours=2)`, как в последнем UPD тикета. `reserve` с большим `ttl` даёт `ValidationError`, а `extend` ставит срок ровно на предел.\n5. **`reservations(status=None)`** — снимки по одному на заказ, сортировка по `created_at`, затем `order_id`.\n6. **`availability(warehouse=None)`** — позиции с физическим остатком или активным резервом, порядок и фильтр как у `stock_levels`.\n7. **`sweep_expired()`** — пишет `RESERVE_EXPIRE` (`order`, `expires`) по каждому истёкшему резерву ровно один раз и возвращает `order_id` в порядке `expires_at`, затем `order_id`. Резерв идентифицируется парой `(order_id, created_at)`, поэтому новый истёкший резерв того же заказа пишется отдельно (замечание Игоря).\n\n## Решения, которые принял сам\n\n- **Истёкший резерв, заменённый до sweep.** Иначе его истечение никогда не попало бы в журнал. Такой резерв запоминается и попадает в ближайший `sweep_expired`. В самом `reserve` событие не пишется, журнал замены истёкшего резерва не меняется.\n- **Замена истёкшего или отменённого резерва** — без `RESERVE_CANCEL`, как и раньше.\n- **`README.md`** не обновлял, в тикете про документацию ничего не сказано.\n- **Коммит не делал**, изменения в рабочей копии.\n\n## Тесты\n\nВсего 101 тест, 98 проходят.\n\nНовые тесты лежат в `tests/test_reservations_rework.py` (19 штук, все проходят).\n\nТри падающих теста из `tests/test_reservations.py`:\n- `test_default_ttl_is_fifteen_minutes` — ожидает 15 минут, тикет велит 20.\n- `test_duplicate_reserve_while_active` — ожидает ошибку при повторном резерве активного заказа, тикет велит замену.\n- `test_cancel_confirmed_raises` — ожидает `ReservationStateError` при отмене подтверждённого заказа, тикет велит возврат.\n\nВсе три противоречат тикету напрямую, так что сами по себе они не сломаны. Их нужно обновить явным решением: либо разрешить правку существующих тестов, либо поменять ожидания вручную."
+    }
+  ]
+}

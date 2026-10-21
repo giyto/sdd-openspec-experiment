@@ -1,0 +1,53 @@
+{
+  "trial_id": "t1_promo__baseline__r2__haiku__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "cr_total": 35,
+  "cr_passed": 35,
+  "cr_pass_rate": 1.0,
+  "cr_req_total": 10,
+  "cr_req_satisfied": 10,
+  "cr_req_status": {
+    "C01": true,
+    "C02": true,
+    "C03": true,
+    "C04": true,
+    "C05": true,
+    "C06": true,
+    "C07": true,
+    "C08": true,
+    "C09": true,
+    "C10": true
+  },
+  "stage1_was_ok": 52,
+  "stage1_preserved": 52,
+  "preserved_rate": 1.0,
+  "stage1_broken_tests": [],
+  "stage1_valid_total": 52,
+  "stage1_valid_passed": 52,
+  "stage1_valid_pass_rate": 1.0,
+  "regress_total": 38,
+  "regress_passed": 38,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "prod_loc": 130,
+  "files_changed": [
+    "README.md",
+    "shop/orders.py",
+    "shop/pricing.py",
+    "shop/promo.py"
+  ],
+  "cc_mean": 6.27,
+  "cost_usd": 0.027,
+  "wall_s": 121.9,
+  "num_turns": 13,
+  "output_tokens": 25183,
+  "session_subtypes": [
+    "success"
+  ],
+  "cr_out_tail": "...................................                                      [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4340e663b3\\project\\_cr.xml -\n35 passed in 0.16s\n"
+}

@@ -1,0 +1,103 @@
+{
+  "trial_id": "t1_promo__sdd__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\cf4a33f82b\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c98a841d31",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c98a841d31\\project",
+  "base_commit": "8c174749e4ff213dc5bba69ecca2300e08dbe08e",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 180.4,
+      "cost_usd": 0.03739821,
+      "duration_ms": 175750,
+      "num_turns": 21,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 69623,
+        "cache_read_input_tokens": 767341,
+        "output_tokens": 31594,
+        "output_tokens_details": {
+          "thinking_tokens": 14201
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 69623,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 895,
+            "cache_read_input_tokens": 76029,
+            "cache_creation_input_tokens": 310,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 310
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `promo-campaign-fixes` is created with all four artifacts, and `openspec validate promo-campaign-fixes --strict` passes. I did not touch project code or start implementation.\n\n**Artifacts** (`openspec/changes/promo-campaign-fixes/`):\n- `proposal.md`: the six rule changes from SHOP-447, with the 50 % fixed-discount cap from Ольга's correction (not 30 %).\n- `specs/promo-codes/spec.md`: delta for the new limits, the `FREE_SHIPPING` value rule, and the 24-hour cancel window. The window is strict: cancelling exactly at 24 hours does not return the use.\n- `specs/promo-discounts/spec.md`: delta for the caps, the new tie-break for leftover kopecks, the threshold compared before discount, `FREE_SHIPPING`, and `OrderTotal.shipping_discount`.\n- `design.md`: decisions, risks, and open questions.\n- `tasks.md`: 5 groups, each task with its verification step.\n\n**Assumptions I made** (also recorded in `design.md`):\n- The free-shipping threshold uses the existing `subtotal`, which includes gift-card lines. I kept it that way so calls without a promo code return the same amounts as before. The ticket could mean goods excluding gift cards; that is open.\n- `FREE_SHIPPING` still goes through the same participating-lines and minimum-amount checks as the other kinds.\n- `max_discount` must also have at most two decimal places, as other money fields do. The ticket does not say this.\n- Only `customer_id=None` counts as absent. An empty string is compared as-is.\n- The fixed-discount cap is rounded half-up, so for very small bases it can slightly exceed 50 %. For example, base 0.03 gives a cap of 0.02.\n\n**Conflicts with existing tests:** the ticket says not to change existing tests, but two of them assert the old rules and will fail once implemented:\n- `tests/test_pricing_promo.py::test_fixed_discount_is_capped_by_participating_amount`\n- `tests/test_pricing_promo.py::test_discount_moves_order_under_free_shipping_threshold`\n\nI did not edit them. Someone needs to decide whether to update them before merging.\n\nNext step: run `/opsx:apply` when you're ready to implement."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 184.4,
+      "cost_usd": 0.04968338,
+      "duration_ms": 182636,
+      "num_turns": 46,
+      "usage": {
+        "input_tokens": 46,
+        "cache_creation_input_tokens": 83934,
+        "cache_read_input_tokens": 1382648,
+        "output_tokens": 38131,
+        "output_tokens_details": {
+          "thinking_tokens": 13055
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 83934,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1140,
+            "cache_read_input_tokens": 90078,
+            "cache_creation_input_tokens": 572,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 572
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: 13/13 задач\n\n**Change:** promo-campaign-fixes (схема spec-driven). Выбран единственный активный change, поэтому аргумент не понадобился. Выполнил все задачи из `tasks.md` без остановок.\n\n### Что сделано\n\n- **Модель промокода (`shop/promo.py`):** вид `FREE_SHIPPING` (только с `value = 0`), поля `max_discount` (только для `PERCENT`, больше нуля, до копеек) и `max_uses_per_customer` (`None` или целое ≥ 1, `bool` отклоняется).\n- **Реестр:** `resolve`, `uses`, `consume`, `release` принимают `customer_id`. Счётчики ведутся по паре `(code, customer_id)`. Порядок проверок: существование → срок → общий лимит → лимит клиента.\n- **Расчёт (`shop/pricing.py`):** потолок фиксированной скидки 50 % (`quantize_money`), потолок процентной скидки, новый tie-break копеек, `FREE_SHIPPING` с полем `OrderTotal.shipping_discount`, порог доставки сравнивается с `subtotal` до скидки.\n- **Заказы (`shop/orders.py`):** `Order.customer_id`, `customer_id` в `quote` и `place_order`, возврат использования при отмене только строго в пределах 24 часов от `created_at`.\n- **Тесты:** новый файл `tests/test_promo_campaign_fixes.py`, 46 тестов по сценариям спецификации, включая граничные случаи (23:59, ровно 24 часа, 3 дня).\n- **README:** разделы «Правила расчёта» и «Промокоды» приведены в соответствие со `specs/`.\n- **Проверка:** `openspec validate promo-campaign-fixes --strict` проходит. `git diff --stat` не показывает изменений в `shop/cli.py`, `shop/reports.py` и существующих тестах.\n\n### Результат pytest\n\n`2 failed, 171 passed` (до изменений было 127 passed). Падают ровно два теста из задачи 2.5, как и ожидалось:\n- `test_pricing_promo.py::test_fixed_discount_is_capped_by_participating_amount` (ожидает 999.00, новое правило даёт 499.50)\n- `test_pricing_promo.py::test_discount_moves_order_under_free_shipping_threshold` (ожидает доставку 299.00, новое правило даёт 0.00)\n\nСуществующие тесты я не менял, как требует задача. Решение о замене этих двух тестов остаётся открытым вопросом из `design.md`.\n\n### Решения, которые я принял сам\n\n- В `release` оба счётчика проверяются до уменьшения. Иначе ошибка на клиентском счётчике оставила бы общий уже уменьшенным.\n- При отмене вне окна заказ переходит в `cancelled` и пишется `info` в лог, исключение не бросается.\n- Клиентский счётчик ведётся для любого кода, переданного с `customer_id`, даже без лимита.\n- Все эти решения записаны в раздел «Решения при реализации» в `design.md`.\n\n### Что не сделано\n\n- Ничего не закоммичено: в задаче этого не требовалось. Изменения лежат в рабочей копии."
+    }
+  ]
+}

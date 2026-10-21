@@ -1,0 +1,59 @@
+{
+  "trial_id": "t4_retry__baseline__r3__sonnet__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\29ee795405\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9c5dde88fc",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9c5dde88fc\\project",
+  "base_commit": "4fdad322feaa3d6944e4c8d64aba058a46b2a832",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 45.4,
+      "cost_usd": 0.1403393,
+      "duration_ms": 43619,
+      "num_turns": 7,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 19804,
+        "cache_read_input_tokens": 120553,
+        "output_tokens": 4904,
+        "output_tokens_details": {
+          "thinking_tokens": 817
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 19804,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 912,
+            "cache_read_input_tokens": 24669,
+            "cache_creation_input_tokens": 1071,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1071
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все изменения из JOBQ-237 сделаны, но два существующих теста из `tests/test_retry.py` теперь падают: `test_flow` и `test_permanent_is_failed`. Они закрепляют договорённости из JOBQ-212, которые тикет отменяет:\n- `test_permanent_is_failed` ждёт `FAILED` для `PermanentJobError`, а теперь задание уходит в dead-letter.\n- `test_flow` ждёт, что `purge_finished()` вернёт 0 при записи в dead-letter, а теперь она её удаляет.\n\nТесты я не менял, как требует тикет, их нужно обновить отдельно. Остальные 44 теста проходят. Новое поведение я проверил отдельным скриптом, в репозиторий его не добавлял, новых тестов тоже нет.\n\n- **Неповторяемые ошибки:** если на тип действует политика, такая ошибка (включая `PermanentJobError`) сразу отправляет задание в dead-letter с причиной `non_retryable`. Это верно и на последней попытке. Без политики задание по-прежнему становится `FAILED`.\n- **Джиттер:** множитель теперь `rng.uniform(1 - jitter, 1)`, задержка только уменьшается.\n- **Очистка:** `purge_finished` удаляет записи dead-letter старше порога, считая от момента попадания. Вместе с записью удаляется и само задание из хранилища, а в возвращаемое число и в счётчик `jobs.purged` они тоже входят.\n- **`DeadLetterReason` и `DeadLetterEntry.reason`:** поле добавлено последним. По умолчанию оно `EXHAUSTED`, чтобы существующие вызовы не ломались. `mark_dead_lettered` принимает `reason` необязательным аргументом.\n- **`RetryLaterError`:** `retry_after < 0`, не число или `NaN` дают `ConfigError`. Задержка равна `min(retry_after, max_delay)`, джиттер не применяется и `rng` не трогается, как в обновлении тимлида от 04.11. На последней попытке это обычное исчерпание, `exhausted`. Для заданий без политики поведение прежнее: `FAILED`.\n- **`requeue_all_dead_letters(job_type=None)`:** перезапускает задания в порядке `dead_letters()` через `requeue_dead_letter` и возвращает их список. Если перезапускать нечего, возвращает пустой список.\n\n`DeadLetterReason` и `RetryLaterError` экспортированы из `jobq/__init__.py`. `dashboard.py` и `cli.py` не тронуты."
+    }
+  ]
+}

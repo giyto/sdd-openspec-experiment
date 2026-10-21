@@ -1,0 +1,103 @@
+{
+  "trial_id": "t2_reserve__sdd__r3__haiku__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\5f6ca85935\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a149c37c7",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a149c37c7\\project",
+  "base_commit": "1f7bb08968f1467fa32883b799b980e202d8a400",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 212.2,
+      "cost_usd": 0.048210930000000006,
+      "duration_ms": 210291,
+      "num_turns": 32,
+      "usage": {
+        "input_tokens": 42,
+        "cache_creation_input_tokens": 85962,
+        "cache_read_input_tokens": 1213383,
+        "output_tokens": 37761,
+        "output_tokens_details": {
+          "thinking_tokens": 16512
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 85962,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1154,
+            "cache_read_input_tokens": 92130,
+            "cache_creation_input_tokens": 548,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 548
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "The change `rework-reservations` is created with all four artifacts, and `openspec validate --strict` passes. I made no project code changes, and I did not start implementation.\n\n**Artifacts** (in `openspec/changes/rework-reservations/`, written in Russian to match the archived change):\n- `proposal.md`: why and what changes, with the BREAKING items marked. The capability is the existing `inventory/reservations`.\n- `specs/inventory/reservations/spec.md`: delta spec with 7 MODIFIED requirements and 3 ADDED (`reservations`, `availability`, `sweep_expired`). It uses the 2-hour limit from Olga's update, not the 1-hour one in the original ticket.\n- `design.md`: implementation approach, risks, and assumptions A1–A7.\n- `tasks.md`: 9 groups of checkbox tasks, each with its verification step.\n\n**Decisions to review:**\n- **Existing tests conflict with the ticket.** The ticket says \"existing tests are not changed\", but four tests in `tests/test_reservations.py` pin rules the ticket supersedes: the 15-minute default TTL (two tests), duplicate-ACTIVE rejection, and cancel-of-CONFIRMED raising. The plan updates those four assertions minimally and leaves all other tests, including CLI and reports, untouched. If you want them left as they are, they will fail, or you can mark them skipped; that choice is yours.\n- **`sweep_expired` changes an existing rule.** The old spec says expiry never writes to the journal. The lazy status reads still don't write; only `sweep_expired` writes `RESERVE_EXPIRE`. The spec delta says so explicitly.\n- **Assumptions:** \"active\" in `availability` means `ACTIVE` at the current moment. `extend` clamps above the limit instead of raising, which the ticket requires even though the old spec said `ttl` is validated the same way as in `reserve`. Replacing an expired reservation writes no `RESERVE_CANCEL`. Returning a confirmed order is allowed regardless of its `expires_at`.\n\n**Next step:** when you're ready, run `/opsx:apply` to start implementation."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 207.4,
+      "cost_usd": 0.06345680000000001,
+      "duration_ms": 205672,
+      "num_turns": 46,
+      "usage": {
+        "input_tokens": 52,
+        "cache_creation_input_tokens": 93705,
+        "cache_read_input_tokens": 1650722,
+        "output_tokens": 43279,
+        "output_tokens_details": {
+          "thinking_tokens": 17387
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 93705,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1093,
+            "cache_read_input_tokens": 99947,
+            "cache_creation_input_tokens": 474,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 474
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** rework-reservations\n**Schema:** spec-driven\n**Progress:** 17/17 tasks complete ✓\n**Tests:** `python -m pytest -q` → 140 passed (baseline was 108 passed before the change)\n\n### Completed This Session\n- [x] 1.1 `DEFAULT_RESERVATION_TTL` = 20 min, added `MAX_RESERVATION_LIFETIME` = 2 h\n- [x] 1.2 `Availability` frozen dataclass in `warehouse/models.py`\n- [x] 2.1 `InMemoryStore`: `all_reservations`, `mark_expiry_reported`, `expiry_reported` (keyed by `(order_id, created_at)`)\n- [x] 3.1–3.3 `reserve`: TTL limit check before any change; replacement of a live `ACTIVE` reservation (own lines count as free, `RESERVE_CANCEL` then `RESERVE`, failure leaves old reservation intact); replacing an expired one writes no `RESERVE_CANCEL`\n- [x] 4.1–4.2 `cancel` on `CONFIRMED` is a refund (`RECEIVE` per line with `ref`, then `RESERVE_CANCEL`, status `CANCELLED`); cancel of `CANCELLED`/`EXPIRED` stays a no-op\n- [x] 5.1 `extend` caps at `created_at + 2 h` without error\n- [x] 6.1 `Inventory.reservations(status=None)`\n- [x] 6.2 `Inventory.availability(warehouse=None)`\n- [x] 7.1 `Inventory.sweep_expired()` in two passes, idempotent, writes `RESERVE_EXPIRE`\n- [x] 8.1 the four tests that encoded the old rules were updated\n- [x] 8.2 new file `tests/test_reservations_rework.py` (32 tests)\n- [x] 9.1–9.3 full suite green; `cli.py`, `reports.py`, `events.py` and the listed test files are unchanged; no new dependencies\n\n### Decisions I made without asking (recorded in design.md, \"Решения при реализации\" R1–R6)\n- **R1:** The `ttl > 2 h` check lives in `reserve` only. `extend` caps silently, per the spec.\n- **R4 (beyond the list in design.md):** `test_reserve_writes_reserve_events` and `test_full_event_lines_for_reservation_lifecycle` failed only because they assume the old 15-minute default. I passed an explicit `ttl=15 min` in those two calls and left their expectations unchanged. Without this, the lifecycle test would stop exercising extension. This is a deviation from the test list in design.md, so please review it.\n- **R5:** Renamed the four updated tests to match the new behaviour: `test_default_ttl_is_twenty_minutes`, `test_reserve_duplicate_active_replaces`, `test_cancel_confirmed_refunds`.\n\n### Not verified\n- I did not run `openspec validate`; I only checked the apply state (`all_done`).\n- `git diff` shows CRLF warnings for the modified files. These are line-ending settings and did not change the content."
+    }
+  ]
+}

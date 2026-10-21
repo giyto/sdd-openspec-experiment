@@ -1,0 +1,452 @@
+diff --git a/README.md b/README.md
+index e10a72c..4825337 100644
+--- a/README.md
++++ b/README.md
+@@ -45,9 +45,18 @@ worker.run_pending()      # 1
+ 
+ - Повторяемая ошибка: `RETRY_SCHEDULED` с `run_at = now + delay_for(attempts)`, пока
+   `attempts < max_attempts`; затем `DEAD_LETTERED`.
+-- `PermanentJobError` и классы из `non_retryable` (с наследниками) сразу дают `FAILED`.
+-- `queue.dead_letters()` — записи `DeadLetterEntry`; `queue.requeue_dead_letter(job_id)`
+-  возвращает задание в `PENDING` с обнулёнными `attempts`. `purge_finished` dead-letter не трогает.
++- `PermanentJobError` и классы из `non_retryable` (с наследниками) для типа с политикой сразу дают
++  `DEAD_LETTERED` (причина `non_retryable`); без политики по-прежнему `FAILED`. Отсутствие
++  обработчика (`UnknownJobTypeError`) всегда `FAILED`.
++- Джиттер только уменьшает задержку: множитель `uniform(1 - jitter, 1)`.
++- `RetryLaterError(message, retry_after=секунды)` — повторяемая ошибка, после которой следующий запуск
++  через `min(retry_after, max_delay)` без джиттера.
++- `queue.dead_letters()` — записи `DeadLetterEntry` с полем `reason` (`DeadLetterReason.EXHAUSTED` /
++  `NON_RETRYABLE`); `queue.requeue_dead_letter(job_id)` возвращает задание в `PENDING` с обнулёнными
++  `attempts`; `queue.requeue_all_dead_letters(job_type=None)` делает это для всех (или одного типа).
++- `purge_finished(older_than)` удаляет и dead-letter (возраст от `dead_lettered_at`) вместе с записью.
++  Внимание: `purge_finished()` с `older_than=0` очистит весь dead-letter, включая невостребованные
++  записи — передавайте ненулевой `older_than`.
+ - Новые счётчики: `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.
+ 
+ ## Соглашения
+diff --git a/jobq/__init__.py b/jobq/__init__.py
+index 67e47ae..426bf07 100644
+--- a/jobq/__init__.py
++++ b/jobq/__init__.py
+@@ -9,10 +9,11 @@ from .errors import (
+     JobNotFoundError,
+     JobqError,
+     PermanentJobError,
++    RetryLaterError,
+     UnknownJobTypeError,
+ )
+ from .metrics import Metrics
+-from .models import DeadLetterEntry, Job, JobStatus
++from .models import DeadLetterEntry, DeadLetterReason, Job, JobStatus
+ from .queue import JobQueue
+ from .registry import HandlerRegistry
+ from .retry import RetryPolicy
+@@ -23,6 +24,7 @@ __all__ = [
+     "Clock",
+     "ConfigError",
+     "DeadLetterEntry",
++    "DeadLetterReason",
+     "DuplicateHandlerError",
+     "HandlerRegistry",
+     "InMemoryJobStore",
+@@ -36,6 +38,7 @@ __all__ = [
+     "ManualClock",
+     "Metrics",
+     "PermanentJobError",
++    "RetryLaterError",
+     "RetryPolicy",
+     "SystemClock",
+     "UnknownJobTypeError",
+diff --git a/jobq/errors.py b/jobq/errors.py
+index 568d3c9..a3d2373 100644
+--- a/jobq/errors.py
++++ b/jobq/errors.py
+@@ -52,3 +52,19 @@ class InvalidTransitionError(JobqError):
+ 
+ class PermanentJobError(JobqError):
+     """Обработчик бросает её, когда повтор точно не поможет."""
++
++
++class RetryLaterError(JobqError):
++    """Повторяемая ошибка, после которой следующую попытку нужно сделать через ``retry_after`` секунд."""
++
++    def __init__(self, message: str = "", *, retry_after: float) -> None:
++        if (
++            not isinstance(retry_after, (int, float))
++            or isinstance(retry_after, bool)
++            or retry_after != retry_after
++        ):
++            raise ConfigError(f"retry_after must be a number, got {retry_after!r}")
++        if retry_after < 0:
++            raise ConfigError("retry_after must be >= 0")
++        super().__init__(message)
++        self.retry_after = float(retry_after)
+diff --git a/jobq/models.py b/jobq/models.py
+index 935ca39..9884b37 100644
+--- a/jobq/models.py
++++ b/jobq/models.py
+@@ -78,6 +78,13 @@ class Job:
+         return self.status.is_terminal
+ 
+ 
++class DeadLetterReason(str, Enum):
++    """Почему задание попало в dead-letter."""
++
++    EXHAUSTED = "exhausted"
++    NON_RETRYABLE = "non_retryable"
++
++
+ @dataclass(frozen=True)
+ class DeadLetterEntry:
+     """Запись о задании, исчерпавшем попытки: число попыток и последняя ошибка."""
+@@ -87,3 +94,4 @@ class DeadLetterEntry:
+     attempts: int
+     error: str | None
+     dead_lettered_at: datetime
++    reason: DeadLetterReason = DeadLetterReason.EXHAUSTED
+diff --git a/jobq/queue.py b/jobq/queue.py
+index 83f6b2f..7b2cc19 100644
+--- a/jobq/queue.py
++++ b/jobq/queue.py
+@@ -14,9 +14,9 @@ from typing import Any
+ 
+ from . import metrics as m
+ from .clock import Clock, SystemClock
+-from .errors import ConfigError, InvalidJobError, InvalidTransitionError
++from .errors import ConfigError, InvalidJobError, InvalidTransitionError, JobNotFoundError
+ from .metrics import Metrics
+-from .models import DeadLetterEntry, Job, JobStatus
++from .models import DeadLetterEntry, DeadLetterReason, Job, JobStatus
+ from .retry import RetryPolicy
+ from .store import InMemoryJobStore
+ 
+@@ -116,6 +116,11 @@ class JobQueue:
+         self._metrics.incr(m.JOBS_REQUEUED)
+         return job
+ 
++    def requeue_all_dead_letters(self, job_type: str | None = None) -> list[Job]:
++        """Вернуть в работу все задания из dead-letter (или только заданного типа)."""
++        entries = [e for e in self.dead_letters() if job_type is None or e.job_type == job_type]
++        return [self.requeue_dead_letter(e.job_id) for e in entries]
++
+     # -- постановка и чтение ------------------------------------------------
+ 
+     def enqueue(
+@@ -187,13 +192,25 @@ class JobQueue:
+         return job
+ 
+     def purge_finished(self, older_than: float = 0.0) -> int:
+-        """Удалить завершённые задания, закончившиеся не позже ``now - older_than`` секунд."""
++        """Удалить завершённые задания, закончившиеся не позже ``now - older_than`` секунд.
++
++        Задания из dead-letter удаляются по тому же правилу, возраст считается от
++        ``dead_lettered_at``; запись исчезает и из :meth:`dead_letters`.
++        """
+         cutoff = self._clock.now() - timedelta(seconds=older_than)
+         removed = 0
+         for job in self._store.all():
+             if job.is_terminal and job.finished_at is not None and job.finished_at <= cutoff:
+                 self._store.remove(job.id)
+                 removed += 1
++        kept: list[DeadLetterEntry] = []
++        for entry in self._dead_letters:
++            if entry.dead_lettered_at <= cutoff and self._is_dead_lettered(entry.job_id):
++                self._store.remove(entry.job_id)
++                removed += 1
++            else:
++                kept.append(entry)
++        self._dead_letters = kept
+         if removed:
+             self._metrics.incr(m.JOBS_PURGED, removed)
+             logger.info("purged %d finished jobs", removed)
+@@ -234,20 +251,32 @@ class JobQueue:
+         self._metrics.incr(m.JOBS_RETRIED)
+         return job
+ 
+-    def mark_dead_lettered(self, job_id: str, error: str) -> Job:
++    def mark_dead_lettered(
++        self,
++        job_id: str,
++        error: str,
++        *,
++        reason: DeadLetterReason = DeadLetterReason.EXHAUSTED,
++    ) -> Job:
+         job = self._store.get(job_id)
+         self._transition(job, JobStatus.DEAD_LETTERED)
+         now = self._clock.now()
+         job.error = error
+         job.finished_at = now
+         self._dead_letters.append(
+-            DeadLetterEntry(job.id, job.job_type, job.attempts, error, now)
++            DeadLetterEntry(job.id, job.job_type, job.attempts, error, now, reason)
+         )
+         self._metrics.incr(m.JOBS_DEAD_LETTERED)
+         return job
+ 
+     # -- внутреннее ---------------------------------------------------------
+ 
++    def _is_dead_lettered(self, job_id: str) -> bool:
++        try:
++            return self._store.get(job_id).status is JobStatus.DEAD_LETTERED
++        except JobNotFoundError:
++            return False
++
+     def _transition(self, job: Job, target: JobStatus) -> None:
+         allowed = _TRANSITIONS.get(job.status, frozenset())
+         if target not in allowed:
+diff --git a/jobq/retry.py b/jobq/retry.py
+index d71e748..679236a 100644
+--- a/jobq/retry.py
++++ b/jobq/retry.py
+@@ -74,7 +74,7 @@ class RetryPolicy:
+         delay = min(raw, self.max_delay)
+         if self.jitter > 0:
+             generator = rng if rng is not None else _default_rng
+-            delay *= generator.uniform(1 - self.jitter, 1 + self.jitter)
++            delay *= generator.uniform(1 - self.jitter, 1)
+             delay = max(min(delay, self.max_delay), 0.0)
+         return delay
+ 
+diff --git a/jobq/worker.py b/jobq/worker.py
+index 2443397..e51f97d 100644
+--- a/jobq/worker.py
++++ b/jobq/worker.py
+@@ -6,8 +6,8 @@ import logging
+ import random
+ from datetime import timedelta
+ 
+-from .errors import UnknownJobTypeError
+-from .models import Job
++from .errors import RetryLaterError, UnknownJobTypeError
++from .models import DeadLetterReason, Job
+ from .queue import JobQueue
+ from .registry import HandlerRegistry
+ 
+@@ -72,12 +72,22 @@ class Worker:
+         """Выбрать FAILED, повтор или dead-letter по политике, действующей сейчас."""
+         error = format_error(exc)
+         policy = self._queue.retry_policy_for(job.job_type)
+-        if policy is None or not policy.is_retryable(exc):
++        if policy is None:
+             return self._queue.mark_failed(job.id, error)
++        if not policy.is_retryable(exc):
++            logger.warning("%s: job %s is not retryable, moved to dead-letter", self.name, job.id)
++            return self._queue.mark_dead_lettered(
++                job.id, error, reason=DeadLetterReason.NON_RETRYABLE
++            )
+         if job.attempts >= policy.max_attempts:
+             logger.warning("%s: job %s moved to dead-letter", self.name, job.id)
+-            return self._queue.mark_dead_lettered(job.id, error)
+-        delay = policy.delay_for(job.attempts, self._rng)
++            return self._queue.mark_dead_lettered(
++                job.id, error, reason=DeadLetterReason.EXHAUSTED
++            )
++        if isinstance(exc, RetryLaterError):
++            delay = min(exc.retry_after, policy.max_delay)
++        else:
++            delay = policy.delay_for(job.attempts, self._rng)
+         run_at = self._queue.clock.now() + timedelta(seconds=delay)
+         logger.info("%s: job %s will retry in %.3fs", self.name, job.id, delay)
+         return self._queue.mark_retry_scheduled(job.id, error, run_at)
+diff --git a/tests/test_refine_retries.py b/tests/test_refine_retries.py
+new file mode 100644
+index 0000000..359cbe4
+--- /dev/null
++++ b/tests/test_refine_retries.py
+@@ -0,0 +1,196 @@
++import math
++from datetime import timedelta
++
++import pytest
++
++from jobq import (
++    ConfigError,
++    DeadLetterEntry,
++    DeadLetterReason,
++    JobQueue,
++    JobStatus,
++    PermanentJobError,
++    RetryLaterError,
++    RetryPolicy,
++    Worker,
++)
++from tests.test_retry_policy import CountingRng
++
++
++def failing(exc):
++    def handler(job):
++        raise exc
++
++    return handler
++
++
++# -- RetryLaterError -------------------------------------------------------
++
++
++def test_retry_later_error_basic():
++    exc = RetryLaterError("slow down", retry_after=30)
++    assert exc.retry_after == 30.0
++    assert isinstance(exc.retry_after, float)
++    assert str(exc) == "slow down"
++    assert str(RetryLaterError(retry_after=1)) == ""
++
++
++def test_retry_later_error_bounds():
++    assert RetryLaterError(retry_after=0).retry_after == 0.0
++    assert math.isinf(RetryLaterError(retry_after=math.inf).retry_after)
++    for bad in (-1, math.nan, "5", None, True):
++        with pytest.raises(ConfigError):
++            RetryLaterError(retry_after=bad)
++
++
++def test_exports_and_entry_default_reason(clock):
++    entry = DeadLetterEntry("j", "t", 1, "e", clock.now())
++    assert entry.reason is DeadLetterReason.EXHAUSTED
++    assert DeadLetterReason.NON_RETRYABLE.value == "non_retryable"
++
++
++# -- jitter ----------------------------------------------------------------
++
++
++def test_jitter_only_downwards():
++    rng = CountingRng(0.8)
++    p = RetryPolicy(base_delay=10.0, jitter=0.5, max_delay=60.0)
++    assert p.delay_for(1, rng) == pytest.approx(8.0)
++    assert rng.calls == [(0.5, 1)]
++
++
++def test_jitter_zero_does_not_touch_rng():
++    rng = CountingRng()
++    RetryPolicy(jitter=0.0).delay_for(1, rng)
++    assert rng.calls == []
++
++
++# -- dead-letter reasons and worker ---------------------------------------
++
++
++def test_mark_dead_lettered_default_reason(queue):
++    job = queue.enqueue("t")
++    queue.mark_running(job.id)
++    queue.mark_dead_lettered(job.id, "E: x")
++    assert queue.dead_letters()[0].reason is DeadLetterReason.EXHAUSTED
++
++
++def make(clock, registry, policy=None, rng=None):
++    queue = JobQueue(clock=clock, default_retry_policy=policy or RetryPolicy(max_attempts=3))
++    return queue, Worker(queue, registry, rng=rng)
++
++
++def test_non_retryable_goes_to_dead_letter(clock, registry):
++    queue, worker = make(clock, registry)
++    registry.register("t", failing(PermanentJobError("bad")))
++    job = queue.enqueue("t")
++    worker.run_once()
++    assert job.status is JobStatus.DEAD_LETTERED
++    assert queue.dead_letters()[0].reason is DeadLetterReason.NON_RETRYABLE
++    assert queue.metrics.get("jobs.failed") == 0
++    assert queue.metrics.get("jobs.dead_lettered") == 1
++
++
++def test_non_retryable_on_last_attempt_is_non_retryable(clock, registry):
++    queue, worker = make(clock, registry, RetryPolicy(max_attempts=1))
++    registry.register("t", failing(PermanentJobError("bad")))
++    queue.enqueue("t")
++    worker.run_once()
++    assert queue.dead_letters()[0].reason is DeadLetterReason.NON_RETRYABLE
++
++
++def test_exhausted_reason(clock, registry):
++    queue, worker = make(clock, registry, RetryPolicy(max_attempts=1))
++    registry.register("t", failing(TimeoutError("x")))
++    queue.enqueue("t")
++    worker.run_once()
++    assert queue.dead_letters()[0].reason is DeadLetterReason.EXHAUSTED
++
++
++def test_no_policy_permanent_still_failed(queue, registry, worker):
++    registry.register("t", failing(PermanentJobError("bad")))
++    job = queue.enqueue("t")
++    worker.run_once()
++    assert job.status is JobStatus.FAILED
++
++
++def test_unknown_type_stays_failed(clock, registry):
++    queue, worker = make(clock, registry)
++    job = queue.enqueue("nope")
++    worker.run_once()
++    assert job.status is JobStatus.FAILED
++
++
++# -- RetryLaterError in worker ---------------------------------------------
++
++
++@pytest.mark.parametrize(
++    "retry_after, max_delay, expected",
++    [(30, 60.0, 30), (3600, 60.0, 60), (0, 60.0, 0)],
++)
++def test_retry_later_delay(clock, registry, retry_after, max_delay, expected):
++    rng = CountingRng()
++    policy = RetryPolicy(max_attempts=3, base_delay=1.0, max_delay=max_delay, jitter=0.5)
++    queue, worker = make(clock, registry, policy, rng)
++    registry.register("t", failing(RetryLaterError("wait", retry_after=retry_after)))
++    job = queue.enqueue("t")
++    worker.run_once()
++    assert job.status is JobStatus.RETRY_SCHEDULED
++    assert job.run_at == clock.now() + timedelta(seconds=expected)
++    assert rng.calls == []
++
++
++def test_retry_later_on_last_attempt_exhausted(clock, registry):
++    queue, worker = make(clock, registry, RetryPolicy(max_attempts=1))
++    registry.register("t", failing(RetryLaterError(retry_after=5)))
++    queue.enqueue("t")
++    worker.run_once()
++    assert queue.dead_letters()[0].reason is DeadLetterReason.EXHAUSTED
++
++
++# -- purge and requeue_all -------------------------------------------------
++
++
++def dead_letter_two(clock, registry):
++    queue, worker = make(clock, registry, RetryPolicy(max_attempts=1))
++    registry.register("a", failing(RuntimeError("x")))
++    registry.register("b", failing(RuntimeError("x")))
++    first = queue.enqueue("a")
++    worker.run_once()
++    clock.advance(100)
++    second = queue.enqueue("b")
++    worker.run_once()
++    return queue, first, second
++
++
++def test_purge_removes_old_dead_letters(clock, registry):
++    queue, first, second = dead_letter_two(clock, registry)
++    assert queue.purge_finished(older_than=50) == 1
++    assert [e.job_id for e in queue.dead_letters()] == [second.id]
++    ids = [j.id for j in queue.list_jobs()]
++    assert second.id in ids
++    assert first.id not in ids
++    assert queue.metrics.get("jobs.purged") == 1
++    assert queue.purge_finished() == 1
++    assert queue.dead_letters() == []
++
++
++def test_purge_keeps_retry_scheduled(clock, registry):
++    queue, worker = make(clock, registry)
++    registry.register("t", failing(TimeoutError("x")))
++    job = queue.enqueue("t")
++    worker.run_once()
++    assert queue.purge_finished() == 0
++    assert job.status is JobStatus.RETRY_SCHEDULED
++
++
++def test_requeue_all(clock, registry):
++    queue, first, second = dead_letter_two(clock, registry)
++    jobs = queue.requeue_all_dead_letters("b")
++    assert [j.id for j in jobs] == [second.id]
++    assert queue.requeue_all_dead_letters("zzz") == []
++    jobs = queue.requeue_all_dead_letters()
++    assert [j.id for j in jobs] == [first.id]
++    assert all(j.status is JobStatus.PENDING and j.attempts == 0 for j in jobs)
++    assert queue.requeue_all_dead_letters() == []
++    assert queue.metrics.get("jobs.requeued") == 2

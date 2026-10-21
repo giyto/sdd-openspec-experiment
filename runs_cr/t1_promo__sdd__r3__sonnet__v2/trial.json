@@ -1,0 +1,103 @@
+{
+  "trial_id": "t1_promo__sdd__r3__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\fd8be0e3d6\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0b1793834e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0b1793834e\\project",
+  "base_commit": "9c5db72b3aaf0eb53fc7b68d86e6fda86ce4644c",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 271.7,
+      "cost_usd": 0.7030254,
+      "duration_ms": 267156,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 36,
+        "cache_creation_input_tokens": 71761,
+        "cache_read_input_tokens": 815394,
+        "output_tokens": 33437,
+        "output_tokens_details": {
+          "thinking_tokens": 6606
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 71761,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 863,
+            "cache_read_input_tokens": 75754,
+            "cache_creation_input_tokens": 1943,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1943
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `promo-autumn-campaign` создан в `openspec/changes/promo-autumn-campaign/`, все четыре артефакта готовы. `openspec validate promo-autumn-campaign --strict` проходит, код проекта не менял.\n\n**Артефакты**\n- `proposal.md` — зачем и что меняется, затронутые спеки, влияние на код и тесты.\n- `specs/promo-registry`, `specs/promo-discount-pricing`, `specs/order-promo-checkout` — дельты к трём существующим спекам (пересмотрены требования, добавлено «Промокод на бесплатную доставку»).\n- `design.md` — решения, как разрешены противоречия в тикете, допущения.\n- `tasks.md` — 4 раздела с задачами и тестами.\n\n**Как я разрешил противоречия**\n- **Потолок фиксированной скидки — 50 %, не 30 %.** Последняя поправка маркетинга, согласованная с финансами.\n- **Раздача копеек.** Принял комментарий бухгалтерии. При равных остатках копейка уходит строке с большей суммой, затем той, что раньше в корзине.\n- **Отмена и возврат использования.** Возврат только при `now - created_at < 24 ч`, ровно 24 часа — уже сгорает (так ответила тимлид). Заказ при этом всё равно отменяется. Поздняя отмена не возвращает ни общий счётчик, ни счётчик клиента.\n\n**Допущения, которые стоит проверить**\n- `customer_id` сравнивается как есть. Пустая строка и не-строка дают `ValidationError`.\n- `max_discount` допускает не больше двух знаков после запятой.\n- Код бесплатной доставки при уже бесплатной доставке применяется и засчитывается, `shipping_discount` будет `0.00`.\n- Условия заказа (участвующие строки, минимальная сумма) действуют и для кода бесплатной доставки.\n\n**Три существующих теста упадут после реализации.** Они закодировали отменяемые правила, а менять их по рамкам тикета нельзя:\n- `test_shipping_threshold_after_discount` в `tests/test_pricing_promo.py`;\n- проверка фиксированной скидки `500` на `320.00` в том же файле;\n- `test_cancel_releases` в `tests/test_orders_promo.py`.\n\nПри реализации их не править, а перечислить в отчёте.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 183.4,
+      "cost_usd": 0.5526379,
+      "duration_ms": 181599,
+      "num_turns": 40,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 64349,
+        "cache_read_input_tokens": 681379,
+        "output_tokens": 22704,
+        "output_tokens_details": {
+          "thinking_tokens": 726
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 64349,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 937,
+            "cache_read_input_tokens": 68998,
+            "cache_creation_input_tokens": 1287,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1287
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена\n\n**Change:** promo-autumn-campaign (schema: spec-driven)\n**Прогресс:** 14/14 задач выполнены, чекбоксы в `tasks.md` отмечены.\n\n**Что изменено**\n- `shop/promo.py`:\n  - добавлены `DiscountKind.FREE_SHIPPING` и поля `max_discount` и `max_uses_per_customer`;\n  - общий хелпер `require_customer_id`;\n  - в реестре счётчики по клиентам, а `resolve`, `uses`, `redeem` и `release` принимают `customer_id`.\n- `shop/pricing.py`:\n  - потолок фиксированной скидки 50 % (`FIXED_DISCOUNT_MAX_SHARE`) и потолок процентной через `max_discount`;\n  - порог доставки считается по `subtotal` до скидки;\n  - `FREE_SHIPPING` обнуляет доставку и заполняет `OrderTotal.shipping_discount`;\n  - раздача копеек идёт по ключу `(-остаток, -сумма, индекс)`;\n  - устаревшая строка в докстринге заменена.\n- `shop/orders.py`:\n  - `customer_id` в `quote` и `place_order` (keyword-only) и в `Order`;\n  - `cancel` возвращает использование только в окне `CANCEL_REFUND_WINDOW` (24 часа, `[created_at, created_at + 24 ч)`), позже оно сгорает.\n- `README.md`: добавлен раздел «Промокоды».\n- Новые тесты лежат в `tests/test_promo_autumn.py`.\n\n`shop/cli.py`, `shop/reports.py` и существующие тесты не тронуты. `datetime.now()`, `float` и новых зависимостей в коде нет. Решения по неоднозначным местам уже записаны в `design.md`, так что я его не менял.\n\n**Тесты:** `python -m pytest -q` дал 166 пройдено, 3 упало. Падают ровно три устаревших теста, о которых предупреждает `design.md`. Я их не правил, и теперь они противоречат новым правилам:\n1. `tests/test_pricing_promo.py::test_fixed_capped` — ждёт скидку `320.00`, теперь потолок даёт `160.00`.\n2. `tests/test_pricing_promo.py::test_shipping_threshold_after_discount` — ждёт порог по сумме после скидки.\n3. `tests/test_orders_promo.py::test_cancel_releases` — ждёт возврат при отмене через 2 дня, теперь использование сгорает.\n\nИх нужно обновить отдельным решением. После этого можно архивировать change через `/opsx:archive`."
+    }
+  ]
+}

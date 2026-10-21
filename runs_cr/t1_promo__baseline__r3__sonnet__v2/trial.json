@@ -1,0 +1,59 @@
+{
+  "trial_id": "t1_promo__baseline__r3__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a0a58e190\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\759c43dab7",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\759c43dab7\\project",
+  "base_commit": "a6a0e8c02b2d3c385333e5fd25bae122cf841d3a",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 45.3,
+      "cost_usd": 0.12374869999999999,
+      "duration_ms": 43240,
+      "num_turns": 6,
+      "usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 16541,
+        "cache_read_input_tokens": 65747,
+        "output_tokens": 5099,
+        "output_tokens_details": {
+          "thinking_tokens": 784
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 16541,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 922,
+            "cache_read_input_tokens": 21675,
+            "cache_creation_input_tokens": 802,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 802
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Реализовано всё из тикета. Два существующих теста теперь падают, и это ожидаемо: они проверяют старые правила. Тесты я не менял, как требует тикет, и новых тестов не добавлял.\n\nПадают:\n- `test_fixed_capped` проверяет, что фиксированная скидка ограничена суммой товаров. Теперь потолок равен 50 % от суммы участвующих товаров.\n- `test_free_shipping_after_discount` проверяет порог бесплатной доставки по сумме после скидки. Теперь порог считается до скидки.\n\nОстальные 42 теста проходят. Новое поведение я отдельно не проверял.\n\n**Что сделано**\n- **Порог доставки:** считается от суммы товаров до скидки (`shop/pricing.py`).\n- **Потолок фиксированной скидки:** взял 50 %, а не 30 %, по поправке Ольги Смирновой от 22.10. Долю округляю так же, как любые деньги в проекте.\n- **Раскладка копеек** (по комментарию Натальи Кравец): при равных остатках лишняя копейка идёт строке с большей суммой, а если суммы равны — той, что раньше в корзине.\n- **Возврат при отмене:** использование возвращается, только если с оформления прошло строго меньше 24 часов, по часам сервиса заказов. Ровно через 24 часа уже не возвращается, как сказала Анна Лебедева.\n- **Бесплатная доставка:** добавлен `DiscountKind.FREE_SHIPPING`. Значение должно быть `Decimal(\"0\")`, иначе `ValidationError`. Скидка на товары равна нулю, доставка обнуляется, сэкономленная сумма попадает в `OrderTotal.shipping_discount`. В остальных случаях там `0.00`.\n- **`max_discount`:** допустим только у `PERCENT` и должен быть больше нуля.\n- **`max_uses_per_customer`:** `None` или целое >= 1. Если у кода есть такой лимит, а `customer_id` не передан, или клиент свой лимит исчерпал, будет `PromoConditionsError`.\n- **API:** `customer_id` добавлен в `PromoRegistry.resolve`, `uses`, `redeem`, `release`, а также в `quote` и `place_order`. Заказ его запоминает, и при отмене возврат идёт в счётчик этого клиента. Старые вызовы работают как раньше.\n\n**Решения по неясным местам**\n- У кода на бесплатную доставку остаются прежние проверки: нужны участвующие товары и выполнено `min_order_amount`.\n- `customer_id` сравнивается как есть, без нормализации."
+    }
+  ]
+}

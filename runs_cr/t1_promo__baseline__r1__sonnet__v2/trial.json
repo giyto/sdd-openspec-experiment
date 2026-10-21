@@ -1,0 +1,59 @@
+{
+  "trial_id": "t1_promo__baseline__r1__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3ae4243a3d\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\aef9858592",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\aef9858592\\project",
+  "base_commit": "74dcc62e3f935dd4ecf41958f12bf22527dc202b",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 103.3,
+      "cost_usd": 0.2743734,
+      "duration_ms": 101272,
+      "num_turns": 33,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 29098,
+        "cache_read_input_tokens": 213014,
+        "output_tokens": 13664,
+        "output_tokens_details": {
+          "thinking_tokens": 1131
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 29098,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 887,
+            "cache_read_input_tokens": 33560,
+            "cache_creation_input_tokens": 1474,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1474
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Всё из тикета реализовано, но один из старых тестов теперь падает. Это `tests/test_promo.py::test_fixed_capped`: он ждёт скидку 450.00, а по новому правилу выходит 225.00. Скидка 5000 на корзину с книгой за 450 раньше срезалась до всей суммы участвующих товаров, а теперь потолок — 50 % от неё. Тесты по рамкам менять нельзя, поэтому я оставил его как есть. Остальные 51 тест проходят, включая 5 новых в `tests/test_promo_autumn.py`.\n\nЧто сделано:\n- **Порог бесплатной доставки:** снова считается от суммы товаров до скидки.\n- **Потолок фиксированной скидки:** 50 % суммы участвующих товаров, а не 30 %. Я взял поправку Ольги Смирновой от 22.10 как более позднюю. Она лежит в константе `FIXED_MAX_SHARE` в `shop/pricing.py`, так что поменять её легко.\n- **Раскладка копеек:** при равных остатках лишняя копейка идёт строке с большей суммой, а при равных суммах — той, что раньше в корзине.\n- **Возврат использования при отмене:** только если с оформления прошло меньше 24 часов по часам сервиса. Ровно через 24 часа уже не возвращается.\n- **`FREE_SHIPPING`:** `value` должно быть `Decimal(\"0\")`, доставка обнуляется, сэкономленная сумма попадает в `OrderTotal.shipping_discount`. Если доставка и так бесплатна, там `0.00`.\n- **`max_discount`:** допустим только у `PERCENT` и должен быть больше нуля, иначе `ValidationError`.\n- **`max_uses_per_customer`:** без `customer_id` код не применяется, исчерпанный лимит тоже даёт `PromoConditionsError`. `customer_id` везде сравнивается как есть.\n- **Сигнатуры:** `PromoRegistry.resolve`, `uses`, `consume`, `release`, `OrderService.quote`, `place_order` и `Order.customer_id` как в тикете. Старые вызовы работают.\n\nДля `FREE_SHIPPING` я оставил прежние проверки: минимальная сумма заказа и наличие участвующих товаров в корзине. В тикете про это ничего нет, это моё решение.\n\nЯ также добавил раздел про эти правила в `README.md`. `shop/cli.py` и `shop/reports.py` не тронуты.\n\nИзменения не закоммичены."
+    }
+  ]
+}

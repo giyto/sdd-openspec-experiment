@@ -1,0 +1,15 @@
+$ openspec archive import-sfera-statements --yes
+
+Proposal warnings in proposal.md (non-blocking):
+  ⚠ Consider splitting changes with more than 10 deltas
+Task status: ✓ Complete
+
+Specs to update:
+  statement-import: create
+Applying changes to openspec/specs/statement-import/spec.md:
+  + 12 added
+Totals: + 12, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'import-sfera-statements' archived as '2026-10-18-import-sfera-statements'.
+
+

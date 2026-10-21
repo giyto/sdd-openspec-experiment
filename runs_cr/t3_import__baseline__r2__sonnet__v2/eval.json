@@ -1,0 +1,53 @@
+{
+  "trial_id": "t3_import__baseline__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t3_import",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "cr_total": 32,
+  "cr_passed": 32,
+  "cr_pass_rate": 1.0,
+  "cr_req_total": 10,
+  "cr_req_satisfied": 10,
+  "cr_req_status": {
+    "C01": true,
+    "C02": true,
+    "C03": true,
+    "C04": true,
+    "C05": true,
+    "C06": true,
+    "C07": true,
+    "C08": true,
+    "C09": true,
+    "C10": true
+  },
+  "stage1_was_ok": 56,
+  "stage1_preserved": 56,
+  "preserved_rate": 1.0,
+  "stage1_broken_tests": [],
+  "stage1_valid_total": 56,
+  "stage1_valid_passed": 56,
+  "stage1_valid_pass_rate": 1.0,
+  "regress_total": 41,
+  "regress_passed": 41,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "prod_loc": 74,
+  "files_changed": [
+    "ledger/errors.py",
+    "ledger/importer.py",
+    "tests/test_import_followup.py",
+    "tests/test_import_statement.py"
+  ],
+  "cc_mean": 9.0,
+  "cost_usd": 0.21,
+  "wall_s": 83.4,
+  "num_turns": 13,
+  "output_tokens": 8458,
+  "session_subtypes": [
+    "success"
+  ],
+  "cr_out_tail": "................................                                         [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\52c903d30e\\project\\_cr.xml -\n32 passed in 0.40s\n"
+}

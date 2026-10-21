@@ -1,0 +1,53 @@
+{
+  "trial_id": "t1_promo__baseline__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "cr_total": 35,
+  "cr_passed": 34,
+  "cr_pass_rate": 0.9714,
+  "cr_req_total": 10,
+  "cr_req_satisfied": 9,
+  "cr_req_status": {
+    "C01": true,
+    "C02": true,
+    "C03": true,
+    "C04": true,
+    "C05": true,
+    "C06": true,
+    "C07": true,
+    "C08": false,
+    "C09": true,
+    "C10": true
+  },
+  "stage1_was_ok": 52,
+  "stage1_preserved": 52,
+  "preserved_rate": 1.0,
+  "stage1_broken_tests": [],
+  "stage1_valid_total": 52,
+  "stage1_valid_passed": 52,
+  "stage1_valid_pass_rate": 1.0,
+  "regress_total": 38,
+  "regress_passed": 38,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "prod_loc": 112,
+  "files_changed": [
+    "README.md",
+    "shop/orders.py",
+    "shop/pricing.py",
+    "shop/promo.py"
+  ],
+  "cc_mean": 8.17,
+  "cost_usd": 0.2154,
+  "wall_s": 71.2,
+  "num_turns": 11,
+  "output_tokens": 8822,
+  "session_subtypes": [
+    "success"
+  ],
+  "cr_out_tail": ".........................F.........                                      [100%]\n================================== FAILURES ===================================\n________________ test_C08_free_shipping_needs_qualifying_items ________________\n\np = {'book': Product(sku='BOOK-1', name='Novel', price=Decimal('600.00'), category=<Category.BOOKS: 'books'>), 'gift': Pro...'shirt': Product(sku='SHIRT-1', name='Shirt', price=Decimal('1000.00'), category=<Category.CLOTHING: 'clothing'>), ...}\nmake_cart = <function make_cart.<locals>._make at 0x00000244231BB6A0>\n\n    def test_C08_free_shipping_needs_qualifying_items(p, make_cart):\n>       with pytest.raises(PromoConditionsError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'shop.errors.PromoConditionsError'>\n\ntests_hidden_cr\\test_hidden_cr.py:256: Failed\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a4534b9fdd\\project\\_cr.xml -\n=========================== short test summary info ===========================\nFAILED tests_hidden_cr/test_hidden_cr.py::test_C08_free_shipping_needs_qualifying_items\n1 failed, 34 passed in 0.25s\n"
+}

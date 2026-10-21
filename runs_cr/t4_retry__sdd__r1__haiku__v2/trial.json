@@ -1,0 +1,103 @@
+{
+  "trial_id": "t4_retry__sdd__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\1b8b8b645c\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a13c902966",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a13c902966\\project",
+  "base_commit": "98d955047a570166545ef5eb94c304de18289378",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 197.8,
+      "cost_usd": 0.041328460000000004,
+      "duration_ms": 195906,
+      "num_turns": 25,
+      "usage": {
+        "input_tokens": 44,
+        "cache_creation_input_tokens": 69746,
+        "cache_read_input_tokens": 1047836,
+        "output_tokens": 33793,
+        "output_tokens_details": {
+          "thinking_tokens": 14614
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 69746,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 895,
+            "cache_read_input_tokens": 75822,
+            "cache_creation_input_tokens": 640,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 640
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `jobq-retry-followups` is created with all four artifacts, and `openspec validate jobq-retry-followups --strict` passes. No project code was touched; the only addition is `openspec/changes/jobq-retry-followups/`.\n\n**Artifacts**\n- `proposal.md`: why and what changes. Modified capabilities are `job-retry` and `job-dead-letter`; no new capabilities.\n- `specs/job-retry/spec.md` (delta): jitter becomes `uniform(1 - jitter, 1)`; the worker decision is rewritten with explicit order and reasons; new requirement for `RetryLaterError` delay.\n- `specs/job-dead-letter/spec.md` (delta): the old \"exhausted\" and \"kept until requeued\" requirements are REMOVED and re-added as ADDED with the new text; adds `DeadLetterReason`/`reason`, age-based purge of dead-letter, and `requeue_all_dead_letters`.\n- `design.md`: decisions, alternatives, risks, migration.\n- `tasks.md`: 6 groups of checkbox tasks, each with a verification step.\n\n**Decisions I made where the ticket was open (all recorded in design.md)**\n1. Check order in the worker: no policy → `FAILED`; non-retryable → dead-letter `NON_RETRYABLE` (even on the last attempt); attempts exhausted → `EXHAUSTED`; `RetryLaterError` → `min(retry_after, max_delay)` with no jitter and no `rng` call; otherwise the policy delay.\n2. `DeadLetterEntry.reason` defaults to `EXHAUSTED` so existing constructor calls keep working. The status stays `DEAD_LETTERED`, so `stats()` and the dashboard are unaffected.\n3. `mark_dead_lettered` gets a keyword-only `reason` parameter with default `EXHAUSTED`. I used the same keyword-only-with-default pattern the existing spec already allows for `default_retry_policy` and `rng`.\n4. `RetryLaterError` validates `retry_after` in its constructor (`ConfigError` for negative, non-numeric, or non-finite values).\n5. Purge uses `finished_at`, which equals `dead_lettered_at` for dead-lettered jobs, and removes the matching dead-letter entry.\n6. Task 5.2 covers a possible conflict: existing tests that expect `FAILED` for `PermanentJobError` may now fail, and the tasks say to report that rather than edit the test.\n\nThe planning artifacts are complete. Nothing has been implemented. When you're ready, run `/opsx:apply` to start implementation."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 117.3,
+      "cost_usd": 0.03132441999999999,
+      "duration_ms": 115554,
+      "num_turns": 28,
+      "usage": {
+        "input_tokens": 38,
+        "cache_creation_input_tokens": 61898,
+        "cache_read_input_tokens": 859102,
+        "output_tokens": 20700,
+        "output_tokens_details": {
+          "thinking_tokens": 4644
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 61898,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 2311,
+            "cache_read_input_tokens": 68003,
+            "cache_creation_input_tokens": 611,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 611
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 14 задач из `tasks.md` выполнены, но полный набор тестов не зелёный: 5 существующих тестов падают, и все они проверяют старое поведение, которое спека меняет.\n\n**Результат `pytest`:** 137 passed, 5 failed (до изменений было 109 passed).\n\nПадающие тесты (по задаче 5.2 я их не правил):\n- `tests/test_dead_letter.py::test_non_retryable_failure_is_not_dead_lettered`: ожидает `FAILED` для неповторяемой ошибки при действующей политике. Спека теперь требует `DEAD_LETTERED/NON_RETRYABLE`.\n- `tests/test_dead_letter.py::test_purge_keeps_dead_letters`: ожидает, что `purge_finished` не трогает dead-letter. Спека теперь это разрешает.\n- `tests/test_retry.py::test_jitter_scales_capped_delay`: ожидает `uniform(0.5, 1.5)`. Спека теперь требует `uniform(0.5, 1)`.\n- `tests/test_retry_worker.py::test_non_retryable_error_fails_on_first_attempt`: ожидает `FAILED`, см. первый пункт.\n- `tests/test_retry_worker.py::test_permanent_error_on_last_attempt_fails`: ожидает `FAILED` для `PermanentJobError` на последней попытке. Спека требует `DEAD_LETTERED/NON_RETRYABLE`.\n\nЧтобы эти тесты стали зелёными, их нужно обновить под новую спеку. Это правка существующих тестов, поэтому жду вашего подтверждения.\n\n**Что сделано:**\n- `jobq/models.py`: `DeadLetterReason` (`EXHAUSTED`/`NON_RETRYABLE`) и поле `DeadLetterEntry.reason` последним полем, по умолчанию `EXHAUSTED`.\n- `jobq/errors.py`: `RetryLaterError(message=\"\", *, retry_after)`. Конструктор выбрасывает `ConfigError` при отрицательном, нечисловом (включая `bool`) или неконечном значении.\n- `jobq/retry.py`: джиттер теперь `uniform(1 - jitter, 1)`, docstring обновлён.\n- `jobq/worker.py`: `_handle_failure` проверяет условия по порядку из design.md. Для `RetryLaterError` задержка `min(retry_after, max_delay)` без `rng`.\n- `jobq/queue.py`: `mark_dead_lettered(..., *, reason=EXHAUSTED)`. `purge_finished` чистит и dead-letter (возраст от `finished_at`, запись убирается из `_dead_letters`). Добавлен `requeue_all_dead_letters(job_type=None)`.\n- `jobq/__init__.py`: экспорт `DeadLetterReason` и `RetryLaterError`.\n- `tests/test_retry_followups.py` (новый, 33 теста): все сценарии изменённых и добавленных требований. Все проходят.\n\n**Решения, принятые без вас:**\n- **6.1 (README):** README не описывает повторы, джиттер или dead-letter, поэтому правок не понадобилось. Таблица модулей остаётся верной, `RetryLaterError` живёт в `errors.py`.\n- **5.2:** я отметил задачу как выполненную, потому что сама задача предписывает фиксировать такие поломки в отчёте. Формулировка «существующие тесты проходят без изменения» при этом не выполнена. Если вы считаете, что 5.2 должна остаться открытой, снимите отметку.\n- **5.3:** `jobq/dashboard.py` и `jobq/cli.py` не изменены, новых зависимостей нет.\n- `design.md` не менял: решений сверх уже записанных в нём не понадобилось.\n\nGit выдаёт предупреждения `LF will be replaced by CRLF` для изменённых файлов. Это касается только line endings и на результаты тестов не влияет."
+    }
+  ]
+}

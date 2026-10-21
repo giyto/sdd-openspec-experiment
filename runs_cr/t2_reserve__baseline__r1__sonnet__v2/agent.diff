@@ -1,0 +1,260 @@
+diff --git a/warehouse/__init__.py b/warehouse/__init__.py
+index 67bcaec..6be0deb 100644
+--- a/warehouse/__init__.py
++++ b/warehouse/__init__.py
+@@ -19,10 +19,11 @@ from .errors import (
+     ReservationNotFoundError,
+     ReservationStateError,
+ )
+-from .models import Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
++from .models import Availability, Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
+ from .storage import InMemoryStore
+ 
+ __all__ = [
++    "Availability",
+     "DuplicateReservationError",
+     "Reservation",
+     "ReservationError",
+diff --git a/warehouse/__pycache__/__init__.cpython-313.pyc b/warehouse/__pycache__/__init__.cpython-313.pyc
+new file mode 100644
+index 0000000..91cb0cd
+Binary files /dev/null and b/warehouse/__pycache__/__init__.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/clock.cpython-313.pyc b/warehouse/__pycache__/clock.cpython-313.pyc
+new file mode 100644
+index 0000000..0d84c68
+Binary files /dev/null and b/warehouse/__pycache__/clock.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/errors.cpython-313.pyc b/warehouse/__pycache__/errors.cpython-313.pyc
+new file mode 100644
+index 0000000..4276981
+Binary files /dev/null and b/warehouse/__pycache__/errors.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/events.cpython-313.pyc b/warehouse/__pycache__/events.cpython-313.pyc
+new file mode 100644
+index 0000000..aff2325
+Binary files /dev/null and b/warehouse/__pycache__/events.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/inventory.cpython-313.pyc b/warehouse/__pycache__/inventory.cpython-313.pyc
+new file mode 100644
+index 0000000..4baf320
+Binary files /dev/null and b/warehouse/__pycache__/inventory.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/models.cpython-313.pyc b/warehouse/__pycache__/models.cpython-313.pyc
+new file mode 100644
+index 0000000..a80b176
+Binary files /dev/null and b/warehouse/__pycache__/models.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/reservations.cpython-313.pyc b/warehouse/__pycache__/reservations.cpython-313.pyc
+new file mode 100644
+index 0000000..b39c5a8
+Binary files /dev/null and b/warehouse/__pycache__/reservations.cpython-313.pyc differ
+diff --git a/warehouse/__pycache__/storage.cpython-313.pyc b/warehouse/__pycache__/storage.cpython-313.pyc
+new file mode 100644
+index 0000000..3e4b753
+Binary files /dev/null and b/warehouse/__pycache__/storage.cpython-313.pyc differ
+diff --git a/warehouse/inventory.py b/warehouse/inventory.py
+index 3c53ee1..d14add0 100644
+--- a/warehouse/inventory.py
++++ b/warehouse/inventory.py
+@@ -25,8 +25,13 @@ from .errors import (
+     ValidationError,
+ )
+ from .events import EventLog, format_timestamp
+-from .models import Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
+-from .reservations import DEFAULT_RESERVATION_TTL, normalize_lines, validate_ttl
++from .models import Availability, Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
++from .reservations import (
++    DEFAULT_RESERVATION_TTL,
++    MAX_RESERVATION_LIFETIME,
++    normalize_lines,
++    validate_ttl,
++)
+ from .storage import InMemoryStore
+ 
+ logger = logging.getLogger(__name__)
+@@ -45,6 +50,11 @@ class Inventory:
+         self._clock = clock if clock is not None else SystemClock()
+         self._log = log if log is not None else EventLog()
+         self._reservations: dict[str, Reservation] = {}
++        # поколение резерва по заказу: новый резерв на тот же заказ — другой резерв
++        self._generation: dict[str, int] = {}
++        self._swept: set[tuple[str, int]] = set()
++        # истёкшие, но не отмеченные резервы, вытесненные новым резервом того же заказа
++        self._superseded: list[tuple[int, Reservation]] = []
+ 
+     @property
+     def store(self) -> InMemoryStore:
+@@ -179,6 +189,8 @@ class Inventory:
+         """Резервирует товар под заказ сразу по всем строкам."""
+         _validate_code(order_id, "order_id")
+         ttl = DEFAULT_RESERVATION_TTL if ttl is None else validate_ttl(ttl)
++        if ttl > MAX_RESERVATION_LIFETIME:
++            raise ValidationError(f"ttl must not exceed {MAX_RESERVATION_LIFETIME}, got {ttl!r}")
+         norm = normalize_lines(lines)
+         if not norm:
+             raise ValidationError("reservation must have at least one line")
+@@ -186,18 +198,23 @@ class Inventory:
+             self._check_position(line.warehouse, line.sku)
+             _validate_qty(line.qty)
+         existing = self._snapshot(order_id)
+-        if existing is not None and existing.status in (
+-            ReservationStatus.ACTIVE,
+-            ReservationStatus.CONFIRMED,
+-        ):
++        if existing is not None and existing.status is ReservationStatus.CONFIRMED:
+             raise DuplicateReservationError(order_id)
++        replaced = existing is not None and existing.status is ReservationStatus.ACTIVE
+         for position, total in _totals(norm).items():
+-            free = self._available(*position)
++            free = self._available(*position, exclude=order_id if replaced else None)
+             if total > free:
+                 raise InsufficientStockError(position[0], position[1], total, free)
+         now = self._clock.now()
++        if replaced:
++            self._log.append(now, "RESERVE_CANCEL", order=order_id)
++        elif existing is not None and existing.status is ReservationStatus.EXPIRED:
++            old_gen = self._generation.get(order_id, 0)
++            if (order_id, old_gen) not in self._swept:
++                self._superseded.append((old_gen, existing))
+         record = Reservation(order_id, norm, now, now + ttl, ReservationStatus.ACTIVE)
+         self._reservations[order_id] = record
++        self._generation[order_id] = self._generation.get(order_id, 0) + 1
+         expires = format_timestamp(record.expires_at)
+         for line in norm:
+             self._log.append(
+@@ -231,7 +248,18 @@ class Inventory:
+         """Освобождает резерв. Повторная отмена и отмена истёкшего — без эффекта."""
+         snap = self._require_reservation(order_id)
+         if snap.status is ReservationStatus.CONFIRMED:
+-            raise ReservationStateError(order_id, snap.status)
++            now = self._clock.now()
++            for line in snap.lines:
++                current = self._store.get_qty(line.warehouse, line.sku)
++                self._store.set_qty(line.warehouse, line.sku, current + line.qty)
++                self._log.append(
++                    now, "RECEIVE", wh=line.warehouse, sku=line.sku, qty=line.qty, ref=order_id
++                )
++            record = replace(snap, status=ReservationStatus.CANCELLED)
++            self._reservations[order_id] = record
++            self._log.append(now, "RESERVE_CANCEL", order=order_id)
++            logger.info("refunded order %s", order_id)
++            return record
+         if snap.status is not ReservationStatus.ACTIVE:
+             return snap
+         record = replace(snap, status=ReservationStatus.CANCELLED)
+@@ -245,7 +273,7 @@ class Inventory:
+         validate_ttl(ttl)
+         record = self._require_active(order_id)
+         now = self._clock.now()
+-        new_expires = now + ttl
++        new_expires = min(now + ttl, record.created_at + MAX_RESERVATION_LIFETIME)
+         if new_expires <= record.expires_at:
+             return record
+         record = replace(record, expires_at=new_expires)
+@@ -258,6 +286,51 @@ class Inventory:
+     def get_reservation(self, order_id: str) -> Reservation:
+         return self._require_reservation(order_id)
+ 
++    def reservations(self, status: ReservationStatus | None = None) -> list[Reservation]:
++        """Снимки резервов (по одному на заказ), по ``created_at`` и ``order_id``."""
++        snaps = [self._snapshot(order_id) for order_id in self._reservations]
++        result = [s for s in snaps if s is not None and (status is None or s.status is status)]
++        result.sort(key=lambda r: (r.created_at, r.order_id))
++        return result
++
++    def availability(self, warehouse: str | None = None) -> list[Availability]:
++        """Остаток, резерв и доступное количество по каждой задействованной позиции."""
++        positions = {(lv.warehouse, lv.sku) for lv in self.stock_levels(warehouse)}
++        for record in self._reservations.values():
++            for line in record.lines:
++                if warehouse is None or line.warehouse == warehouse:
++                    positions.add((line.warehouse, line.sku))
++        result = []
++        for wh, sku in sorted(positions):
++            on_hand = self._store.get_qty(wh, sku)
++            reserved = self._reserved(wh, sku)
++            if on_hand or reserved:
++                result.append(Availability(wh, sku, on_hand, reserved, self._available(wh, sku)))
++        return result
++
++    def sweep_expired(self) -> list[str]:
++        """Пишет ``RESERVE_EXPIRE`` по истёкшим резервам, о которых ещё не писали."""
++        now = self._clock.now()
++        pending = list(self._superseded)
++        for order_id in self._reservations:
++            snap = self._snapshot(order_id)
++            gen = self._generation.get(order_id, 0)
++            if (
++                snap is not None
++                and snap.status is ReservationStatus.EXPIRED
++                and (order_id, gen) not in self._swept
++            ):
++                pending.append((gen, snap))
++        pending.sort(key=lambda item: (item[1].expires_at, item[1].order_id))
++        for gen, record in pending:
++            self._swept.add((record.order_id, gen))
++            self._log.append(
++                now, "RESERVE_EXPIRE", order=record.order_id,
++                expires=format_timestamp(record.expires_at),
++            )
++        self._superseded.clear()
++        return [record.order_id for _, record in pending]
++
+     # --- служебное ----------------------------------------------------------
+     def _snapshot(self, order_id: str) -> Reservation | None:
+         record = self._reservations.get(order_id)
+@@ -283,18 +356,20 @@ class Inventory:
+             raise ReservationStateError(order_id, snap.status)
+         return snap
+ 
+-    def _reserved(self, warehouse: str, sku: str) -> int:
++    def _reserved(self, warehouse: str, sku: str, exclude: str | None = None) -> int:
+         now = self._clock.now()
+         return sum(
+             line.qty
+             for record in self._reservations.values()
+             if record.status is ReservationStatus.ACTIVE and now < record.expires_at
++            and record.order_id != exclude
+             for line in record.lines
+             if line.warehouse == warehouse and line.sku == sku
+         )
+ 
+-    def _available(self, warehouse: str, sku: str) -> int:
+-        return max(0, self._store.get_qty(warehouse, sku) - self._reserved(warehouse, sku))
++    def _available(self, warehouse: str, sku: str, exclude: str | None = None) -> int:
++        reserved = self._reserved(warehouse, sku, exclude)
++        return max(0, self._store.get_qty(warehouse, sku) - reserved)
+ 
+ 
+     def _require_sku(self, sku: str) -> None:
+diff --git a/warehouse/models.py b/warehouse/models.py
+index 891725e..3d6acb9 100644
+--- a/warehouse/models.py
++++ b/warehouse/models.py
+@@ -25,6 +25,17 @@ class StockLevel:
+     on_hand: int
+ 
+ 
++@dataclass(frozen=True)
++class Availability:
++    """Сводка по позиции: остаток, резерв и доступное количество."""
++
++    warehouse: str
++    sku: str
++    on_hand: int
++    reserved: int
++    available: int
++
++
+ class ReservationStatus(str, Enum):
+     ACTIVE = "active"
+     EXPIRED = "expired"
+diff --git a/warehouse/reservations.py b/warehouse/reservations.py
+index 6ae44b0..69f6725 100644
+--- a/warehouse/reservations.py
++++ b/warehouse/reservations.py
+@@ -8,7 +8,8 @@ from typing import Iterable
+ from .errors import ValidationError
+ from .models import ReservationLine
+ 
+-DEFAULT_RESERVATION_TTL = timedelta(minutes=15)
++DEFAULT_RESERVATION_TTL = timedelta(minutes=20)
++MAX_RESERVATION_LIFETIME = timedelta(hours=2)
+ 
+ 
+ def validate_ttl(ttl: object) -> timedelta:

@@ -1,0 +1,59 @@
+{
+  "trial_id": "t2_reserve__baseline__r2__haiku__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c7ff1b1285\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3c3e61ddbb",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3c3e61ddbb\\project",
+  "base_commit": "d65138a79124dbd3c51f767b5ef502cef139e584",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 172.7,
+      "cost_usd": 0.04032884999999999,
+      "duration_ms": 171043,
+      "num_turns": 34,
+      "usage": {
+        "input_tokens": 42,
+        "cache_creation_input_tokens": 67771,
+        "cache_read_input_tokens": 889295,
+        "output_tokens": 35755,
+        "output_tokens_details": {
+          "thinking_tokens": 16166
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 67771,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 2322,
+            "cache_read_input_tokens": 72625,
+            "cache_creation_input_tokens": 1862,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1862
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача выполнена: все пункты ТЗ реализованы, новые тесты проходят. Девять существующих тестов падают, потому что они проверяют старые правила, которые ТЗ меняет. По требованию ТЗ их я не трогал.\n\n## Что сделано\n\nИзменения в `warehouse/reservations.py`, `models.py`, `inventory.py`, `__init__.py`:\n\n1. **Замена резерва.** `reserve` по заказу с активным резервом отменяет старый (`RESERVE_CANCEL`), затем пишет `RESERVE` по строкам нового. Товар старого резерва при проверке наличия считается свободным. Новый резерв получает свой `created_at` и срок. Подтверждённый заказ заменить нельзя (`DuplicateReservationError`). Проверки идут до записей, так что при нехватке ничего не меняется.\n2. **Возврат.** `cancel` подтверждённого заказа пишет `RECEIVE` по каждой строке с `ref` = заказ, возвращает товар на те же склады, затем `RESERVE_CANCEL`. Статус становится `CANCELLED`.\n3. **TTL по умолчанию** — 20 минут.\n4. **Предел срока.** `MAX_RESERVATION_LIFETIME = timedelta(hours=2)` (по UPD Ольги). `reserve` с большим `ttl` даёт `ValidationError`. `extend` сверх предела ставит срок ровно на предел.\n5. **`reservations(status=None)`** — по одному снимку на заказ, сортировка по `(created_at, order_id)`, фильтр по статусу на текущий момент.\n6. **`availability(warehouse=None)`** — строки для позиций с остатком или активным резервом, порядок и фильтр как у `stock_levels`.\n7. **`sweep_expired()`** — пишет `RESERVE_EXPIRE` (`order`, `expires`) по каждому истёкшему резерву один раз, возвращает `order_id` в порядке `(expires_at, order_id)`. Статусы и остатки не меняет.\n\n## Решения, которые я принял сам\n\n- **Учёт `RESERVE_EXPIRE`** ведётся по паре `(order_id, created_at)`. Так новый резерв того же заказа (уточнение Игоря) попадает в sweep отдельно.\n- **Истёкший резерв, заменённый до sweep**, сохраняется в отдельном списке, иначе sweep его бы потерял. Поэтому в одном sweep может быть два события с одним `order_id`, если старый и новый резервы оба истекли. Это соответствует ТЗ.\n- **Замена истёкшего резерва** не пишет `RESERVE_CANCEL`, как и отмена истёкшего (no-op).\n- **`extend`**, если после ограничения срок не продвигается, остаётся no-op без события.\n- **`Availability` и `MAX_RESERVATION_LIFETIME`** добавлены в экспорт `warehouse/__init__.py` по образцу `DEFAULT_RESERVATION_TTL`. Это вне явного списка, но без этого их неудобно импортировать.\n- `cli.py` и `reports.py` не трогал, зависимостей не добавлял.\n\n## Тесты\n\n- Новый файл `tests/test_reservations_rework.py`: 21 тест, все проходят.\n- Полный прогон: **91 прошёл, 9 упали**. Все 9 падений в `tests/test_reservations.py`, и все из-за старых правил:\n  - `test_default_ttl_is_fifteen_minutes`: ожидает 15 минут вместо 20.\n  - `test_reserve_holds_stock_without_changing_on_hand`, `test_reserve_writes_one_event_per_line`: ожидают срок `+15 минут`.\n  - `test_reserve_duplicate_active_is_error`: ожидает ошибку при повторном резерве активного заказа.\n  - `test_cancel_confirmed_is_state_error`: ожидает запрет отмены подтверждённого заказа.\n  - `test_reservation_expires_exactly_at_expires_at`, `test_confirm_expired_is_expired_error`, `test_extend_expired_or_closed_errors`, `test_expired_reservation_releases_stock_for_issue`: используют продвижение часов на 15 минут, а при TTL 20 минут резерв ещё активен.\n\nЭти тесты противоречат новому ТЗ, и ТЗ велит их не менять. Чтобы зелёный прогон вернулся, их нужно обновить. Это решение за вами: сказать, и я обновлю их отдельным коммитом.\n\nИзменения не закоммичены: вы не просили коммит."
+    }
+  ]
+}

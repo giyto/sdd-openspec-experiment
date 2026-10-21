@@ -1,0 +1,59 @@
+{
+  "trial_id": "t4_retry__baseline__r2__haiku__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4ffe351abb\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2dfb39f73e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2dfb39f73e\\project",
+  "base_commit": "ea4ea7e5e2464c4f6bba6fc566ecb41b2b7efbcf",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 106.3,
+      "cost_usd": 0.026249779999999997,
+      "duration_ms": 104395,
+      "num_turns": 25,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 51716,
+        "cache_read_input_tokens": 476428,
+        "output_tokens": 22279,
+        "output_tokens_details": {
+          "thinking_tokens": 7922
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 51716,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1677,
+            "cache_read_input_tokens": 54915,
+            "cache_creation_input_tokens": 3517,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3517
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача по JOBQ-237 реализована, но 4 существующих теста теперь падают. Они проверяют старые договорённости из JOBQ-212, которые тикет отменяет. По ограничению тикета существующие тесты я не менял, поэтому решение за вами.\n\n**Падающие тесты** (`tests/test_retry.py`):\n- `test_non_retryable_goes_to_failed_even_on_last_attempt`: ожидает `FAILED`, теперь `DEAD_LETTERED` с `non_retryable`.\n- `test_permanent_error_goes_to_failed`: то же для `PermanentJobError`.\n- `test_last_error_is_kept_across_attempts`: `FatalError` с `non_retryable` теперь уходит в dead-letter, а не в `FAILED`.\n- `test_purge_keeps_dead_letters`: `purge_finished` теперь чистит dead-letter по возрасту.\n\nИтог: 106 passed, 4 failed. Эти 4 теста надо обновить под новое поведение или удалить отдельным шагом.\n\n**Что сделано**\n- `jobq/models.py`: `DeadLetterReason` (`EXHAUSTED`, `NON_RETRYABLE`) и поле `DeadLetterEntry.reason`.\n- `jobq/errors.py`: `RetryLaterError(message=\"\", *, retry_after)`.\n- `jobq/worker.py`: логика выбора статуса.\n  - Неповторяемая ошибка при наличии политики идёт в dead-letter с `NON_RETRYABLE`, даже на последней попытке.\n  - Исчерпание попыток даёт `EXHAUSTED`, в том числе для `RetryLaterError` на последней попытке.\n  - Для `RetryLaterError` задержка = `min(retry_after, max_delay)`, джиттер и `rng` не используются.\n  - Тип без политики по-прежнему получает `FAILED`, как и неизвестный тип задания.\n- `jobq/retry.py`: джиттер умножает задержку на `uniform(1 - jitter, 1)`, поэтому повтор никогда не позже расчётного времени.\n- `jobq/queue.py`:\n  - `requeue_all_dead_letters(job_type=None)` идёт в порядке `dead_letters()` и возвращает `[]`, если нечего перезапускать.\n  - `purge_finished` чистит dead-letter по `dead_lettered_at`, запись dead-letter удаляется вместе с заданием.\n- `jobq/__init__.py` и `README.md`: экспорт новых имён и обновление описания.\n- `dashboard.py` и `cli.py` не тронуты.\n- Новые тесты: `tests/test_jobq237.py`.\n\n**Решения, которые я принял сам**\n- `DeadLetterEntry.reason` получил значение по умолчанию `EXHAUSTED`. В тикете default не указан, но без него старые вызовы конструктора (и существующие тесты) ломаются.\n- `mark_dead_lettered` получил необязательный keyword-only параметр `reason`. Старые вызовы работают, но формально это изменение сигнатуры публичного метода, поэтому отмечаю отдельно.\n- `RetryLaterError` с `retry_after < 0` (и NaN) бросает `ConfigError` в `__init__`. `inf` не отсекаю, он упирается в `max_delay`.\n- `retry_after = 0` означает немедленный повтор.\n\nИзменения не закоммичены: в тикете нет просьбы делать коммит. Git при этом выводит предупреждения о CRLF, на результат это не влияет."
+    }
+  ]
+}

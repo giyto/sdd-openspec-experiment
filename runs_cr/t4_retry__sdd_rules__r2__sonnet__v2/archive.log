@@ -1,0 +1,21 @@
+$ openspec archive add-job-retry-dead-letter --yes
+
+Proposal warnings in proposal.md (non-blocking):
+  ⚠ Consider splitting changes with more than 10 deltas
+Task status: ✓ Complete
+
+Specs to update:
+  dead-letter-queue: create
+  job-retry-execution: create
+  retry-policy: create
+Applying changes to openspec/specs/dead-letter-queue/spec.md:
+  + 5 added
+Applying changes to openspec/specs/job-retry-execution/spec.md:
+  + 6 added
+Applying changes to openspec/specs/retry-policy/spec.md:
+  + 4 added
+Totals: + 15, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-job-retry-dead-letter' archived as '2026-10-18-add-job-retry-dead-letter'.
+
+

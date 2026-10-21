@@ -1,0 +1,59 @@
+{
+  "trial_id": "t1_promo__baseline__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\40e181e689\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\f41f82f1bf",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\f41f82f1bf\\project",
+  "base_commit": "a262775d96629f5266b487614c049f135dfc97bb",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 189.6,
+      "cost_usd": 0.04857253,
+      "duration_ms": 187483,
+      "num_turns": 32,
+      "usage": {
+        "input_tokens": 60,
+        "cache_creation_input_tokens": 70894,
+        "cache_read_input_tokens": 1568323,
+        "output_tokens": 37409,
+        "output_tokens_details": {
+          "thinking_tokens": 16732
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 70894,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1635,
+            "cache_read_input_tokens": 77031,
+            "cache_creation_input_tokens": 579,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 579
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача из SHOP-447 выполнена в рабочей копии, но не закоммичена. Все 26 новых тестов проходят. Из 96 существующих тестов 93 проходят, а три падают: они проверяют правила, которые тикет явно отменяет, и по условию я их не менял.\n\n**Три падающих существующих теста** (все в `tests/test_promo_pricing.py`):\n- `test_full_example_totals`: ожидал доставку 299.00 при сумме 3149.90 после скидки. По новому правилу порог считается от 3149.90 до скидки, доставка бесплатна, итог станет 3343.40.\n- `test_fixed_discount_is_capped_by_participating_sum`: ожидал скидку 450.00. Теперь потолок 50 % от 450.00, то есть 225.00.\n- `test_shipping_threshold_uses_goods_after_discount`: ожидал доставку 299.00 после скидки 200. Теперь порог до скидки, доставка 0.00.\n\nЕсли их надо обновить, это одна правка на тест; скажите, и внесу.\n\n**Что изменено**\n- `shop/promo.py`: новый вид `FREE_SHIPPING` (`value` должен быть 0), поля `max_discount` (только у `PERCENT`) и `max_uses_per_customer`, `resolve`/`uses`/`record_use`/`release_use` принимают `customer_id`.\n- `shop/pricing.py`: порог доставки от суммы до скидки; фиксированная скидка не больше 50 % участвующих товаров (округление `quantize_money`); потолок процентной скидки; `FREE_SHIPPING` обнуляет доставку и заполняет `OrderTotal.shipping_discount`; при равных остатках копейка уходит строке с большей суммой, затем строке выше в корзине.\n- `shop/orders.py`: `customer_id` в `quote`, `place_order` и `Order`; при `cancel` использование возвращается только если с момента `created_at` прошло меньше 24 часов по часам сервиса.\n- `README.md`: правила промокодов обновлены.\n- Новый файл `tests/test_promo_autumn.py`.\n- `shop/cli.py`, `shop/reports.py` и существующие тесты не тронуты.\n\n**Решения, которые я принял сам**\n- `FREE_SHIPPING` проходит те же проверки, что и остальные коды (участвующие строки, `min_order_amount`). Корзина только из подарочных сертификатов с таким кодом даёт `PromoConditionsError`.\n- Фиксированная скидка сверх потолка тихо урезается до потолка, как и раньше урезалась до суммы товаров.\n- `max_discount` проверяется как денежная сумма (не более двух знаков), иначе нарушился бы инвариант копеек.\n- `customer_id` сравнивается как есть, пустую строку не отвергаю.\n- Счётчик по клиенту ведётся, когда `customer_id` передан, даже если у кода нет лимита на клиента. Сгоревшее использование остаётся в счётчиках.\n- Версию пакета (`__version__`) не менял.\n\nТесты запускались командой `python -m pytest -q` на Python 3.13."
+    }
+  ]
+}

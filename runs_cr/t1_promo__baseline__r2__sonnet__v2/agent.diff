@@ -1,0 +1,321 @@
+diff --git a/README.md b/README.md
+index 861b72d..c5dcffc 100644
+--- a/README.md
++++ b/README.md
+@@ -28,6 +28,16 @@
+   никогда не распространяются скидки и акции.
+ * `total = subtotal + shipping + tax`.
+ 
++## Промокоды
++
++* Порог бесплатной доставки сравнивается с суммой товаров до скидки.
++* Фиксированная скидка не больше 50 % суммы участвующих товаров.
++* `PERCENT` может иметь потолок `max_discount`; `FREE_SHIPPING` (value = 0) обнуляет доставку,
++  сэкономленное — в `OrderTotal.shipping_discount`.
++* `max_uses_per_customer` требует `customer_id` в `quote`/`place_order`.
++* При отмене использование возвращается только в течение 24 часов с оформления (`[0, 24 ч)`).
++* Лишние копейки скидки: по большему остатку, затем по большей сумме строки, затем по порядку в корзине.
++
+ ## Соглашения
+ 
+ * **Деньги** — только `Decimal`, два знака после запятой, округление только `ROUND_HALF_UP`
+diff --git a/shop/orders.py b/shop/orders.py
+index 7171d3b..45e1ff8 100644
+--- a/shop/orders.py
++++ b/shop/orders.py
+@@ -5,7 +5,7 @@ from __future__ import annotations
+ import logging
+ from collections.abc import Iterator
+ from dataclasses import dataclass, replace
+-from datetime import datetime
++from datetime import datetime, timedelta
+ from enum import StrEnum
+ 
+ from .catalog import Cart, normalize_key
+@@ -16,6 +16,8 @@ from .promo import PromoCode, PromoRegistry
+ 
+ logger = logging.getLogger(__name__)
+ 
++REFUND_WINDOW = timedelta(hours=24)
++
+ 
+ class OrderStatus(StrEnum):
+     PLACED = "placed"
+@@ -29,6 +31,7 @@ class Order:
+     total: OrderTotal
+     status: OrderStatus = OrderStatus.PLACED
+     promo_code: str | None = None
++    customer_id: str | None = None
+ 
+ 
+ class OrderStore:
+@@ -79,7 +82,9 @@ class OrderService:
+         self._tax = tax
+         self._promos = promos
+ 
+-    def _resolve_promo(self, promo_code: str | None) -> PromoCode | None:
++    def _resolve_promo(
++        self, promo_code: str | None, customer_id: str | None = None
++    ) -> PromoCode | None:
+         if promo_code is None:
+             return None
+         code = normalize_key(promo_code)
+@@ -87,25 +92,30 @@ class OrderService:
+             return None
+         if self._promos is None:
+             raise UnknownPromoCodeError(f"unknown promo code: {promo_code!r}")
+-        return self._promos.resolve(code)
++        return self._promos.resolve(code, customer_id)
+ 
+-    def quote(self, cart: Cart, promo_code: str | None = None) -> OrderTotal:
++    def quote(
++        self, cart: Cart, promo_code: str | None = None, *, customer_id: str | None = None
++    ) -> OrderTotal:
+         """Totals the customer would pay right now; nothing is stored."""
+-        promo = self._resolve_promo(promo_code)
++        promo = self._resolve_promo(promo_code, customer_id)
+         return calculate_total(cart, self._shipping, self._tax, promo=promo)
+ 
+-    def place_order(self, cart: Cart, promo_code: str | None = None) -> Order:
+-        promo = self._resolve_promo(promo_code)
++    def place_order(
++        self, cart: Cart, promo_code: str | None = None, *, customer_id: str | None = None
++    ) -> Order:
++        promo = self._resolve_promo(promo_code, customer_id)
+         total = calculate_total(cart, self._shipping, self._tax, promo=promo)
+         order = Order(
+             order_id=self.store.next_id(),
+             created_at=self._clock.now(),
+             total=total,
+             promo_code=promo.code if promo is not None else None,
++            customer_id=customer_id,
+         )
+         self.store.add(order)
+         if promo is not None and self._promos is not None:
+-            self._promos.record_use(promo.code)
++            self._promos.record_use(promo.code, customer_id)
+         logger.info("order %s placed, total=%s", order.order_id, total.total)
+         return order
+ 
+@@ -115,7 +125,11 @@ class OrderService:
+             raise InvalidOrderStateError(f"order {order_id} is {order.status}, cannot cancel")
+         cancelled = replace(order, status=OrderStatus.CANCELLED)
+         self.store.save(cancelled)
+-        if order.promo_code is not None and self._promos is not None:
+-            self._promos.release_use(order.promo_code)
++        if (
++            order.promo_code is not None
++            and self._promos is not None
++            and self._clock.now() - order.created_at < REFUND_WINDOW
++        ):
++            self._promos.release_use(order.promo_code, order.customer_id)
+         logger.info("order %s cancelled", order_id)
+         return cancelled
+diff --git a/shop/pricing.py b/shop/pricing.py
+index e30c036..d085c44 100644
+--- a/shop/pricing.py
++++ b/shop/pricing.py
+@@ -5,7 +5,7 @@ Rules (see README):
+ * line amount = unit price x quantity;
+ * tax is charged on top of the price, per line, at the rate of the line's category,
+   and rounded per line (ROUND_HALF_UP); the order tax is the sum of line taxes;
+-* shipping is a flat fee, free when the goods subtotal reaches the threshold;
++* shipping is a flat fee, free when the goods subtotal (before discount) reaches the threshold;
+   carts with gift cards only are not shipped at all;
+ * shipping is not taxed.
+ """
+@@ -93,12 +93,16 @@ class OrderTotal:
+     tax: Decimal
+     total: Decimal
+     discount: Decimal = ZERO
++    shipping_discount: Decimal = ZERO
+ 
+     @property
+     def items_count(self) -> int:
+         return sum(line.quantity for line in self.lines)
+ 
+ 
++FIXED_DISCOUNT_MAX_SHARE = Decimal("0.50")
++
++
+ def _allocate_discount(cart: Cart, promo: PromoCode) -> list[Decimal]:
+     """Per-line discounts (in cart order); their sum equals the total discount exactly."""
+     from .promo import DiscountKind
+@@ -106,6 +110,8 @@ def _allocate_discount(cart: Cart, promo: PromoCode) -> list[Decimal]:
+     amounts = [
+         line.amount if promo.applies_to(line.product.category) else None for line in cart.lines
+     ]
++    if all(a is None for a in amounts) and promo.kind is DiscountKind.FREE_SHIPPING:
++        return [ZERO] * len(amounts)
+     if all(a is None for a in amounts):
+         raise PromoConditionsError(f"promo code {promo.code} has no eligible items in the cart")
+     base = sum_money(a for a in amounts if a is not None)
+@@ -114,23 +120,28 @@ def _allocate_discount(cart: Cart, promo: PromoCode) -> list[Decimal]:
+             f"eligible amount {base} is below the minimum {promo.min_order_amount} "
+             f"for promo code {promo.code}"
+         )
++    if promo.kind is DiscountKind.FREE_SHIPPING:
++        return [ZERO] * len(amounts)
+     if promo.kind is DiscountKind.PERCENT:
+         discount = quantize_money(base * promo.value / Decimal(100))
++        if promo.max_discount is not None:
++            discount = min(discount, quantize_money(promo.max_discount))
+     else:
+-        discount = min(quantize_money(promo.value), base)
++        cap = quantize_money(base * FIXED_DISCOUNT_MAX_SHARE)
++        discount = min(quantize_money(promo.value), base, cap)
+ 
+     shares = [ZERO] * len(amounts)
+-    remainders: list[tuple[Decimal, int]] = []
++    remainders: list[tuple[Decimal, Decimal, int]] = []
+     for i, amount in enumerate(amounts):
+         if amount is None:
+             continue
+         exact = discount * amount / base
+         floored = exact.quantize(CENT, rounding=ROUND_FLOOR)
+         shares[i] = floored
+-        remainders.append((exact - floored, i))
++        remainders.append((exact - floored, amount, i))
+     leftover = int((discount - sum_money(shares)) / CENT)
+-    remainders.sort(key=lambda r: (-r[0], r[1]))
+-    for _, i in remainders[:leftover]:
++    remainders.sort(key=lambda r: (-r[0], -r[1], r[2]))
++    for _, _, i in remainders[:leftover]:
+         shares[i] += CENT
+     return shares
+ 
+@@ -147,6 +158,8 @@ def calculate_total(
+     promo: PromoCode | None = None,
+ ) -> OrderTotal:
+     """Calculate the totals of ``cart``. Pure function: does not modify the cart."""
++    from .promo import DiscountKind
++
+     if cart.is_empty:
+         raise EmptyCartError("cannot calculate total of an empty cart")
+     shipping = shipping or DEFAULT_SHIPPING
+@@ -174,7 +187,11 @@ def calculate_total(
+     subtotal = sum_money(line.amount for line in lines)
+     needs_delivery = any(line.product.is_physical for line in cart.lines)
+     discount_total = sum_money(line.discount for line in lines)
+-    shipping_cost = shipping.cost_for(subtotal - discount_total, needs_delivery=needs_delivery)
++    shipping_cost = shipping.cost_for(subtotal, needs_delivery=needs_delivery)
++    shipping_discount = ZERO
++    if promo is not None and promo.kind is DiscountKind.FREE_SHIPPING:
++        shipping_discount = shipping_cost
++        shipping_cost = ZERO
+     tax_total = sum_money(line.tax for line in lines)
+     total = subtotal - discount_total + shipping_cost + tax_total
+ 
+@@ -188,4 +205,5 @@ def calculate_total(
+         tax=tax_total,
+         total=total,
+         discount=discount_total,
++        shipping_discount=shipping_discount,
+     )
+diff --git a/shop/promo.py b/shop/promo.py
+index 968f839..9b5600f 100644
+--- a/shop/promo.py
++++ b/shop/promo.py
+@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
+ class DiscountKind(StrEnum):
+     PERCENT = "percent"
+     FIXED = "fixed"
++    FREE_SHIPPING = "free_shipping"
+ 
+ 
+ def _require_aware(at: datetime, name: str) -> None:
+@@ -41,6 +42,8 @@ class PromoCode:
+     expires_at: datetime | None = None
+     max_uses: int | None = None
+     excluded_categories: frozenset[Category] = frozenset()
++    max_discount: Decimal | None = None
++    max_uses_per_customer: int | None = None
+ 
+     def __post_init__(self) -> None:
+         code = normalize_key(self.code)
+@@ -54,6 +57,9 @@ class PromoCode:
+         if self.kind is DiscountKind.PERCENT:
+             if not Decimal("0") < self.value <= Decimal("100"):
+                 raise ValidationError("percent discount must be in (0, 100]")
++        elif self.kind is DiscountKind.FREE_SHIPPING:
++            if self.value != 0:
++                raise ValidationError("free shipping promo must have value 0")
+         else:
+             if self.value <= 0:
+                 raise ValidationError("fixed discount must be positive")
+@@ -79,6 +85,21 @@ class PromoCode:
+             or self.max_uses < 1
+         ):
+             raise ValidationError("max_uses must be an integer >= 1")
++        if self.max_uses_per_customer is not None and (
++            isinstance(self.max_uses_per_customer, bool)
++            or not isinstance(self.max_uses_per_customer, int)
++            or self.max_uses_per_customer < 1
++        ):
++            raise ValidationError("max_uses_per_customer must be an integer >= 1")
++        if self.max_discount is not None:
++            if self.kind is not DiscountKind.PERCENT:
++                raise ValidationError("max_discount is only allowed for percent promo codes")
++            if (
++                not isinstance(self.max_discount, Decimal)
++                or not self.max_discount.is_finite()
++                or self.max_discount <= 0
++            ):
++                raise ValidationError("max_discount must be a finite Decimal greater than 0")
+         categories = frozenset(self.excluded_categories)
+         if not all(isinstance(c, Category) for c in categories):
+             raise ValidationError("excluded_categories must contain Category values")
+@@ -94,6 +115,7 @@ class PromoRegistry:
+         self._clock = clock
+         self._promos: dict[str, PromoCode] = {}
+         self._uses: dict[str, int] = {}
++        self._customer_uses: dict[tuple[str, str], int] = {}
+ 
+     def add(self, promo: PromoCode) -> None:
+         if promo.code in self._promos:
+@@ -101,7 +123,7 @@ class PromoRegistry:
+         self._promos[promo.code] = promo
+         self._uses[promo.code] = 0
+ 
+-    def resolve(self, code: str) -> PromoCode:
++    def resolve(self, code: str, customer_id: str | None = None) -> PromoCode:
+         promo = self._promos.get(normalize_key(code))
+         if promo is None:
+             raise UnknownPromoCodeError(f"unknown promo code: {code!r}")
+@@ -112,18 +134,32 @@ class PromoRegistry:
+             raise PromoExpiredError(f"promo code {promo.code} is not valid now")
+         if promo.max_uses is not None and self._uses[promo.code] >= promo.max_uses:
+             raise PromoConditionsError(f"promo code {promo.code} usage limit reached")
++        if promo.max_uses_per_customer is not None:
++            if customer_id is None:
++                raise PromoConditionsError(f"promo code {promo.code} requires a customer")
++            if self._customer_uses.get((promo.code, customer_id), 0) >= promo.max_uses_per_customer:
++                raise PromoConditionsError(
++                    f"promo code {promo.code} usage limit reached for this customer"
++                )
+         return promo
+ 
+-    def uses(self, code: str) -> int:
++    def uses(self, code: str, customer_id: str | None = None) -> int:
+         key = normalize_key(code)
+         if key not in self._promos:
+             raise UnknownPromoCodeError(f"unknown promo code: {code!r}")
++        if customer_id is not None:
++            return self._customer_uses.get((key, customer_id), 0)
+         return self._uses[key]
+ 
+-    def record_use(self, code: str) -> None:
+-        self._uses[normalize_key(code)] += 1
++    def record_use(self, code: str, customer_id: str | None = None) -> None:
++        key = normalize_key(code)
++        self._uses[key] += 1
++        if customer_id is not None:
++            self._customer_uses[(key, customer_id)] = self._customer_uses.get((key, customer_id), 0) + 1
+ 
+-    def release_use(self, code: str) -> None:
++    def release_use(self, code: str, customer_id: str | None = None) -> None:
+         key = normalize_key(code)
+         if self._uses.get(key, 0) > 0:
+             self._uses[key] -= 1
++        if customer_id is not None and self._customer_uses.get((key, customer_id), 0) > 0:
++            self._customer_uses[(key, customer_id)] -= 1

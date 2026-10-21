@@ -1,0 +1,59 @@
+{
+  "trial_id": "t1_promo__baseline__r3__haiku__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ee2de1cd07\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\d8884425eb",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\d8884425eb\\project",
+  "base_commit": "208d8a31ffd1ad17f9a671e8486f41dfbc2d2930",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 145.1,
+      "cost_usd": 0.03246905,
+      "duration_ms": 143059,
+      "num_turns": 27,
+      "usage": {
+        "input_tokens": 36,
+        "cache_creation_input_tokens": 57057,
+        "cache_read_input_tokens": 605255,
+        "output_tokens": 30003,
+        "output_tokens_details": {
+          "thinking_tokens": 11451
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 57057,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1147,
+            "cache_read_input_tokens": 63101,
+            "cache_creation_input_tokens": 672,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 672
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача SHOP-447 реализована, но три старых теста падают. Они закрепляют правила, которые тикет меняет, а по условию существующие тесты менять нельзя. Итог: 122 теста проходят, 3 падают.\n\n**Падающие тесты** (`tests/test_pricing_promo.py`, не изменены):\n- `test_fixed_discount_is_capped_by_participating_amount` и `test_fixed_discount_does_not_change_shipping_fee` ожидают фиксированную скидку больше 50 % от участвующих товаров. Новый потолок 50 % её режет (например, 100.00 на чай 199.90 становится 99.95).\n- `test_free_shipping_threshold_uses_amount_after_discount` закрепляет летний порог от суммы после скидки. Тикет возвращает порог к сумме до скидки.\n\nЧтобы тесты прошли, нужно либо откатить правило из тикета, либо обновить эти три теста. Решение за вами.\n\n**Что сделано:**\n- `shop/promo.py`: `DiscountKind.FREE_SHIPPING` (`value` обязан быть `0`), `max_discount` (только `PERCENT`, больше нуля), `max_uses_per_customer` (`None` или >= 1). `resolve`, `uses`, `consume` и `release` принимают `customer_id`. Код с лимитом на клиента без `customer_id` не применяется.\n- `shop/pricing.py`:\n  - порог бесплатной доставки считается от суммы до скидки;\n  - фиксированная скидка ограничена 50 % участвующей суммы (`FIXED_DISCOUNT_MAX_SHARE`), доля округляется `ROUND_HALF_UP`;\n  - `max_discount` ограничивает процентную скидку;\n  - `FREE_SHIPPING` обнуляет доставку, сэкономленное попадает в `OrderTotal.shipping_discount` (по умолчанию `0.00`);\n  - копейки при равных остатках получает строка с большей суммой, а при равных суммах — раньше в корзине.\n- `shop/orders.py`: `Order.customer_id`, `customer_id` в `quote` и `place_order` (keyword-only). При отмене использование возвращается только если `now - created_at < 24 ч` по часам `OrderService`. Ровно через 24 часа уже не возвращается.\n- `README.md`: правила обновлены под новое поведение.\n- `tests/test_promo_shop447.py`: 27 новых тестов на новые правила.\n- `shop/cli.py`, `shop/reports.py` и существующие тесты не трогал.\n\n**Решения, которые я принял сам:**\n- `FREE_SHIPPING` требует хотя бы одну участвующую строку и проверяет `min_order_amount`, как и остальные виды. Для корзины из одних подарочных сертификатов такой код даёт `PromoConditionsError`.\n- Потолок 50 % считается при расчёте, а не при создании кода, потому что сумма корзины на момент создания неизвестна.\n- Валидация `max_discount` требует два знака после запятой, как у фиксированной скидки.\n- `customer_id` сравнивается как есть, без нормализации. Пустая строка считается идентификатором, а не отсутствием клиента.\n\nКоммит не делал. Изменения лежат в рабочем дереве."
+    }
+  ]
+}

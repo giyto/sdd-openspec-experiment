@@ -1,0 +1,103 @@
+{
+  "trial_id": "t3_import__sdd__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b3864f155a\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\dc36ad5894",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\dc36ad5894\\project",
+  "base_commit": "0fbe752bfb0c9c0e24659fbd85c0cecdc9927509",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 163.9,
+      "cost_usd": 0.03225165,
+      "duration_ms": 162017,
+      "num_turns": 19,
+      "usage": {
+        "input_tokens": 36,
+        "cache_creation_input_tokens": 56941,
+        "cache_read_input_tokens": 758835,
+        "output_tokens": 26543,
+        "output_tokens_details": {
+          "thinking_tokens": 11311
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 56941,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 894,
+            "cache_read_input_tokens": 63420,
+            "cache_creation_input_tokens": 237,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 237
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Артефакты для change `ledger-74-statement-import-followups` созданы и проходят `openspec validate`. Код проекта не менялся: в git видна только новая папка `openspec/changes/ledger-74-statement-import-followups/`. Реализацию не начинаю; она запускается отдельным `/opsx:apply`.\n\n**Созданные артефакты**\n- `proposal.md`: зачем и что меняем. Capability — изменение существующей `statement-import`, новых нет.\n- `specs/statement-import/spec.md`: дельта.\n  - MODIFIED: разбор «Сферы» по строкам, обработка ошибок строк (добавлен `raw`), строгий режим, категоризация, результат (добавлен `transactions`).\n  - REMOVED и ADDED: «Sfera amount and date rules» разбито на «Sfera amount notation» и «Sfera date rules». Так валидатор не требует сохранить устаревший сценарий «точка — ошибка».\n  - ADDED: нормализация описания, пропуск служебных строк, режим `dry_run`.\n- `design.md`: решения, риски, план отката.\n- `tasks.md`: 5 групп задач с проверками в каждом пункте.\n\n**Допущения, которые я принял (их можно поменять до apply)**\n1. Нормализация описания (пункт 3) применяется ко всем трём форматам, включая «Нову».\n2. Служебная строка в `sfera_split` (нули в обеих колонках) пропускается после проверки количества полей, до разбора даты и описания. Битая дата в такой строке не даст ошибку.\n3. Точка как разделитель тысяч не поддерживается: `1.234` — ошибка строки, а не `1234`.\n4. «Не трогаем существующие тесты» понимаю так: `cli.py`, `reports.py` и тесты, не связанные с пунктами 1–4, не меняем. Тесты пунктов 1–4 обновляем.\n5. `raw`: переводы строк `\\r\\n` и `\\r` становятся `\\n`, завершающий перевод строки снимается, пробелы внутри не меняются.\n6. Превью (`dry_run`) выполняет дедупликацию и категоризацию как обычный импорт, но не вызывает `add_many` и не трогает JSON-файл.\n7. README не меняем: в задаче его нет.\n\n**Открытые вопросы**\nЗадача не требует ответа сейчас, но в `design.md` отмечены два пункта. Первый: нужно ли валидировать дату в служебной строке (сейчас не валидируем). Второй: нужно ли обновлять раздел про форматы в README."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 226.5,
+      "cost_usd": 0.05492971,
+      "duration_ms": 224601,
+      "num_turns": 50,
+      "usage": {
+        "input_tokens": 54,
+        "cache_creation_input_tokens": 88499,
+        "cache_read_input_tokens": 1559901,
+        "output_tokens": 43251,
+        "output_tokens_details": {
+          "thinking_tokens": 21147
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 88499,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1135,
+            "cache_read_input_tokens": 89874,
+            "cache_creation_input_tokens": 5341,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 5341
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 17 задач из `tasks.md` выполнены и отмечены. Полный набор тестов проходит: 134 теста (было 96). `openspec validate` проходит, статус change — `all_done`. Коммит не делал, изменения лежат в рабочей копии.\n\nChange искал в локальном `openspec/` проекта; store не указывал, так как вы его не называли.\n\n**Что изменено**\n- `ledger/importer.py`:\n  - Суммы «Сферы» принимают запятую или точку. Смешение обоих разделителей — ошибка строки. Точка как разделитель тысяч по-прежнему не поддерживается.\n  - В `sfera_split` строка с явными нулями в обеих колонках пропускается, до проверки даты и описания.\n  - Описание нормализуется в `_parse_row` для всех трёх форматов.\n  - `RowError.raw` вычисляется из физических строк записи.\n  - Строгий режим собирает все ошибки и бросает `StatementRowError` до записи.\n  - Добавлены `dry_run` и `ImportResult.transactions`.\n- `ledger/errors.py`: `StatementRowError` получил `errors` (тип через `TYPE_CHECKING`).\n- `tests/test_statement_import.py`: обновлены два теста, которые описывали старое поведение, и добавлены тесты по всем разделам.\n\n**Решения, которые я принял сам**\n- У `RowError.raw` и `StatementRowError.errors` значения по умолчанию (`\"\"` и `()`), чтобы не ломать существующие вызовы. Это соответствует пункту дизайна о значениях по умолчанию.\n- Регулярка для неразрывного пробела записана явно как `\\u00a0`, а не символом.\n- Для `dry_run` лог пишет «previewed», а не «imported».\n- Тест `test_strict_reports_first_error_in_file_order` дополнен проверкой полного списка `errors`. Ни один существующий тест не упал из-за остановки на первой ошибке, так что задача 3.4 свелась к этой правке.\n- Строка `31.02.2026;Блокировка;0,00;0,00` тоже пропускается, потому что дата у служебной строки не проверяется (это допущение из `design.md`). Тест это фиксирует.\n\n**Что осталось**\n- `README.md`, строки 56–57, всё ещё говорят, что строгий режим останавливается на первой ошибке. Это стало неверно. Дизайн велел не трогать README в этом change, поэтому я не менял его. Нужно обновить отдельно, если вы согласны."
+    }
+  ]
+}

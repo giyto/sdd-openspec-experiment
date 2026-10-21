@@ -1,0 +1,18 @@
+$ openspec archive jobq-retry-dead-letter --yes
+
+Proposal warnings in proposal.md (non-blocking):
+  ⚠ Consider splitting changes with more than 10 deltas
+Task status: ✓ Complete
+
+Specs to update:
+  job-dead-letter: create
+  job-retry: create
+Applying changes to openspec/specs/job-dead-letter/spec.md:
+  + 4 added
+Applying changes to openspec/specs/job-retry/spec.md:
+  + 8 added
+Totals: + 12, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'jobq-retry-dead-letter' archived as '2026-10-18-jobq-retry-dead-letter'.
+
+

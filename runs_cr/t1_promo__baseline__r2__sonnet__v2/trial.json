@@ -1,0 +1,59 @@
+{
+  "trial_id": "t1_promo__baseline__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\210bfd616e\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a4534b9fdd",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a4534b9fdd\\project",
+  "base_commit": "39bb8c6196ee62ee10f7814ddf8ea1d4b8284aab",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 71.2,
+      "cost_usd": 0.21535269999999998,
+      "duration_ms": 69185,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 26097,
+        "cache_read_input_tokens": 227047,
+        "output_tokens": 8822,
+        "output_tokens_details": {
+          "thinking_tokens": 1151
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 26097,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1090,
+            "cache_read_input_tokens": 31505,
+            "cache_creation_input_tokens": 528,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 528
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все изменения из тикета внесены. Тесты: 43 из 44 проходят, один падает.\n\nПадает существующий `tests/test_promo.py::test_fixed_capped_and_free_shipping_after_discount`. Он проверяет старые правила: скидка в размере всей суммы товаров и порог доставки по сумме после скидки. Новые правила это отменяют (потолок скидки 50 %, порог до скидки). По условию тикета существующие тесты я не менял, поэтому тест нужно переписать отдельно.\n\nКроме прогона тестов я проверил вручную короткий сценарий. Он включал промокод на бесплатную доставку с лимитом на клиента и отмену заказа ровно через 24 часа. Доставка обнулилась, `shipping_discount` равен 299.00, повторное применение кода тем же клиентом отклонено, а при отмене через 24 часа использование не вернулось.\n\n- **Фиксированная скидка** ограничена 50 % суммы участвующих товаров. Взял цифру из поправки Ольги Смирновой, а не 30 % из текста тикета. Долю округляю через `quantize_money`.\n- **Порог бесплатной доставки** снова считается от суммы товаров до скидки.\n- **Раскладка копеек** при равных остатках: сначала строка с большей суммой, затем та, что раньше в корзине. Это правило Натальи Кравец.\n- **Возврат использования при отмене:** срок 24 часа, граница полуоткрытая `[0, 24 ч)`. Ровно через 24 часа возврата нет. Время берётся из часов сервиса заказов.\n- **`FREE_SHIPPING`:** `value` должно быть `Decimal(\"0\")`, иначе `ValidationError`. Скидки на товары код не даёт, доставку обнуляет, а сэкономленное попадает в `OrderTotal.shipping_discount`. Для остальных кодов там `Decimal(\"0.00\")`.\n- **`max_discount`:** допустимо только у `PERCENT` и должно быть больше нуля, иначе `ValidationError`.\n- **`max_uses_per_customer`:** целое число от 1 или `None`. Код с таким лимитом без `customer_id` не применяется, исчерпанный лимит даёт `PromoConditionsError`. `customer_id` сравнивается как есть.\n- **`customer_id`:** добавлен в `quote`, `place_order`, `Order`, `PromoRegistry.resolve`, `PromoRegistry.uses`, а также в `record_use` и `release_use`. Старые вызовы работают как раньше.\n\nДва решения принял сам, потому что тикет их не уточняет:\n- Для `FREE_SHIPPING` ошибки «нет подходящих товаров» нет. Минимальную сумму заказа по-прежнему проверяю по участвующим товарам.\n- При отмене заказа использование возвращается и клиенту, который его оформил.\n\nЯ добавил раздел «Промокоды» в `README.md`. `cli.py` и `reports.py` не трогал. Код правил в `shop/promo.py`, `shop/pricing.py` и `shop/orders.py`. Коммит не создавал."
+    }
+  ]
+}

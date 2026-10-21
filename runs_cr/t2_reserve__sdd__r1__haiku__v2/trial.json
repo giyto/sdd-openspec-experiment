@@ -1,0 +1,103 @@
+{
+  "trial_id": "t2_reserve__sdd__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\8befb6c211\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\40ea64f643",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\40ea64f643\\project",
+  "base_commit": "d2fb8d639aeae4088eed33f59bb905bb600f9ce2",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 173.8,
+      "cost_usd": 0.037031070000000006,
+      "duration_ms": 171823,
+      "num_turns": 24,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 70160,
+        "cache_read_input_tokens": 751337,
+        "output_tokens": 30965,
+        "output_tokens_details": {
+          "thinking_tokens": 12537
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 70160,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 748,
+            "cache_read_input_tokens": 76601,
+            "cache_creation_input_tokens": 275,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 275
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "The change `reservation-followups` is created with all four planning artifacts. `openspec validate` passes, including `--strict`. I did not touch any project code, and `git status` shows only the new change directory.\n\n**Artifacts** in `openspec/changes/reservation-followups/`:\n- `proposal.md`: why and what, with `inventory-reservations` as the only modified capability.\n- `specs/inventory-reservations/spec.md`: a delta with MODIFIED requirements for reserve, cancel, extend and events, plus ADDED requirements for the lifetime limit, `reservations()`, `availability()` and `sweep_expired()`.\n- `design.md`: how to implement it, decisions with alternatives, and risks.\n- `tasks.md`: 7 groups of steps, ending with test and diff checks.\n\n**Decisions I made where the ticket was open:**\n- **Expired-reservation replacement:** replacing an `EXPIRED` or `CANCELLED` reservation writes no `RESERVE_CANCEL`, as today. Only an `ACTIVE` replacement writes it.\n- **`sweep_expired` history:** the store must keep past reservations, keyed by `(order_id, created_at)`. Otherwise an expired reservation that was replaced before the sweep would be lost. This is the one change to storage.\n- **`reservations()` without `status`:** returns every status, not just the active ones.\n- **`extend` default TTL:** also becomes 20 minutes, since it uses the same constant.\n- **Availability rows:** include reserved positions that have zero physical stock.\n\n**Conflict to decide:** the ticket says not to change existing tests, but five of them pin the old behavior and will fail after the change: `test_default_ttl_is_fifteen_minutes`, `test_default_ttl_sets_expires_at`, `test_active_reservation_cannot_be_duplicated`, `test_cancel_confirmed_raises`, and `test_extend_default_ttl_is_fifteen_minutes`. The plan adds new tests in a separate file and lists these five as expected failures. Do you want those five updated to the new behavior, or left as they are?\n\nNothing is implemented yet. To start the code changes, run `/opsx:apply` for `reservation-followups`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 182.9,
+      "cost_usd": 0.06084761000000001,
+      "duration_ms": 181087,
+      "num_turns": 37,
+      "usage": {
+        "input_tokens": 34,
+        "cache_creation_input_tokens": 96182,
+        "cache_read_input_tokens": 1047755,
+        "output_tokens": 42513,
+        "output_tokens_details": {
+          "thinking_tokens": 23484
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 96182,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1414,
+            "cache_read_input_tokens": 99044,
+            "cache_creation_input_tokens": 3854,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3854
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Итог: change `reservation-followups` реализован, с одним отклонением по задаче 7.2\n\nВсе 22 задачи выполнены, кроме **7.2**. Её ожидание не совпало с фактом, и я оставил её невыполненной.\n\n**Результаты проверки**\n- Новые тесты `tests/test_reservations_followups.py`: 26 из 26 проходят.\n- Полный набор: 132 прошли, 13 упали. Все падения в `tests/test_reservations.py`.\n- `cli.py`, `reports.py`, существующие тесты и `pytest.ini` не изменены (`git diff --stat` подтверждает).\n\n**Почему 7.2 не выполнена.** В `design.md` и задаче было сказано, что упадут пять тестов. Упали тринадцать. Восемь дополнительных тестов продвигают часы на 15 минут и ждут истечения резерва с TTL по умолчанию. После смены TTL на 20 минут резерв ещё активен, и тесты падают. Это следствие спецификации, а не ошибка реализации. Существующие тесты по требованию тикета не меняются. Я записал полный список падений в «Риски» в `design.md`. Нужно ваше решение: обновить эти тесты под 20 минут или оставить их падающими.\n\n**Что сделано**\n- **Константы и модели:** `DEFAULT_RESERVATION_TTL` = 20 минут, `MAX_RESERVATION_LIFETIME` = 2 часа, датакласс `Availability`.\n- **Хранилище:** история логических резервов по ключу `(order_id, created_at)` и множество отчитанных ключей. `put_reservation` обновляет и текущий слот, и историю.\n- **`reserve`:** замена `ACTIVE`-резерва целиком. Проверка наличия атомарна: при нехватке старый резерв не трогается. `CONFIRMED` по-прежнему даёт `DuplicateReservationError`. Порядок журнала: `RESERVE_CANCEL`, затем `RESERVE` по строкам.\n- **`cancel`:** для `CONFIRMED` возврат товара по строкам (`RECEIVE` с `ref`), затем `CANCELLED` и `RESERVE_CANCEL`. Повторная отмена ничего не пишет.\n- **`extend`:** срок ограничивается `min(now + ttl, created_at + 2 часа)`. Превышение предела не ошибка.\n- **Новые методы:** `reservations(status=None)`, `availability(warehouse=None)`, `sweep_expired()`.\n\n**Решения, которые я принял сам** (записаны в `design.md`, где это уместно)\n- Проверка предела для `reserve` вынесена в `validate_reserve_ttl`. Она вызывает `validate_ttl` и добавляет проверку предела. Для `extend` сохранён прежний `validate_ttl`.\n- Формула продления вынесена в `extended_expires_at` в `reservations.py`.\n- `_available_at` и `_reserved_at` всегда получают `exclude_order=order_id` в `reserve`. Это эквивалентно исключению только `ACTIVE`-резерва, потому что у заказа одна текущая запись.\n- История резервов не очищается. Сервис в памяти, это принято в «Рисках».\n\nИзменения не закоммичены: вы не просили коммит."
+    }
+  ]
+}

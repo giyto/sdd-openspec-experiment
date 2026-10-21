@@ -1,0 +1,103 @@
+{
+  "trial_id": "t3_import__sdd__r3__haiku__v2",
+  "stage": "cr",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\677b7e56fc\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4996fe989c",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4996fe989c\\project",
+  "base_commit": "b1def0f7d4fac020d1bcce9480ceaf50cea9908b",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 148.4,
+      "cost_usd": 0.03168053,
+      "duration_ms": 146726,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 59131,
+        "cache_read_input_tokens": 674413,
+        "output_tokens": 26214,
+        "output_tokens_details": {
+          "thinking_tokens": 10783
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 59131,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 670,
+            "cache_read_input_tokens": 65584,
+            "cache_creation_input_tokens": 263,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 263
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `ledger-74-statement-import-followups` is created with all four artifacts, and `openspec validate --strict` passes. I only wrote planning files under `openspec/changes/`. No project code was touched and nothing was committed.\n\n**Artifacts**\n- `proposal.md`: why and what changes. The capability is modified, not new: `statement-import`, which already exists in `openspec/specs/`.\n- `specs/statement-import/spec.md`: delta with 6 MODIFIED requirements (Sfera amounts, Sfera split amounts, row errors with `raw`, strict mode, description normalization) and 3 ADDED (service rows skipped, dry run, `ImportResult.transactions`).\n- `design.md`: implementation approach, plus a list of assumptions.\n- `tasks.md`: 9 groups, with the test updates listed by name.\n\n**Assumptions I made where the ticket was ambiguous**\n- A \"явный ноль\" is an unsigned zero with at most two decimals (`0`, `0,00`, `0.00`). A signed zero like `-0,00` stays an error.\n- In amounts, the dot is only a decimal separator. Thousands are still separated by space or U+00A0, so `1.234` is an error.\n- Description whitespace collapsing uses Python's `str.split()`, so it covers all Unicode whitespace. It applies to every format, including nova.\n- \"Existing tests are not touched\" means tests unrelated to points 1–4. Tests that asserted the old behaviour of points 1–4 get updated.\n- `dry_run=True` with `strict=True` still raises `StatementRowError` on a row error.\n- `StatementRowError` gets an optional `errors` keyword with a default of an empty list, so existing calls keep working.\n\nThe next step is `/opsx:apply`, which I have not started."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 184.2,
+      "cost_usd": 0.04465192,
+      "duration_ms": 182363,
+      "num_turns": 42,
+      "usage": {
+        "input_tokens": 50,
+        "cache_creation_input_tokens": 73590,
+        "cache_read_input_tokens": 1353342,
+        "output_tokens": 32791,
+        "output_tokens_details": {
+          "thinking_tokens": 13225
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 73590,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 988,
+            "cache_read_input_tokens": 79931,
+            "cache_creation_input_tokens": 375,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 375
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: 30/30 задач\n\nChange `ledger-74-statement-import-followups` выполнен целиком, без остановок. `pytest` проходит: 116 тестов (было 94). `openspec validate --strict` проходит.\n\n### Что изменено\n- **`ledger/errors.py`**: `StatementRowError` получает необязательный `errors` (по умолчанию пустой список). `RowError` импортируется только для типов, чтобы не было цикла импорта.\n- **`ledger/importer.py`**:\n  - Суммы `sfera` и `sfera_split` принимают `.` или `,` как разделитель дроби. Смешанные разделители, `1.234` и `1,500` дают ошибку строки. `1 234.56` даёт `1234.56`.\n  - Служебные строки `sfera_split` с беззнаковым нулём в обеих колонках пропускаются без следа. `-0,00;0,00` и `0,00;` остаются ошибками.\n  - Описание сохраняется через `\" \".join(text.split())` для всех форматов. Регистр не меняется.\n  - `_parse_rows` собирает все ошибки. В строгом режиме `StatementRowError` бросается до записи, с `line_no` и `message` первой ошибки.\n  - `RowError.raw` собирается из физических строк записи (без BOM и `\\r`, многострочная запись через `\\n`).\n  - Новый параметр `dry_run` не вызывает `store.add_many`. `ImportResult.transactions` заполняется в порядке файла: с `id` при обычном импорте, с `id=None` при превью.\n- **Тесты** (`tests/test_statement_import.py`): три проверки старого поведения обновлены (`1 234.56`, `0,00;0,00`, пробелы в описании). Добавлены тесты на все новые требования.\n- **`design.md`**: добавлен раздел «Решения при реализации».\n- **`tasks.md`**: все 30 задач отмечены.\n\n### Решения, принятые без уточнения\n- Служебная строка проверяется **до** разбора даты. Спецификация этого явно не задаёт.\n- `Parser` возвращает `None` для служебной строки, и `_parse_rows` её пропускает.\n- Проверка строгого режима вынесена в `import_statement`, а `_parse_rows` всегда возвращает все ошибки.\n\n### Проверка скоупа\n`ledger/cli.py`, `ledger/reports.py` и `tests/test_importer.py` не изменены. `git diff --stat` показывает только три файла: `errors.py`, `importer.py` и `test_statement_import.py`.\n\n### Замечание\nGit выдаёт предупреждения `LF will be replaced by CRLF` для изменённых файлов. Это настройка line endings в этом окружении, на результат тестов она не влияет. Я не менял настройки git.\n\nКоммит не создавал: в запросе его не было."
+    }
+  ]
+}

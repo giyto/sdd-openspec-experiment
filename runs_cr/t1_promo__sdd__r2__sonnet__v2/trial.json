@@ -1,0 +1,103 @@
+{
+  "trial_id": "t1_promo__sdd__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0560a2781c\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\074baf9a1f",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\074baf9a1f\\project",
+  "base_commit": "38f916d286e78852a42fb2c642d933a3ab5926fd",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 276.6,
+      "cost_usd": 0.7402274999999999,
+      "duration_ms": 274767,
+      "num_turns": 29,
+      "usage": {
+        "input_tokens": 46,
+        "cache_creation_input_tokens": 72118,
+        "cache_read_input_tokens": 1048835,
+        "output_tokens": 34678,
+        "output_tokens_details": {
+          "thinking_tokens": 5725
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 72118,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1037,
+            "cache_read_input_tokens": 77256,
+            "cache_creation_input_tokens": 798,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 798
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все четыре артефакта изменения `promo-autumn-adjustments` созданы, `openspec validate promo-autumn-adjustments --strict` проходит. Код проекта не менял, в git добавилась только папка `openspec/changes/promo-autumn-adjustments/`.\n\n## Артефакты\n- **`proposal.md`**: зачем нужны правки, что меняется и какие допущения приняты. Затронуты три существующие спецификации: `promo-codes`, `promo-pricing`, `promo-orders`.\n- **`specs/`**: три дельта-спецификации со сценариями, по одной на каждую из этих спецификаций.\n- **`design.md`**: технические решения, раздел про конфликт с существующими тестами и допущения.\n- **`tasks.md`**: 4 группы задач, у каждой указано, как проверить результат.\n\n## Как я разрешил противоречия в тикете\n- **30 % против 50 %:** взял 50 %, потому что поправка маркетинга от 22.10 позднее и согласована с финансами. Число лежит в одной константе, так что заменить его просто.\n- **Ровно 24 часа:** использование сгорает, как ответила тимлид. Возвращается только при отмене строго раньше 24 часов.\n- **Раскладка копеек:** принял просьбу бухгалтерии. При равных остатках копейка уходит строке с большей суммой, при равных суммах — той, что раньше в корзине.\n- **Конфликт с «существующие тесты не меняем»:** три теста фиксируют поведение, которое отменяет сам тикет. Это `test_shipping_threshold_after_discount`, `test_fixed_capped_by_base` и `test_cancel_after_expiry` (там `timedelta(days=1)` — ровно 24 часа). В `design.md` и `tasks.md` указано менять в них только ожидаемые значения, остальные тесты не трогать.\n\n## Допущения, которых нет в тикете\nОни записаны в `design.md`.\n- Бесплатная доставка подчиняется тем же условиям заказа, что и остальные коды. Если в корзине только сертификаты или не набрана минимальная сумма, будет `PromoConditionsError`.\n- `max_discount` с более чем двумя знаками после запятой отвергается с `ValidationError`.\n- `customer_id` сравнивается как есть, пустая строка тоже считается идентификатором.\n- Заказ запоминает `customer_id`, даже если промокода нет.\n- Если часы пошли назад (`now < created_at`), использование при отмене возвращается.\n- `redeem` и `release` в реестре получают необязательный `customer_id`. Это расширение сверх API из тикета.\n\nАртефакты готовы к ревью. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 141.7,
+      "cost_usd": 0.46666989999999997,
+      "duration_ms": 139570,
+      "num_turns": 22,
+      "usage": {
+        "input_tokens": 34,
+        "cache_creation_input_tokens": 54530,
+        "cache_read_input_tokens": 648919,
+        "output_tokens": 18359,
+        "output_tokens_details": {
+          "thinking_tokens": 578
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54530,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 734,
+            "cache_read_input_tokens": 59182,
+            "cache_creation_input_tokens": 1284,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1284
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** promo-autumn-adjustments (schema: spec-driven)\n**Progress:** 11/11 tasks complete ✓\n\n`python -m pytest -q` проходит (182 теста), `openspec validate promo-autumn-adjustments --strict` тоже. Ничего не коммитил.\n\n### Что сделано\n- **`shop/promo.py`:**\n  - Добавлены `DiscountKind.FREE_SHIPPING`, `max_discount` и `max_uses_per_customer` с проверками.\n  - Реестр ведёт клиентские счётчики. `customer_id` принимают `resolve`, `uses`, `redeem` и `release`.\n- **`shop/pricing.py`:**\n  - Порог бесплатной доставки считается от `subtotal`, то есть до скидки.\n  - Фиксированная скидка ограничена 50 % базы, процентная — `max_discount`.\n  - Для бесплатной доставки добавлено `OrderTotal.shipping_discount`.\n  - В `_split_discount` при равных остатках копейка уходит строке с большей суммой, затем той, что раньше в корзине.\n- **`shop/orders.py`:** добавлены `Order.customer_id` и `customer_id` в `quote` и `place_order` (только по имени). `cancel` возвращает использование только в течение 24 часов по часам сервиса.\n- **Тесты:** новый файл `tests/test_promo_autumn.py`. В трёх существующих тестах изменены только ожидаемые значения, как описано в design.md.\n- **`README.md`** обновлён. `shop/cli.py` и `shop/reports.py` не тронуты, зависимостей не добавлено.\n\n### Допущения\n- Для потолка фиксированной скидки взято 50 %, как в design.md и proposal.md. В тикете было 30 %, но там же сказано, что поправка маркетинга его заменяет. Значение лежит в константе `FIXED_DISCOUNT_SHARE`.\n- В `design.md` решения не дописывал: все спорные места там уже были решены.\n\nИзменение можно архивировать командой `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "trial_id": "t4_retry__baseline__r3__haiku__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\25e84ed8a6\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2f2abacd91",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2f2abacd91\\project",
+  "base_commit": "d9232ad9adb12057e5ead578d5a9bcc9a6a350ca",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 114.8,
+      "cost_usd": 0.027334400000000002,
+      "duration_ms": 112773,
+      "num_turns": 28,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 51232,
+        "cache_read_input_tokens": 522770,
+        "output_tokens": 23715,
+        "output_tokens_details": {
+          "thinking_tokens": 9178
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 51232,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1318,
+            "cache_read_input_tokens": 57134,
+            "cache_creation_input_tokens": 814,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 814
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Тикет JOBQ-237 реализован, но 5 существующих тестов падают. Они проверяют старое поведение, которое тикет меняет, а тикет запрещает их править, поэтому я оставил их как есть.\n\n**Падающие существующие тесты (ожидаемо):**\n- `test_retry.py::test_jitter_scales_capped_delay_and_respects_max_delay`: проверяет старый множитель `uniform(0.5, 1.5)`.\n- `test_retry_worker.py::test_permanent_error_fails_on_first_attempt`, `test_non_retryable_on_last_attempt_is_failed_not_dead_lettered`, `test_non_retryable_subclass_is_not_retried`: ждут `FAILED`, теперь задание уходит в dead-letter.\n- `test_retry_worker.py::test_purge_keeps_dead_letters`: ждёт, что purge не трогает dead-letter.\n\nОстальные 112 тестов проходят, включая 24 новых в `tests/test_jobq_237.py`.\n\n**Что сделано**\n- **Неповторяемые ошибки** (`worker.py`): для типов с политикой `PermanentJobError` и `non_retryable` сразу идут в dead-letter с `reason=NON_RETRYABLE`, даже на последней попытке. Без политики остаётся `FAILED`.\n- **Джиттер** (`retry.py`): множитель теперь `rng.uniform(1 - jitter, 1)`, задержка только уменьшается.\n- **`RetryLaterError`** (`errors.py`, `worker.py`): задержка = `min(retry_after, max_delay)`, без джиттера, `rng` не трогается. На последней попытке такая ошибка даёт `EXHAUSTED`.\n- **`DeadLetterReason` и `DeadLetterEntry.reason`** (`models.py`): поле последнее, по умолчанию `EXHAUSTED`, старые конструкторы работают.\n- **`purge_finished`** (`queue.py`): чистит dead-letter по `dead_lettered_at`, запись из `dead_letters()` исчезает.\n- **`requeue_all_dead_letters(job_type=None)`** (`queue.py`): порядок как в `dead_letters()`, каждое задание через `requeue_dead_letter`, пустой список если нечего возвращать.\n- Экспорт новых имён в `jobq/__init__.py`, обновлён раздел про повторы в `README.md`.\n\n**Решения, которые стоит проверить**\n- `mark_dead_lettered` получил опциональный keyword-only параметр `reason`. Это единственное изменение сигнатуры существующего публичного метода: старые вызовы работают, но тикет говорил «сигнатуры не меняем», и это стоит подтвердить.\n- `RetryLaterError` бросает `ConfigError` уже в конструкторе, если `retry_after < 0`. Так ошибка видна в месте, где написан обработчик. Нечисловые и бесконечные значения тоже отклоняются.\n- `purge_finished` возвращает общее число удалённых заданий, включая записи dead-letter, и увеличивает `jobs.purged` на то же число.\n- Новые тесты лежат в отдельном файле, чтобы не трогать существующие.\n\nНичего не закоммичено."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+$ openspec archive add-promo-codes --yes
+Task status: ✓ Complete
+
+Specs to update:
+  promo-codes: create
+Applying changes to openspec/specs/promo-codes/spec.md:
+  + 10 added
+Totals: + 10, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-promo-codes' archived as '2026-10-18-add-promo-codes'.
+
+

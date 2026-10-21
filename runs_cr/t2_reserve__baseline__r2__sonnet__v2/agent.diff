@@ -1,0 +1,233 @@
+diff --git a/warehouse/__init__.py b/warehouse/__init__.py
+index 3d35390..7de21fb 100644
+--- a/warehouse/__init__.py
++++ b/warehouse/__init__.py
+@@ -17,11 +17,12 @@ from .errors import (
+ )
+ from .events import Event, EventLog, parse_line
+ from .inventory import Inventory
+-from .models import Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
+-from .reservations import DEFAULT_RESERVATION_TTL
++from .models import Availability, Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
++from .reservations import DEFAULT_RESERVATION_TTL, MAX_RESERVATION_LIFETIME
+ from .storage import InMemoryStore
+ 
+ __all__ = [
++    "Availability",
+     "Clock",
+     "DEFAULT_RESERVATION_TTL",
+     "DuplicateReservationError",
+@@ -33,6 +34,7 @@ __all__ = [
+     "InsufficientStockError",
+     "InvalidQuantityError",
+     "Inventory",
++    "MAX_RESERVATION_LIFETIME",
+     "ManualClock",
+     "Reservation",
+     "ReservationError",
+diff --git a/warehouse/inventory.py b/warehouse/inventory.py
+index 7c526df..02ba7d9 100644
+--- a/warehouse/inventory.py
++++ b/warehouse/inventory.py
+@@ -25,13 +25,15 @@ from .errors import (
+     ValidationError,
+ )
+ from .events import EventLog, format_timestamp
+-from .models import Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
++from .models import Availability, Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
+ from .reservations import (
+     DEFAULT_RESERVATION_TTL,
++    MAX_RESERVATION_LIFETIME,
+     coerce_lines,
+     effective_status,
+     is_active,
+     totals,
++    validate_reserve_ttl,
+     validate_ttl,
+ )
+ from .storage import InMemoryStore
+@@ -51,6 +53,9 @@ class Inventory:
+         self._store = store if store is not None else InMemoryStore()
+         self._clock = clock if clock is not None else SystemClock()
+         self._log = log if log is not None else EventLog()
++        # истёкшие резервы, вытесненные новым резервом того же заказа
++        self._superseded: list[Reservation] = []
++        self._swept: set[tuple[str, datetime, datetime]] = set()
+ 
+     @property
+     def store(self) -> InMemoryStore:
+@@ -175,7 +180,7 @@ class Inventory:
+     ) -> Reservation:
+         """Резервирует товар под заказ сразу по всем строкам."""
+         _validate_code(order_id, "order_id")
+-        ttl = DEFAULT_RESERVATION_TTL if ttl is None else validate_ttl(ttl)
++        ttl = DEFAULT_RESERVATION_TTL if ttl is None else validate_reserve_ttl(ttl)
+         parsed = coerce_lines(lines)
+         if not parsed:
+             raise ValidationError("reservation must have at least one line")
+@@ -184,15 +189,22 @@ class Inventory:
+             _validate_qty(line.qty)
+         now = self._clock.now()
+         existing = self._store.get_reservation(order_id)
+-        if existing is not None and effective_status(existing, now) in (
+-            ReservationStatus.ACTIVE,
+-            ReservationStatus.CONFIRMED,
+-        ):
++        existing_status = effective_status(existing, now) if existing is not None else None
++        if existing_status is ReservationStatus.CONFIRMED:
+             raise DuplicateReservationError(order_id)
++        replaced = existing if existing_status is ReservationStatus.ACTIVE else None
++        released: dict[tuple[str, str], int] = (
++            totals(replaced.lines) if replaced is not None else {}
++        )
+         for (warehouse, sku), qty in totals(parsed).items():
+-            free = self._free(warehouse, sku)
++            free = self._free(warehouse, sku) + released.get((warehouse, sku), 0)
+             if qty > free:
+                 raise InsufficientStockError(warehouse, sku, qty, free)
++        if replaced is not None:
++            self._store.put_reservation(replace(replaced, status=ReservationStatus.CANCELLED))
++            self._log.append(now, "RESERVE_CANCEL", order=order_id)
++        elif existing_status is ReservationStatus.EXPIRED:
++            self._superseded.append(existing)
+         reservation = Reservation(
+             order_id=order_id,
+             lines=parsed,
+@@ -240,7 +252,20 @@ class Inventory:
+         reservation = self._require_reservation(order_id)
+         status = effective_status(reservation, now)
+         if status is ReservationStatus.CONFIRMED:
+-            raise ReservationStateError(order_id, status)
++            for line in reservation.lines:
++                self._store.set_qty(
++                    line.warehouse,
++                    line.sku,
++                    self._store.get_qty(line.warehouse, line.sku) + line.qty,
++                )
++                self._log.append(
++                    now, "RECEIVE", wh=line.warehouse, sku=line.sku, qty=line.qty, ref=order_id
++                )
++            reservation = replace(reservation, status=ReservationStatus.CANCELLED)
++            self._store.put_reservation(reservation)
++            self._log.append(now, "RESERVE_CANCEL", order=order_id)
++            logger.info("refunded confirmed reservation of order %s", order_id)
++            return reservation
+         if status is ReservationStatus.ACTIVE:
+             reservation = replace(reservation, status=ReservationStatus.CANCELLED)
+             self._store.put_reservation(reservation)
+@@ -250,11 +275,11 @@ class Inventory:
+         return replace(reservation, status=status)
+ 
+     def extend(self, order_id: str, ttl: timedelta) -> Reservation:
+-        """Продлевает активный резерв до ``now + ttl``; срок не сокращается."""
++        """Продлевает активный резерв до ``now + ttl`` (не позже предела); срок не сокращается."""
+         validate_ttl(ttl)
+         now = self._clock.now()
+         reservation = self._require_active_reservation(order_id, now)
+-        new_expires = now + ttl
++        new_expires = min(now + ttl, reservation.created_at + MAX_RESERVATION_LIFETIME)
+         if new_expires <= reservation.expires_at:
+             return reservation
+         reservation = replace(reservation, expires_at=new_expires)
+@@ -278,6 +303,51 @@ class Inventory:
+         self._check_position(warehouse, sku)
+         return self._reserved(warehouse, sku)
+ 
++    def reservations(self, status: ReservationStatus | None = None) -> list[Reservation]:
++        """Снимки резервов (по одному на заказ), по ``created_at`` и ``order_id``."""
++        now = self._clock.now()
++        result = [
++            replace(res, status=effective_status(res, now)) for res in self._store.reservations()
++        ]
++        if status is not None:
++            result = [res for res in result if res.status is status]
++        return sorted(result, key=lambda res: (res.created_at, res.order_id))
++
++    def availability(self, warehouse: str | None = None) -> list[Availability]:
++        """Остаток, резерв и доступное по каждой позиции с остатком или резервом."""
++        now = self._clock.now()
++        reserved: dict[tuple[str, str], int] = {}
++        for res in self._store.reservations():
++            if is_active(res, now):
++                for key, qty in totals(res.lines).items():
++                    reserved[key] = reserved.get(key, 0) + qty
++        on_hand = {(wh, sku): qty for wh, sku, qty in self._store.positions()}
++        result = []
++        for wh, sku in sorted(set(on_hand) | {k for k, v in reserved.items() if v > 0}):
++            if warehouse is not None and wh != warehouse:
++                continue
++            have = on_hand.get((wh, sku), 0)
++            held = reserved.get((wh, sku), 0)
++            result.append(Availability(wh, sku, have, held, max(0, have - held)))
++        return result
++
++    def sweep_expired(self) -> list[str]:
++        """Пишет ``RESERVE_EXPIRE`` по истёкшим резервам, о которых ещё не писали."""
++        now = self._clock.now()
++        found = [
++            res
++            for res in [*self._superseded, *self._store.reservations()]
++            if effective_status(res, now) is ReservationStatus.EXPIRED
++            and (res.order_id, res.created_at, res.expires_at) not in self._swept
++        ]
++        found.sort(key=lambda res: (res.expires_at, res.order_id))
++        for res in found:
++            self._swept.add((res.order_id, res.created_at, res.expires_at))
++            self._log.append(
++                now, "RESERVE_EXPIRE", order=res.order_id, expires=format_timestamp(res.expires_at)
++            )
++        return [res.order_id for res in found]
++
+     # --- служебное ----------------------------------------------------------
+ 
+     def _reserved(self, warehouse: str, sku: str) -> int:
+diff --git a/warehouse/models.py b/warehouse/models.py
+index 3d392e9..38a4c05 100644
+--- a/warehouse/models.py
++++ b/warehouse/models.py
+@@ -25,6 +25,17 @@ class StockLevel:
+     on_hand: int
+ 
+ 
++@dataclass(frozen=True)
++class Availability:
++    """Остаток, резерв и доступное количество по позиции."""
++
++    warehouse: str
++    sku: str
++    on_hand: int
++    reserved: int
++    available: int
++
++
+ class ReservationStatus(str, Enum):
+     ACTIVE = "active"
+     EXPIRED = "expired"
+diff --git a/warehouse/reservations.py b/warehouse/reservations.py
+index 7de7499..4982cee 100644
+--- a/warehouse/reservations.py
++++ b/warehouse/reservations.py
+@@ -12,7 +12,8 @@ from typing import Iterable
+ from .errors import ValidationError
+ from .models import Reservation, ReservationLine, ReservationStatus
+ 
+-DEFAULT_RESERVATION_TTL = timedelta(minutes=15)
++DEFAULT_RESERVATION_TTL = timedelta(minutes=20)
++MAX_RESERVATION_LIFETIME = timedelta(hours=2)
+ 
+ 
+ def effective_status(reservation: Reservation, now: datetime) -> ReservationStatus:
+@@ -31,6 +32,13 @@ def validate_ttl(ttl: object) -> timedelta:
+     return ttl
+ 
+ 
++def validate_reserve_ttl(ttl: object) -> timedelta:
++    ttl = validate_ttl(ttl)
++    if ttl > MAX_RESERVATION_LIFETIME:
++        raise ValidationError(f"ttl {ttl} exceeds maximum {MAX_RESERVATION_LIFETIME}")
++    return ttl
++
++
+ def coerce_lines(lines: Iterable[object]) -> tuple[ReservationLine, ...]:
+     result = []
+     for item in lines:

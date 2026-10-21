@@ -1,0 +1,59 @@
+{
+  "trial_id": "t4_retry__baseline__r1__haiku__v2",
+  "stage": "cr",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2051717375\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\70955c64f3",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\70955c64f3\\project",
+  "base_commit": "1017086996c5f1041756175870d6310a3d09f1da",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 123.4,
+      "cost_usd": 0.029961740000000004,
+      "duration_ms": 121537,
+      "num_turns": 34,
+      "usage": {
+        "input_tokens": 38,
+        "cache_creation_input_tokens": 53371,
+        "cache_read_input_tokens": 764474,
+        "output_tokens": 23278,
+        "output_tokens_details": {
+          "thinking_tokens": 7850
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53371,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1407,
+            "cache_read_input_tokens": 58869,
+            "cache_creation_input_tokens": 1218,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1218
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача по JOBQ-237 реализована, но 4 существующих теста теперь падают. Это прямое следствие новых правил из тикета, а существующие тесты по условию менять нельзя. Тесты: 92 проходят, 4 падают, и все 4 фиксируют старое поведение.\n\n**Падающие существующие тесты** (`tests/test_retry.py`):\n- `test_jitter_uses_one_uniform_per_delay_and_respects_cap`: ждёт `uniform(0.5, 1.5)`, по ТЗ теперь `uniform(0.5, 1)`.\n- `test_non_retryable_fails_even_on_first_attempt` и `test_permanent_error_fails_without_retry`: ждут `FAILED`, по ТЗ теперь dead-letter (при политике).\n- `test_purge_finished_keeps_dead_letters`: ждёт, что dead-letter не чистится, по ТЗ теперь чистится.\n\nИх нужно обновить или удалить отдельным решением команды. Я их не трогал.\n\n**Что сделано**\n- **Неповторяемые ошибки:** при политике повторов `non_retryable` и `PermanentJobError` сразу уходят в dead-letter с `reason=NON_RETRYABLE`, в том числе на последней попытке. Без политики задание по-прежнему получает `FAILED`.\n- **Джиттер:** множитель `rng.uniform(1 - jitter, 1)`. Задержка только уменьшается.\n- **`RetryLaterError(retry_after=...)`:** следующая попытка через `min(retry_after, max_delay)`, без джиттера и без обращения к `rng`. Исчерпание попыток даёт `EXHAUSTED`.\n- **`purge_finished`:** чистит и dead-letter по возрасту от `dead_lettered_at`. Запись из `dead_letters()` тоже удаляется, и счётчик `jobs.purged` учитывает такие удаления.\n- **`requeue_all_dead_letters(job_type=None)`:** идёт в порядке `dead_letters()`, каждое задание перезапускается через `requeue_dead_letter`, возвращает список (пустой, если нечего).\n- **Модели:** `DeadLetterReason` и поле `DeadLetterEntry.reason` последним. `mark_dead_lettered` получил keyword-only `reason`, старые вызовы работают.\n- `dashboard.py` и `cli.py` не трогал. README обновлён. Новые имена экспортированы из `jobq/__init__.py`.\n\n**Решения, которые я принял сам**\n- `DeadLetterEntry.reason` имеет значение по умолчанию `EXHAUSTED`, чтобы старые конструкторы не сломались. До этой правки в dead-letter попадали только исчерпанные задания.\n- `RetryLaterError` с `retry_after < 0` (или нечисловым/нефинитным значением) бросает `ConfigError` уже при создании. Такой `ConfigError` летит из обработчика, воркер перехватывает его как обычную ошибку и повторяет по политике, поэтому конфигурационная ошибка тихо не всплывает наружу. Если нужно, чтобы она падала громко, это отдельное изменение.\n- Новые тесты лежат в новом файле `tests/test_retry_followup.py` (22 теста), существующие файлы не менялись.\n\nКоммит не делал, изменения лежат в рабочем дереве."
+    }
+  ]
+}

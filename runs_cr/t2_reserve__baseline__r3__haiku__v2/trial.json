@@ -1,0 +1,59 @@
+{
+  "trial_id": "t2_reserve__baseline__r3__haiku__v2",
+  "stage": "cr",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\d86064ab46\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4397bff881",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4397bff881\\project",
+  "base_commit": "c910428562b4a5fced452c3fcc729c11e9321f9e",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 138.7,
+      "cost_usd": 0.0353399,
+      "duration_ms": 136992,
+      "num_turns": 27,
+      "usage": {
+        "input_tokens": 42,
+        "cache_creation_input_tokens": 59930,
+        "cache_read_input_tokens": 872020,
+        "output_tokens": 29259,
+        "output_tokens_details": {
+          "thinking_tokens": 12445
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 59930,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1835,
+            "cache_read_input_tokens": 66000,
+            "cache_creation_input_tokens": 646,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 646
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача WH-231 выполнена в рабочей копии, без коммита. Новые тесты проходят, но три существующих теста падают: они проверяют старое поведение, которое тикет меняет, а тикет запрещает их править.\n\n**Упавшие существующие тесты** (`tests/test_reservations.py`, файл не менял):\n- `test_default_ttl_is_fifteen_minutes` ожидает 15 минут, по тикету TTL теперь 20.\n- `test_duplicate_reserve_while_active_or_confirmed`: первая часть ожидает `DuplicateReservationError` при повторном `reserve` активного заказа, по тикету это теперь замена. Вторая часть (подтверждённый заказ) по-прежнему проходит.\n- `test_confirm_and_cancel_states`: ожидает `ReservationStateError` при `cancel` подтверждённого заказа, по тикету это теперь возврат.\n\nЭти три теста нужно обновить под новые правила; решение за вами.\n\n**Что сделано**\n1. **Замена резерва.** `reserve` по активному резерву заменяет его: в журнале `RESERVE_CANCEL`, затем `RESERVE` по строкам; старый резерв при проверке наличия считается свободным. Подтверждённый заказ заменить нельзя (`DuplicateReservationError`). Проверки идут до любых изменений.\n2. **Возврат.** `cancel` подтверждённого заказа пишет `RECEIVE` по каждой строке с `ref` = номер заказа, затем `RESERVE_CANCEL`; статус `CANCELLED`.\n3. **TTL** по умолчанию — 20 минут.\n4. **Предел срока** `MAX_RESERVATION_LIFETIME = timedelta(hours=2)`. `reserve` с большим `ttl` — `ValidationError`; `extend` ставит срок ровно на предел.\n5. **`reservations(status=None)`** — снимки по `created_at`, затем `order_id`; фильтр по статусу на текущий момент.\n6. **`availability(warehouse=None)`** — строки по позициям с остатком или активным резервом, порядок как у `stock_levels`.\n7. **`sweep_expired()`** — пишет `RESERVE_EXPIRE` (`order`, `expires`) по каждому истёкшему резерву один раз, возвращает `order_id` по `expires_at`, затем `order_id`. Новый резерв того же заказа, который тоже истечёт, записывается отдельно.\n\n**Мои решения там, где тикет молчал**\n- Для `RESERVE_CANCEL` при замене: пишется только если прежний резерв был активен. Замена истёкшего резерва ничего не пишет в журнал, как и раньше.\n- Для `sweep_expired` резерв идентифицируется парой `(order_id, created_at)`. Истёкший резерв не может иметь тот же `created_at`, что и новый резерв того же заказа, поэтому пара уникальна.\n- `models.py`: добавлен `Availability`. `reservations.py`: `MAX_RESERVATION_LIFETIME`, `validate_reserve_ttl`; обновлён docstring про журнал истечения.\n- Новые тесты лежат в `tests/test_reservation_rework.py`, существующие файлы тестов не менялись.\n- `cli.py` и `reports.py` не трогал, новых зависимостей нет.\n\n**Результат:** 93 passed, 3 failed (три упомянутых выше существующих теста). Файлы изменены в `warehouse/inventory.py`, `warehouse/models.py`, `warehouse/reservations.py`, добавлен `tests/test_reservation_rework.py`."
+    }
+  ]
+}

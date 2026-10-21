@@ -1,0 +1,103 @@
+{
+  "trial_id": "t3_import__sdd__r2__sonnet__v2",
+  "stage": "cr",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "stage1_repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\dec2bd0612\\project",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e2df7d80ac",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e2df7d80ac\\project",
+  "base_commit": "5b38e228e76541140b0a6f6522fb132b98973415",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 167.8,
+      "cost_usd": 0.462514,
+      "duration_ms": 166049,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 52047,
+        "cache_read_input_tokens": 368820,
+        "output_tokens": 21740,
+        "output_tokens_details": {
+          "thinking_tokens": 2097
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52047,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 857,
+            "cache_read_input_tokens": 57455,
+            "cache_creation_input_tokens": 528,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 528
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `refine-statement-import` создано в `openspec/changes/refine-statement-import/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся.\n\n**Артефакты**\n- `proposal.md` — зачем нужно изменение, список правок (breaking-изменения помечены) и затронутая область.\n- `specs/statement-import/spec.md` — дельта к существующей спецификации.\n  - MODIFIED: разбор сумм «Сферы», `sfera_split`, описание в `nova`, ошибки и `raw`, строгий режим, запись и метаданные, `import_csv`.\n  - ADDED: требование про превью (`dry_run`).\n- `design.md` — решения и допущения.\n- `tasks.md` — пять групп задач, у каждой указана проверка.\n\n**Допущения** (зафиксированы в design.md)\n- **Строки с нулями в `sfera_split`:** если нули стоят в обеих колонках, строку пропускаем без проверки даты и описания. Ноль плюс пустая колонка по-прежнему ошибка.\n- **Знак у нуля:** `-0,00` остаётся ошибкой, потому что колонки беззнаковые.\n- **Суммы:** `1.234` считаем ошибкой (три знака после разделителя), а не тысячами. Точку как разделитель тысяч не поддерживаем.\n- **Пробелы в описании:** нормализуем для всех форматов, включая `nova` и `import_csv`. Это меняет сохранённое значение, поэтому помечено как BREAKING.\n- **`raw`:** собираем из строк файла, а не из разобранных полей. Одиночный `\\r` внутри записи считаем переводом строки.\n- **Тесты:** ограничение «существующие тесты не трогаем» из LEDGER-58 сохранено. Обновляются только тесты прежнего поведения пп. 1–4 в `tests/test_import_statement.py`.\n- **Конструктор `StatementRowError`:** аргумент `errors` необязательный, чтобы старые вызовы работали.\n\n**Замечание про валидатор.** Он требует сохранять имена прежних сценариев в MODIFIED-блоке. Поэтому сценарий «Point instead of comma» теперь описывает, что точка принимается, а «Both or neither filled» остался под старым именем, хотя его суть изменилась.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 141.7,
+      "cost_usd": 0.42782169999999997,
+      "duration_ms": 139934,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 40,
+        "cache_creation_input_tokens": 49661,
+        "cache_read_input_tokens": 761077,
+        "output_tokens": 15299,
+        "output_tokens_details": {
+          "thinking_tokens": 2315
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 49661,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 706,
+            "cache_read_input_tokens": 54554,
+            "cache_creation_input_tokens": 1043,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1043
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 11 задач из `tasks.md` выполнены и отмечены. Весь `pytest` зелёный (103 теста). `cli.py` и `reports.py` не менялись, импортируется только стандартная библиотека.\n\nЧто сделано:\n- **Модели и ошибки:** добавлены `RowError.raw`, `ImportResult.transactions` и `StatementRowError.errors`. Старые вызовы работают как раньше.\n- **Суммы «Сферы»:** принимаются и запятая, и точка. Смесь вроде `1.234,56` и `1,234.56`, а также `1.234` и `10.005` отклоняются.\n- **`sfera_split`:** строки с явными нулями в обеих колонках пропускаются молча. Ноль и пустая колонка по-прежнему дают ошибку.\n- **Описание:** пробелы нормализуются для всех форматов, включая `import_csv`.\n- **`raw`:** исходный текст записи берётся без BOM и `\\r`, многострочные записи склеиваются через `\\n`.\n- **Строгий режим:** файл разбирается до конца, исключение несёт все ошибки, а `line_no` и сообщение берутся от первой. Хранилище не меняется.\n- **`dry_run`:** `add_many` не вызывается, а транзакции в результате идут с `id=None`.\n\nВ `tests/test_import_statement.py` я обновил `test_sfera_bad_rows` и `test_split_rows` и дополнил `test_strict_writes_nothing`, а также добавил новые тесты. Ещё я изменил `test_junk_rows_and_line_numbers`, которого нет в вашем списке. Он сравнивал `RowError(5, message)` целиком и упал бы из-за заполненного теперь `raw`. Это решение записано в `design.md`, там же записано решение про тип `errors` в `errors.py` (`list[Any]`, чтобы не получить циклический импорт). Других тестовых файлов я не трогал.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

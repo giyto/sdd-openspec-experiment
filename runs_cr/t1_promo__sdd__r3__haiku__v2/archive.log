@@ -1,0 +1,18 @@
+$ openspec archive add-promo-codes --yes
+
+Proposal warnings in proposal.md (non-blocking):
+  ⚠ Consider splitting changes with more than 10 deltas
+Task status: ✓ Complete
+
+Specs to update:
+  checkout-discounts: create
+  promo-codes: create
+Applying changes to openspec/specs/checkout-discounts/spec.md:
+  + 12 added
+Applying changes to openspec/specs/promo-codes/spec.md:
+  + 7 added
+Totals: + 19, ~ 0, - 0, → 0
+Specs updated successfully.
+Change 'add-promo-codes' archived as '2026-10-18-add-promo-codes'.
+
+
