@@ -1,0 +1,102 @@
+{
+  "trial_id": "t2_reserve__sdd_rules__r3__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "sdd_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b52c58bc80",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b52c58bc80\\project",
+  "base_commit": "1d5c1738c3a710402d429c3d462842723df19320",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 196.4,
+      "cost_usd": 0.49763640000000003,
+      "duration_ms": 194406,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 52452,
+        "cache_read_input_tokens": 249264,
+        "output_tokens": 26287,
+        "output_tokens_details": {
+          "thinking_tokens": 1959
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52452,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 924,
+            "cache_read_input_tokens": 58043,
+            "cache_creation_input_tokens": 345,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 345
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-stock-reservations` создано в `openspec/changes/add-stock-reservations/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся, в git добавилась только папка `openspec/changes/`.\n\n- **`proposal.md`**: зачем нужна задача и что меняется. Публичный API из тикета перенесён дословно. Описана одна новая возможность, `stock-reservations`.\n- **`specs/stock-reservations/spec.md`**: 10 требований со сценариями. Они покрывают `reserve`, повторный `reserve`, `available`/`reserved`, истечение, `confirm`, `cancel`, `extend`, чтение и отсутствие резерва, ограничения для `issue` и события журнала.\n- **`design.md`**: как это сделать. Статус `EXPIRED` не хранится, а вычисляется по часам при обращении. Резервы лежат в `InMemoryStore`. Порядок проверок зафиксирован.\n- **`tasks.md`**: пять групп задач, у каждой указан способ проверки. Последняя задача сверяет публичный API с proposal и specs.\n\nЧто я решил там, где тикет молчит или противоречит себе:\n- **TTL по умолчанию** — 15 минут, как в обновлении Анны Беловой. Значение 30 минут из исходного текста отменено.\n- **Склейка строк:** одинаковые позиции суммируются для проверки наличия, в `reserve` и в `confirm`, но в резерве хранятся отдельными строками, как пришли.\n- **Продление:** `extend` считает срок от текущего момента и никогда его не сокращает.\n- **Статусы:** `CONFIRMED` и `CANCELLED` окончательные, истечение их не меняет.\n- **Повторный `reserve`:** `DuplicateReservationError` бросается только для активного или подтверждённого резерва. Истёкший или отменённый заменяется полностью.\n- **`available`:** не уходит в минус. `confirm` проверяет физический остаток и при нехватке ничего не списывает.\n- **Допущения без указаний в тикете:**\n  - Истечение наступает при `now >= expires_at`.\n  - `transfer` по складу-источнику ограничен `available` так же, как `issue`.\n  - Поле `expires` в журнале пишется в формате времени журнала.\n  - `available` и `reserved` для незарегистрированного SKU бросают `UnknownSkuError`, как `on_hand`.\n  - Порядок проверок при нескольких ошибках сразу выбран мной.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 161.0,
+      "cost_usd": 0.5354173999999999,
+      "duration_ms": 159117,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 34,
+        "cache_creation_input_tokens": 53836,
+        "cache_read_input_tokens": 659754,
+        "output_tokens": 25403,
+        "output_tokens_details": {
+          "thinking_tokens": 1504
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53836,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 731,
+            "cache_read_input_tokens": 59325,
+            "cache_creation_input_tokens": 447,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 447
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: add-stock-reservations (schema: spec-driven)\n\nВсе 16 задач из `tasks.md` выполнены и отмечены `[x]`. `python -m pytest -q` проходит: 91 тест, из них 40 прежних и 51 новый в `tests/test_reservations.py`.\n\n**Что сделано**\n- `warehouse/models.py`: добавлены `ReservationStatus`, `ReservationLine`, `Reservation`.\n- `warehouse/errors.py`: добавлены `ReservationError` и четыре наследника, у всех есть `order_id`.\n- `warehouse/reservations.py` (новый): `DEFAULT_RESERVATION_TTL` (15 минут) и помощники для TTL, строк резерва и статусов.\n- `warehouse/storage.py`: добавлены методы хранения резервов, существующие методы не менялись.\n- `warehouse/inventory.py`:\n  - добавлены `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `available`, `reserved`;\n  - `issue` и `transfer` (со склада-источника) теперь сравнивают количество с `available`;\n  - `confirm` списывает остаток отдельным путём, без этого ограничения.\n- `warehouse/__init__.py`: экспортированы новые имена.\n\n**Проверки**\n- Сигнатуры публичного API (задача 5.1) проверены тестом `test_public_api_signatures` через `inspect.signature`, расхождений нет.\n- Файлы `cli.py`, `reports.py` и прежние тесты не изменены.\n\n**Решение, записанное в `design.md`**\nВ спеке не было сказано, какая ошибка нужна при некорректном коде SKU в строке резерва. Я сделал так: сначала проверяется, что это допустимый код (`ValidationError`), потом что SKU зарегистрирован (`UnknownSkuError`). Строка неверной формы тоже даёт `ValidationError`. Это соответствует сценарию «Некорректные входные данные».\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "trial_id": "t2_reserve__sdd_rules__r1__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "sdd_rules",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\38cba378bb",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\38cba378bb\\project",
+  "base_commit": "4503041ef26ed118ea0fc7f088b16b18abc58185",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 178.1,
+      "cost_usd": 0.4738352,
+      "duration_ms": 176040,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 48422,
+        "cache_read_input_tokens": 254812,
+        "output_tokens": 25463,
+        "output_tokens_details": {
+          "thinking_tokens": 1638
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 48422,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 744,
+            "cache_read_input_tokens": 54017,
+            "cache_creation_input_tokens": 341,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 341
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал изменение `add-stock-reservations` в `openspec/changes/add-stock-reservations/` со всеми четырьмя артефактами. `openspec validate --strict` прошла без замечаний, код проекта не менялся.\n\nАртефакты:\n- **proposal.md**: зачем нужно изменение и что меняется, API перенесён из задачи дословно. TTL по умолчанию 15 минут, а не 30.\n- **specs/stock-reservations/spec.md**: новая capability, 10 требований со сценариями.\n- **design.md**: резервы хранятся в `InMemoryStore`, статус `EXPIRED` вычисляется по часам при обращении, порядок проверок в каждой операции.\n- **tasks.md**: 5 групп задач, у каждой указано, как проверить. Последняя задача сверяет итоговый API с proposal и specs.\n\nЗадачу я дополнил обсуждением в тикете: TTL 15 минут, `extend` считает от текущего момента и не сокращает срок, замена истёкшего или отменённого резерва при повторном `reserve`, окончательные `CONFIRMED` и `CANCELLED`. Если указания расходятся, я брал более позднее.\n\nДопущения, которых в тикете нет:\n- **`transfer`**: ограничение «не забирать чужие резервы» действует и на источник в `transfer`, а не только на `issue`. Так сказано в его docstring: проверки те же, что у `issue`.\n- **`InsufficientStockError`**: в поле `available` теперь стоит доступное количество (физический остаток минус резервы), а не физический остаток.\n- **Истечение**: резерв считается истёкшим при `now >= expires_at`, включая сам момент `expires_at`.\n- **Порядок проверок в `reserve`**: сначала `order_id`, `ttl`, строки и дубликат, потом нехватка товара. В `extend` сначала проверяется `ttl`, потом статусы.\n- **Неизвестный SKU**: `available` и `reserved` бросают `UnknownSkuError`, как велит README.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 172.3,
+      "cost_usd": 0.5966727,
+      "duration_ms": 170461,
+      "num_turns": 21,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 60454,
+        "cache_read_input_tokens": 497407,
+        "output_tokens": 30506,
+        "output_tokens_details": {
+          "thinking_tokens": 1191
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 60454,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 651,
+            "cache_read_input_tokens": 65756,
+            "cache_creation_input_tokens": 634,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 634
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-stock-reservations (schema: spec-driven)\n**Progress:** 14/14 tasks complete ✓\n\nВсе 77 тестов проходят: 40 старых без изменений и 37 новых в `tests/test_reservations.py`.\n\n- **Модели и ошибки:** `ReservationStatus`, `ReservationLine`, `Reservation` лежат в `models.py`. В `errors.py` добавлены `ReservationError` и четыре наследника с атрибутом `order_id`.\n- **Резервы:** в новом `warehouse/reservations.py` — `DEFAULT_RESERVATION_TTL` (15 минут), внутренняя запись резерва и `effective_status`. Статус `EXPIRED` не хранится, а считается по часам при каждом обращении. `InMemoryStore` хранит резервы по номеру заказа.\n- **Методы `Inventory`:** `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `available`, `reserved`, с сигнатурами из proposal. События журнала пишутся в прежнем формате.\n- **`issue` и `transfer`:** лимит теперь `available`, а не физический остаток. `confirm` списывает в обход этого лимита через общий внутренний помощник `_write_issue`.\n- **Экспорты:** новые имена добавлены в `warehouse/__init__.py`.\n- **Проверка:** `git diff --stat` показывает, что `cli.py`, `reports.py`, `events.py` и зависимости не затронуты. Публичный API сверен с proposal и specs.\n\nВ design.md я дописал раздел «Решения при реализации». Строка резерва неподходящего вида (не `ReservationLine` и не кортеж из трёх элементов) даёт `ValidationError`.\n\nИзменения не закоммичены. Можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "trial_id": "t2_reserve__sdd_rules__r2__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4aac5a4bf6",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\4aac5a4bf6\\project",
+  "base_commit": "52702dda6bcf8073df8f8ee5a04bf60b1e6715ec",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 157.8,
+      "cost_usd": 0.4340491,
+      "duration_ms": 155853,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 45122,
+        "cache_read_input_tokens": 312171,
+        "output_tokens": 22230,
+        "output_tokens_details": {
+          "thinking_tokens": 1843
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 45122,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 734,
+            "cache_read_input_tokens": 49031,
+            "cache_creation_input_tokens": 2027,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2027
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все артефакты изменения `add-order-reservations` созданы, и `openspec validate --strict` проходит. Код проекта я не менял: в git появилась только папка `openspec/changes/`.\n\nФайлы лежат в `openspec/changes/add-order-reservations/`:\n- **`proposal.md`**: зачем нужна доработка, что меняется, допущения и одна новая capability, `stock-reservations`.\n- **`specs/stock-reservations/spec.md`**: 11 требований со сценариями. API из тикета перенесён дословно, TTL по умолчанию 15 минут, в таблицу событий журнала включены `RESERVE*`.\n- **`design.md`**: резервы хранятся в `InMemoryStore`, статус `EXPIRED` вычисляется по часам при обращении, а `confirm` списывает остаток напрямую, чтобы не упереться в проверку `available`.\n- **`tasks.md`**: 6 групп задач, у каждой указана проверка, последняя группа сверяет публичный API.\n\nТикет в нескольких местах молчит или противоречит сам себе, поэтому я принял такие решения и записал их как допущения:\n- **Правки из обсуждения:** TTL по умолчанию 15 минут (обновление от 13.10), а не 30 из исходного текста. Повторный `reserve` разрешён, если прежний резерв истёк или отменён.\n- **`transfer`:** он тоже не может забрать зарезервированный товар, потому что в его docstring сказано «проверки те же, что у `issue`». В тикете это прямо не названо.\n- **Граница срока:** резерв считается истёкшим при `now >= expires_at`.\n- **Порядок проверок в `reserve`:** сначала входные данные, потом дубликат, потом достаточность остатка. В `extend` сначала проверяется `ttl`, потом наличие резерва, потом статус.\n- **Поле `expires` в журнале:** оно пишется с точностью до секунды, как время события. В самом снимке `Reservation` значения не округляются.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 152.1,
+      "cost_usd": 0.5056921,
+      "duration_ms": 148310,
+      "num_turns": 24,
+      "usage": {
+        "input_tokens": 36,
+        "cache_creation_input_tokens": 52925,
+        "cache_read_input_tokens": 639601,
+        "output_tokens": 22996,
+        "output_tokens_details": {
+          "thinking_tokens": 1189
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52925,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 654,
+            "cache_read_input_tokens": 58428,
+            "cache_creation_input_tokens": 433,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 433
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-order-reservations\n**Schema:** spec-driven\n**Progress:** 14/14 tasks complete ✓\n\nAll 82 tests pass (40 old, 42 new). The existing tests, `warehouse/cli.py` and `warehouse/reports.py` have no diff.\n\nI checked the public API with `inspect.signature` and `dataclasses.fields`. The method signatures, model fields, enum values, error hierarchy and `DEFAULT_RESERVATION_TTL` all match the proposal and specs.\n\n- **Models and errors:** `ReservationStatus`, `ReservationLine` and `Reservation` are in `warehouse/models.py`. The five reservation errors, each carrying `order_id`, are in `warehouse/errors.py`.\n- **New module:** `warehouse/reservations.py` holds `DEFAULT_RESERVATION_TTL`, an internal mutable `ReservationRecord`, and the helpers for line normalization, per-position sums and effective status.\n- **Storage:** `InMemoryStore` now keeps reservations by `order_id`.\n- **Inventory:**\n  - New methods: `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `reserved` and `available`.\n  - `issue` and `transfer` are now limited to `available`.\n  - Expiry is computed from the clock when a reservation is accessed, and it writes nothing to the log.\n- **Tests:** `tests/test_reservations.py` covers the scenarios in the spec.\n\nI added a short \"Implementation notes\" section to `design.md`. It records that `Inventory` validates line contents while the helper only checks line shape, which avoids duplicate validators and circular imports.\n\n`warehouse/__pycache__/` shows as untracked in git; I did not add it to `.gitignore`. I did not commit anything.\n\nAll tasks are done, so you can archive the change with `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "trial_id": "t4_retry__baseline__r1__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\deb6a1cba9",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\deb6a1cba9\\project",
+  "base_commit": "e8113453f39fc872ed735f0b7e53d6cb0b449a82",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 91.5,
+      "cost_usd": 0.2632933,
+      "duration_ms": 89594,
+      "num_turns": 10,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 26194,
+        "cache_read_input_tokens": 190213,
+        "output_tokens": 13946,
+        "output_tokens_details": {
+          "thinking_tokens": 1642
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 26194,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 794,
+            "cache_read_input_tokens": 31890,
+            "cache_creation_input_tokens": 240,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 240
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Повторы с экспоненциальной задержкой и dead-letter очередь реализованы. Все тесты проходят: 36 старых и 8 новых в `tests/test_retry.py`.\n\nНовые тесты покрывают расчёт задержки, невалидные параметры политики, путь повтор → dead-letter → requeue и `PermanentJobError`. Не проверены: джиттер при `rng` с фиксированным seed (кроме потолка), наследники `non_retryable`, отмена задания в `RETRY_SCHEDULED`, замена политики типа вместо слияния с дефолтом. Отдельно не проверял, что `rng` не трогается на `FAILED` и dead-letter.\n\nФайлы `dashboard.py` и `cli.py` не менял: в отчёте новые статусы подхватываются сами, подписи «Ожидает повтора» и «В dead-letter» заданы в `models.py`.\n\nРешения, которые стоит знать:\n- **`attempts` при requeue:** обнуляется. Ты указал это в обновлении тимлида, хотя основной текст тикета говорит сохранять.\n- **`DEAD_LETTERED`:** считается терминальным статусом (`is_terminal`), но `purge_finished` его пропускает. Выход оттуда один — `requeue_dead_letter`.\n- **`mark_succeeded`:** теперь очищает `error`. Раньше этого не было, а после успешного повтора в `error` иначе осталась бы ошибка прошлой попытки.\n- **Ошибки конфигурации:** `set_retry_policy` и `default_retry_policy` бросают `ConfigError`, если им передали не `RetryPolicy`. `delay_for` бросает его при `attempt < 1`.\n- **Переполнение:** `delay_for` не падает с `OverflowError` на больших `attempt` (например, `2.0 ** 5000`), а возвращает `max_delay`. Джиттер потолок не пробивает.\n- **Метод `requeue_dead_letter`:** для задания не из dead-letter бросает `InvalidTransitionError`, для несуществующего id — `JobNotFoundError`.\n- **Новые методы очереди:** `mark_retry_scheduled` и `mark_dead_lettered` добавлены рядом с существующими `mark_*`.\n\nКоммит не делал."
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd__r2__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0560a2781c",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0560a2781c\\project",
+  "base_commit": "4667857a383dc306962b669099eba72a15d3098d",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 163.7,
+      "cost_usd": 0.4191984,
+      "duration_ms": 161777,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 44515,
+        "cache_read_input_tokens": 287084,
+        "output_tokens": 21239,
+        "output_tokens_details": {
+          "thinking_tokens": 2300
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 44515,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 878,
+            "cache_read_input_tokens": 48058,
+            "cache_creation_input_tokens": 2393,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2393
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-promo-codes` создано в `openspec/changes/add-promo-codes/`. `openspec validate add-promo-codes --strict` проходит, все 4 артефакта готовы. Код проекта не менялся, в git появился только каталог `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` описывает зачем и что меняется, а также три новые возможности.\n- `specs/promo-codes/spec.md` описывает модель `PromoCode`, реестр (порядок проверок «код есть → срок → лимит», окно `[начало, конец)`), три независимые ошибки и счётчик использований.\n- `specs/promo-pricing/spec.md` описывает:\n  - какие строки участвуют в скидке;\n  - расчёт процентной и фиксированной скидки;\n  - условия заказа (минимальная сумма, случай «нет участвующих товаров»);\n  - раскладку по строкам по методу наибольшего остатка, с примерами;\n  - налог с суммы после скидки;\n  - порог бесплатной доставки по сумме после скидки.\n- `specs/promo-orders/spec.md` описывает:\n  - пустой промокод как «без промокода»;\n  - отсутствие побочных эффектов у `quote` и неудачных попыток;\n  - учёт использования при оформлении;\n  - возврат использования при отмене;\n  - обратную совместимость.\n- `design.md` содержит решения, риски и список допущений.\n- `tasks.md` разбит на 5 групп задач, у каждой указана проверка.\n\n**Допущения** (подробнее в `design.md`)\n- В реестр добавлены `redeem` и `release`, потому что в API из тикета нет способа менять счётчик.\n- `uses` для неизвестного кода возвращает 0.\n- Фиксированная и минимальная суммы с более чем двумя знаками дают `ValidationError`.\n- Нестроковый `promo_code` даёт `ValidationError`.\n- `Order.promo_code` хранит нормализованный код, чтобы `cancel` знал, что возвращать. Возврат работает и после истечения срока кода и не опускает счётчик ниже 0.\n- `LineTotal.amount` и `subtotal` остаются суммами до скидки.\n- Новые поля идут в конце с значениями по умолчанию, чтобы существующие конструкторы и тесты не сломались.\n- В `tasks.md` добавлена задача на обновление README, хотя в тикете её нет.\n\nАртефакты готовы к ревью. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 140.3,
+      "cost_usd": 0.4832024000000001,
+      "duration_ms": 138613,
+      "num_turns": 21,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 52444,
+        "cache_read_input_tokens": 490264,
+        "output_tokens": 22434,
+        "output_tokens_details": {
+          "thinking_tokens": 540
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52444,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 685,
+            "cache_read_input_tokens": 57522,
+            "cache_creation_input_tokens": 858,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 858
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: add-promo-codes\n\nВыполнены все 14 задач из `tasks.md`, они отмечены `[x]`. Проверки прошли: `python -m pytest -q` — 140 тестов, `openspec validate add-promo-codes --strict` — без ошибок.\n\n- **Ошибки:** в `shop/errors.py` добавлены `PromoError` и три независимых наследника: `UnknownPromoCodeError`, `PromoExpiredError`, `PromoConditionsError`.\n- **Промокоды:** новый модуль `shop/promo.py` с `DiscountKind`, `PromoCode` и `PromoRegistry`. Реестр проверяет по порядку существование, срок и лимит, а также считает использования через `redeem` и `release`.\n- **Расчёт:** в `shop/pricing.py` появились `LineTotal.discount`, `OrderTotal.discount` и параметр `promo` в `calculate_total`.\n  - Скидка раскладывается по строкам методом наибольшего остатка в копейках.\n  - Налог считается с суммы строки после скидки.\n  - Порог бесплатной доставки сравнивается с `subtotal - discount`.\n- **Заказы:** в `shop/orders.py` добавлены `Order.promo_code`, `OrderService(..., promos=)` и `promo_code` в `quote`/`place_order`.\n  - `redeem` вызывается только после сохранения заказа.\n  - `cancel` возвращает использование через `release`.\n- **Тесты и документация:** новые тесты лежат в четырёх отдельных файлах. В README обновлены таблица модулей, формула `total` и правила доставки и отмены.\n\nСтарые тесты, `shop/cli.py` и `shop/reports.py` не менялись, это видно по `git diff --stat`.\n\nНовые решения и допущения в `design.md` не добавлял: всё нужное там уже было записано.\n\nИзменения не закоммичены. Архивировать можно через `/opsx:archive`."
+    }
+  ]
+}

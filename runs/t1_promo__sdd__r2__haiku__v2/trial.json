@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd__r2__haiku__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e7a019cf5e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\e7a019cf5e\\project",
+  "base_commit": "381061ec425969a28fde46952c2d001ed71c911f",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 130.5,
+      "cost_usd": 0.02475541,
+      "duration_ms": 128451,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 45815,
+        "cache_read_input_tokens": 537491,
+        "output_tokens": 20429,
+        "output_tokens_details": {
+          "thinking_tokens": 6213
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 45815,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 814,
+            "cache_read_input_tokens": 52299,
+            "cache_creation_input_tokens": 232,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 232
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `add-promo-codes` is created with all four planning artifacts, and `openspec validate add-promo-codes --strict` passes. No project code was touched; the only new files are under `openspec/changes/add-promo-codes/`.\n\n**Artifacts**\n- `proposal.md`: why, what changes, and the new capability `promo-codes`. No existing capability is modified.\n- `specs/promo-codes/spec.md`: 9 requirements with scenarios. They cover code validation and normalization, discount calculation, per-line allocation of kopecks, tax and totals, shipping threshold, minimum order and eligibility, validity window and usage limit, usage counting with release on cancel, optional `promo_code` input, the error hierarchy, and backward compatibility.\n- `design.md`: the decisions and their alternatives, plus risks and assumptions.\n- `tasks.md`: 5 groups and 17 checkbox tasks, each with its verification step. Tests go in new files only.\n\n**Decisions I made where the ticket was open** (all recorded in `design.md`)\n- **Kopeck allocation** is done in integer kopecks: `base = (D·a) // S`, and the leftover goes to the largest remainder, with ties broken by cart order.\n- **Gift cards** are never eligible, per the README, in addition to any excluded categories on the code.\n- **Check order:** `resolve` checks existence, then validity, then the usage limit. `calculate_total` checks eligibility and the minimum order. `place_order` computes the total first, then records the use, then assigns the order id, so failed attempts consume neither a use nor an order number.\n- **Two registry methods are added beyond the ticket's API:** `record_use` and `release_use`. Without them `place_order` and `cancel` have no way to change the counter.\n- **`LineTotal.amount` stays the pre-discount amount.** The new `discount` field is subtracted from it, and tax is computed on the remainder.\n- **Shipping threshold** compares against goods after the discount. The shipping fee itself is unchanged.\n- **`uses(code)` for an unknown code** raises `UnknownPromoCodeError` rather than returning 0.\n- **Percent and fixed values of 0** are rejected at creation.\n- **Normalization** is `strip` and `upper` only, as the README specifies. Invisible characters are not removed.\n\nNothing is implemented yet. When you're ready, run `/opsx:apply` to start the implementation."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 218.5,
+      "cost_usd": 0.05283664999999999,
+      "duration_ms": 216556,
+      "num_turns": 37,
+      "usage": {
+        "input_tokens": 64,
+        "cache_creation_input_tokens": 73512,
+        "cache_read_input_tokens": 1679785,
+        "output_tokens": 42660,
+        "output_tokens_details": {
+          "thinking_tokens": 16741
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 73512,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1487,
+            "cache_read_input_tokens": 78194,
+            "cache_creation_input_tokens": 2034,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2034
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 18 задач change `add-promo-codes` выполнены. Тесты проходят: 132 (38 старых без изменений и 94 новых), `openspec validate add-promo-codes --strict` проходит.\n\n**Что сделано**\n- **Ошибки** (`shop/errors.py`): `PromoError(ShopError)` и три независимых подкласса. `UnknownPromoCodeError` хранит код в атрибуте `code`.\n- **Промокоды** (`shop/promo.py`): `DiscountKind`, `PromoCode` (frozen dataclass с проверками), `PromoRegistry(clock)` с `add`, `resolve`, `uses`, `record_use`, `release_use`. Проверки идут в порядке существование → срок `[starts_at, expires_at)` → лимит.\n- **Расчёт** (`shop/pricing.py`): `calculate_total(..., *, promo=None)`. Скидка только на участвующие строки. Раскладка по копейкам с распределением остатка по наибольшему остатку и порядку корзины. Налог считается после скидки. Порог доставки сравнивается с суммой после скидки. Добавлены `LineTotal.discount` и `OrderTotal.discount` со значением по умолчанию `0.00`.\n- **Заказы** (`shop/orders.py`): `OrderService(promos=...)`, `quote` и `place_order` принимают `promo_code`. Использование засчитывается после расчёта, поэтому неудачная попытка не расходует лимит и номер заказа. `cancel` возвращает использование. `Order.promo_code` хранит нормализованный код.\n- **Экспорт** (`shop/__init__.py`): добавлены промо-классы и ошибки.\n- **Тесты**: пять новых файлов `tests/test_promo_*.py`. Покрыты все сценарии из spec, включая границы интервалов, копейки и детерминированный перебор случайных корзин.\n\n**Решения, принятые самостоятельно** (записаны в `design.md`, раздел «Решения при реализации»):\n- `record_use` повторно вызывает `resolve`, чтобы счётчик не превышал `max_uses`.\n- Процент не ограничен двумя знаками, фиксированная скидка — проверяется на копейки.\n- `excluded_categories` принимает только значения `Category`, строки отклоняются.\n- `PromoRegistry` требует часы явно, без значения по умолчанию.\n\n**Проверки, которые подтверждены**\n- `shop/cli.py`, `shop/reports.py` и существующие тесты не изменены (`git diff --stat` пуст).\n- `python -c \"import shop; shop.PromoCode\"` работает.\n\n**Ограничения**\n- Линтер в окружении не установлен. Неиспользуемые импорты проверены скриптом по AST, длинные строки — grep.\n- Изменения не закоммичены. Рабочее дерево содержит изменённые `shop/*.py`, новые `shop/promo.py` и тесты, а также `openspec/changes/`."
+    }
+  ]
+}

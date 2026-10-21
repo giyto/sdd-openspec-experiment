@@ -1,0 +1,58 @@
+{
+  "trial_id": "t2_reserve__baseline__r2__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\5055c514c4",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\5055c514c4\\project",
+  "base_commit": "e13c77ae9495cacb5c4dfd038da868df85c944cf",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 116.0,
+      "cost_usd": 0.34565429999999997,
+      "duration_ms": 114163,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 32269,
+        "cache_read_input_tokens": 226583,
+        "output_tokens": 19388,
+        "output_tokens_details": {
+          "thinking_tokens": 1877
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 32269,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 837,
+            "cache_read_input_tokens": 37498,
+            "cache_creation_input_tokens": 707,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 707
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Резервирование из WH-214 реализовано в `Inventory`. Существующие 40 тестов проходят. Новых тестов я не писал, а проверил только одним ручным сценарием: резерв из двух строк одной позиции, `issue` сверх доступного, истечение по TTL, повторный `reserve` и `confirm`. Остальное (`extend`, `cancel`, нехватка при `confirm`, склады) не прогонял. Коммит не делал.\n\n**Что изменено**\n- `warehouse/models.py`: `ReservationStatus`, `ReservationLine`, `Reservation`.\n- `warehouse/errors.py`: `ReservationError` и четыре наследника, у всех есть `order_id`.\n- `warehouse/reservations.py` (новый): `DEFAULT_RESERVATION_TTL = timedelta(minutes=15)` и вспомогательные функции.\n- `warehouse/storage.py`: в хранилище добавлены резервы.\n- `warehouse/inventory.py`: новые методы `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `available`, `reserved`.\n- `warehouse/__init__.py`: экспорт новых имён.\n\n**Как это работает**\n- **Истечение:** в хранилище статус `EXPIRED` не пишется, он вычисляется по часам сервиса при каждом обращении. Резерв перестаёт действовать ровно в `expires_at`.\n- **Повторный `reserve`:** истёкший или отменённый резерв заменяется новым, активный и подтверждённый дают `DuplicateReservationError`.\n- **`available`:** не уходит ниже нуля, даже если инвентаризация показала меньше, чем зарезервировано.\n- **`issue`:** не забирает товар из чужих активных резервов.\n- **`confirm`:** сверяет физический остаток по сумме строк одной позиции. Если не хватает хотя бы по одной позиции, ничего не списывается и резерв остаётся активным.\n- **`extend`:** срок становится `now + ttl` и никогда не сокращается. Если новый срок не позже текущего, ничего не меняется и событие не пишется.\n\nРешение, которого в тикете не было: `transfer` тоже не берёт товар из активных резервов на складе-источнике. Тикет про `issue`, но README называет перемещение обычным расходом с теми же проверками.\n\n`cli.py` и `reports.py` не трогал."
+    }
+  ]
+}

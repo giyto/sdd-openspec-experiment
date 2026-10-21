@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd__r3__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\fd8be0e3d6",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\fd8be0e3d6\\project",
+  "base_commit": "498b4e195c064a4636cf630ca9cd89acda6cbc5f",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 182.0,
+      "cost_usd": 0.48156079999999996,
+      "duration_ms": 179474,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 49318,
+        "cache_read_input_tokens": 418468,
+        "output_tokens": 24239,
+        "output_tokens_details": {
+          "thinking_tokens": 2988
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 49318,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 857,
+            "cache_read_input_tokens": 54884,
+            "cache_creation_input_tokens": 370,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 370
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал change `add-promo-codes` в `openspec/changes/add-promo-codes/` со всеми четырьмя артефактами. `openspec validate add-promo-codes --strict` проходит, `openspec status` показывает 4/4. Код проекта не менялся: в `git status` только новая папка `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` — зачем нужен change, что в нём меняется и какие три capability он добавляет.\n- `specs/promo-registry/spec.md` — валидация `PromoCode`, нормализация кода, порядок проверок в `resolve` (неизвестный код, срок, лимит), интервал `[начало, конец)`, учёт и возврат использований.\n- `specs/promo-discount-pricing/spec.md` — участвующие строки, размер скидки, условия заказа, раскладка по строкам методом наибольшего остатка, налог после скидки, порог бесплатной доставки по сумме после скидки.\n- `specs/order-promo-checkout/spec.md` — `promo_code` в `quote` и `place_order` (пустой код — «без промокода»), использование считается только при успешном оформлении, возврат кода при `cancel`.\n- `design.md` — решения и допущения.\n- `tasks.md` — 5 групп задач, у каждой указано, как проверить.\n\n**Допущения** (подробнее в `design.md`)\n- **Методы реестра:** в API тикета нет способа зафиксировать и вернуть использование, поэтому я добавил `redeem` и `release`. `redeem` повторно проверяет код и увеличивает счётчик под `threading.Lock`; `release` уменьшает счётчик не ниже нуля и не проверяет срок. Названия можно уточнить при реализации.\n- **Порядок в `place_order`:** использование фиксируется до выдачи номера заказа, поэтому неудачные попытки не оставляют дыр в нумерации.\n- **`uses` неизвестного кода:** выбрасывает `UnknownPromoCodeError`, а не возвращает 0.\n- **Слишком большая фиксированная скидка:** она обрезается до суммы участвующих строк, ошибки нет.\n- **Сертификаты в исключённых категориях:** разрешены, ошибки нет.\n- **Часы:** срок кода проверяется только по часам реестра.\n- **Тесты:** новые лежат в отдельных файлах.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 1014.5,
+      "cost_usd": 0.6662078000000001,
+      "duration_ms": 5548,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 1019,
+        "cache_read_input_tokens": 70013,
+        "output_tokens": 241,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1019,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 241,
+            "cache_read_input_tokens": 70013,
+            "cache_creation_input_tokens": 1019,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1019
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Это второе уведомление об остановленной по лимиту времени фоновой команде. Перезапускать её не нужно.\n\nОна зависла, потому что `</dev/null` в одной строке с `<<'PYEOF'` затёр heredoc, и Python остался без скрипта. Правку, которую она должна была внести, я сделал инструментом Edit: в `tests/test_orders_promo.py` ожидается `EmptyCartError`, импорт добавлен. После этого `python -m pytest -q` дал 100 пройденных тестов, а импорт `from shop import PromoCode, PromoRegistry, DiscountKind` сработал.\n\nОстаточных эффектов нет, дальнейших действий не требуется."
+    }
+  ]
+}

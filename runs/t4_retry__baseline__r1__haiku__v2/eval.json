@@ -1,0 +1,77 @@
+{
+  "trial_id": "t4_retry__baseline__r1__haiku__v2",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "hidden_total": 59,
+  "hidden_passed": 58,
+  "hidden_pass_rate": 0.9831,
+  "req_total": 14,
+  "req_satisfied": 13,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": false,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 36,
+  "regress_passed": 36,
+  "own_tests_total": 74,
+  "own_tests_passed": 74,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "README.md",
+    "jobq/__init__.py",
+    "jobq/errors.py",
+    "jobq/metrics.py",
+    "jobq/models.py",
+    "jobq/queue.py",
+    "jobq/retry.py",
+    "jobq/store.py",
+    "jobq/worker.py",
+    "tests/test_retry.py"
+  ],
+  "loc": {
+    "prod_added": 267,
+    "prod_removed": 11,
+    "test_added": 389,
+    "spec_added": 0,
+    "other_files": [
+      "README.md"
+    ]
+  },
+  "new_test_funcs": 29,
+  "changed_funcs": 20,
+  "cc_mean": 2.85,
+  "cc_max": 11,
+  "funcs_cc_gt10": 1,
+  "cost_usd": 0.0407,
+  "wall_s": 170.5,
+  "num_turns": 32,
+  "output_tokens": 37591,
+  "input_tokens_total": 921643,
+  "session_rcs": [
+    0
+  ],
+  "session_subtypes": [
+    "success"
+  ],
+  "hidden_out_tail": "..................................................F........              [100%]\n================================== FAILURES ===================================\n___________________________ test_R13_terminal_flags ___________________________\n\n    def test_R13_terminal_flags():\n>       assert JobStatus.DEAD_LETTERED.is_terminal is True\nE       AssertionError: assert False is True\nE        +  where False = <JobStatus.DEAD_LETTERED: 'dead_lettered'>.is_terminal\nE        +    where <JobStatus.DEAD_LETTERED: 'dead_lettered'> = JobStatus.DEAD_LETTERED\n\ntests_hidden\\test_hidden.py:783: AssertionError\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2051717375\\project\\_hidden.xml -\n=========================== short test summary info ===========================\nFAILED tests_hidden/test_hidden.py::test_R13_terminal_flags - AssertionError:...\n1 failed, 58 passed in 0.36s\n"
+}

@@ -1,0 +1,74 @@
+{
+  "trial_id": "t2_reserve__sdd__r2__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "hidden_total": 67,
+  "hidden_passed": 66,
+  "hidden_pass_rate": 0.9851,
+  "req_total": 14,
+  "req_satisfied": 13,
+  "req_status": {
+    "R01": false,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 40,
+  "regress_passed": 40,
+  "own_tests_total": 96,
+  "own_tests_passed": 96,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "tests/test_reservations.py",
+    "warehouse/__init__.py",
+    "warehouse/errors.py",
+    "warehouse/inventory.py",
+    "warehouse/models.py",
+    "warehouse/reservations.py",
+    "warehouse/storage.py"
+  ],
+  "loc": {
+    "prod_added": 343,
+    "prod_removed": 11,
+    "test_added": 438,
+    "spec_added": 290,
+    "other_files": []
+  },
+  "new_test_funcs": 42,
+  "changed_funcs": 29,
+  "cc_mean": 2.45,
+  "cc_max": 10,
+  "funcs_cc_gt10": 0,
+  "cost_usd": 0.8755,
+  "wall_s": 281.5,
+  "num_turns": 29,
+  "output_tokens": 43232,
+  "input_tokens_total": 748944,
+  "session_rcs": [
+    0,
+    0
+  ],
+  "session_subtypes": [
+    "success",
+    "success"
+  ],
+  "hidden_out_tail": "F..................................................................      [100%]\n================================== FAILURES ===================================\n__________________ test_R01_reserve_returns_active_snapshot ___________________\n\ninv = <warehouse.inventory.Inventory object at 0x0000019D9F5A1E80>\n\n    def test_R01_reserve_returns_active_snapshot(inv):\n        r = inv.reserve(\"SO-1\", [(\"MAIN\", \"BOLT-M8\", 3), (\"NORTH\", \"BOLT-M8\", 1)], ttl=10 * MIN)\n        assert r.order_id == \"SO-1\"\n        assert r.status == S().ACTIVE\n>       assert r.status == \"active\"\nE       AssertionError: assert <ReservationS...IVE: 'ACTIVE'> == 'active'\nE         \nE         - active\nE         + ACTIVE\n\ntests_hidden\\test_hidden.py:46: AssertionError\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\d52d87ccfe\\project\\_hidden.xml -\n=========================== short test summary info ===========================\nFAILED tests_hidden/test_hidden.py::test_R01_reserve_returns_active_snapshot\n1 failed, 66 passed in 0.55s\n"
+}

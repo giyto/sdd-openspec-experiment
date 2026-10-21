@@ -1,0 +1,102 @@
+{
+  "trial_id": "t3_import__sdd__r1__sonnet__v2",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\f0d01e8e22",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\f0d01e8e22\\project",
+  "base_commit": "7cb8f1accc34889c1cd7645891b1ca48210ec018",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 196.8,
+      "cost_usd": 0.49956500000000004,
+      "duration_ms": 194971,
+      "num_turns": 12,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 52625,
+        "cache_read_input_tokens": 272890,
+        "output_tokens": 26174,
+        "output_tokens_details": {
+          "thinking_tokens": 5728
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52625,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 878,
+            "cache_read_input_tokens": 58203,
+            "cache_creation_input_tokens": 358,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 358
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-sfera-statement-import` создано в `openspec/changes/add-sfera-statement-import/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся: в git добавилась только папка `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` — зачем и что меняется. Одна новая capability, `statement-import`. Отдельно отмечено, что у `import_csv` меняется поведение: повторный импорт теперь возвращает 0.\n- `specs/statement-import/spec.md` — 10 требований со сценариями. Они покрывают:\n  - формат и кодировку;\n  - суммы и даты «Сферы» и формат `sfera_split`;\n  - мусорные строки и номера строк;\n  - `strict` и атомарность;\n  - дедупликацию (счёт по количеству относительно хранилища до импорта);\n  - результат импорта и совместимость `import_csv`.\n- `design.md` — решения и допущения. Основные решения:\n  - файл сначала разбирается целиком, потом пишется одним `add_many` (и только если есть что добавлять);\n  - `normalize_description` делегирует `rules.normalize_text`, а не копирует его логику;\n  - «не больше двух знаков» проверяется по тексту суммы, потому что `1,500` как `Decimal` проходит проверку `to_money` и молча округлился бы.\n- `tasks.md` — 5 групп задач, у каждой указано, как проверить.\n\n**Допущения** (подробнее в `design.md`):\n- Для «Новы» имена колонок остаются точными, как в текущем коде. Регистр и пробелы игнорируются только в форматах «Сферы».\n- Пропускаемые строки допускаются и перед заголовком.\n- Заголовок, подходящий сразу двум форматам, и неизвестный `fmt` дают `UnknownFormatError`.\n- У `UnknownFormatError` `line_no` равен строке заголовка. Для нераспознанного заголовка это 1, как требует существующий тест; для пустого файла — `None`.\n- Нет файла по-прежнему даёт `OSError`, как раньше. Файл, который не читается ни как UTF-8, ни как cp1251, даёт `StatementError` без `line_no`.\n- Для разделителя тысяч принимаются только пробел и U+00A0, как в тикете. U+202F и Unicode-минус считаются ошибкой строки.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 149.8,
+      "cost_usd": 0.41513239999999996,
+      "duration_ms": 148158,
+      "num_turns": 19,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 44773,
+        "cache_read_input_tokens": 335224,
+        "output_tokens": 20247,
+        "output_tokens_details": {
+          "thinking_tokens": 2405
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 44773,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 618,
+            "cache_read_input_tokens": 48809,
+            "cache_creation_input_tokens": 1900,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1900
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 10 задач из `tasks.md` выполнены и отмечены. Полный прогон `python -m pytest -q` проходит: 120 тестов, из них 72 новых в `tests/test_statement_import.py`. `ledger/cli.py`, `ledger/reports.py` и существующие тесты не менялись.\n\n- **`ledger/errors.py`:** добавлены `UnknownFormatError` и `StatementRowError`, оба наследуют `StatementError`.\n- **`ledger/importer.py`:** переписан целиком.\n  - **Новое:** `import_statement`, `detect_format`, `normalize_description`, `ImportResult` и `RowError`. Поддержаны форматы `nova`, `sfera` и `sfera_split`.\n  - **Как работает импорт:** файл сначала разбирается целиком, потом новые транзакции пишутся одним `add_many`, и только если они есть. Дубли считаются по количеству относительно хранилища до импорта.\n  - **`import_csv`:** теперь обёртка над `import_statement` со строгим режимом и форматом `nova`. Повторный вызов на том же файле возвращает 0, а не n.\n- **`README.md`:** обновлены строка про модуль, соглашение о сравнении описаний и раздел про «Сферу».\n\nВ процессе я дописал в `design.md` два решения, которых не было в спецификации:\n- **Мусорные строки:** строка из одних разделителей `,`/`;` и пробелов пропускается независимо от формата. Иначе `;;;` в файле «Новы» или `,,` в файле «Сферы» ломали бы определение заголовка.\n- **Заголовок:** он ищется отдельно для каждого разделителя. Если он не распознан, `line_no` ошибки — наибольший из найденных номеров первой записи."
+    }
+  ]
+}

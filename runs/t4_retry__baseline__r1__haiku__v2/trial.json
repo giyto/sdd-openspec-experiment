@@ -1,0 +1,58 @@
+{
+  "trial_id": "t4_retry__baseline__r1__haiku__v2",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2051717375",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\2051717375\\project",
+  "base_commit": "29ee16fb8b1e0334a6f674f860d830dd538bc1a3",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 170.5,
+      "cost_usd": 0.040678080000000005,
+      "duration_ms": 168672,
+      "num_turns": 32,
+      "usage": {
+        "input_tokens": 40,
+        "cache_creation_input_tokens": 66645,
+        "cache_read_input_tokens": 854958,
+        "output_tokens": 37591,
+        "output_tokens_details": {
+          "thinking_tokens": 15445
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 66645,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1766,
+            "cache_read_input_tokens": 65499,
+            "cache_creation_input_tokens": 1146,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1146
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача JOBQ-212 выполнена: повторы с экспоненциальной задержкой, dead-letter и requeue. Все 74 теста проходят: 36 старых без изменений и 38 новых в `tests/test_retry.py`. Изменения не закоммичены.\n\n**Что сделано**\n- `jobq/retry.py` (новый): `RetryPolicy` с валидацией параметров в `ConfigError`, `delay_for` и `is_retryable`. Задержка считается без переполнения, так что `max_attempts=10000` и огромные номера попыток работают. Джиттер не выходит за `max_delay`, а `rng` трогается только при `jitter > 0` и только когда повтор реально планируется.\n- `jobq/errors.py`: `PermanentJobError`.\n- `jobq/models.py`: статусы `RETRY_SCHEDULED` и `DEAD_LETTERED` с подписями, `DeadLetterEntry`.\n- `jobq/store.py`: `due()` берёт и `PENDING`, и `RETRY_SCHEDULED` по `run_at`.\n- `jobq/queue.py`: `default_retry_policy`, `set_retry_policy`, `retry_policy_for`, `dead_letters`, `requeue_dead_letter`, переходы для повтора и dead-letter, счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- `jobq/worker.py`: `rng` (keyword-only) и решение о судьбе упавшего задания: `FAILED`, повтор или dead-letter.\n- `README.md`: строка в таблице модулей и короткий раздел о повторах.\n\n**Решения, которые я принял сам**\n- `DEAD_LETTERED` не считается терминальным (`is_terminal = False`). Иначе `purge_finished` удалил бы его, а по тикету из dead-letter есть выход через requeue. Отмена из dead-letter запрещена.\n- `retry_policy_for(type)` возвращает действующую политику: политику типа, иначе дефолт очереди, иначе `None`. `set_retry_policy(type, None)` снимает политику типа, и тогда действует дефолт.\n- При успехе `error` сбрасывается в `None`. Без этого после повтора оставалась бы старая ошибка, что противоречит докстрингу `Job`. Тест поймал это.\n- В тикете противоречие: сначала «`attempts` сохраняем», а в обновлении «обнуляем». Я следовал обновлению, попытки до перезапуска пишутся в лог. Поле `error` при requeue очищается, `finished_at` сбрасывается.\n- Нечисловые и бесконечные параметры (`nan`, `inf`) тоже отклоняются как `ConfigError`. В тикете этого не было, но без проверки они проходят мимо остальных правил.\n- Если `rng` не передан, джиттер берётся из модуля `random`.\n\n**Что стоит учесть команде дашборда**\n- Отчёт показывает новые статусы сам, потому что итерируется по `JobStatus`. `dashboard.py` я не трогал.\n- Блок «Последние ошибки» в отчёте выводит только `FAILED`, поэтому задания из dead-letter там не появятся. Это может понадобиться дежурным, но менять это в рамках тикета я не стал."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "trial_id": "t1_promo__baseline__r3__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a0a58e190",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\7a0a58e190\\project",
+  "base_commit": "3f3393c13b845247b7c7c12bb37c50532ad1609a",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 97.1,
+      "cost_usd": 0.2967466,
+      "duration_ms": 95058,
+      "num_turns": 10,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 29719,
+        "cache_read_input_tokens": 164886,
+        "output_tokens": 16135,
+        "output_tokens_details": {
+          "thinking_tokens": 1431
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 29719,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 746,
+            "cache_read_input_tokens": 34804,
+            "cache_creation_input_tokens": 851,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 851
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды работают в `calculate_total`, `quote`, `place_order` и `cancel`. Все 44 теста проходят, включая существующие, которые я не менял. Новые тесты лежат в `tests/test_promo.py`. Они проверяют сумму раскладки по строкам, ограничение фиксированной скидки, минимальную сумму, порог бесплатной доставки после скидки, ошибки реестра, счётчик использований, возврат при отмене и пустой код.\n\nЧто добавлено:\n- **`shop/promo.py`** (новый): `DiscountKind`, `PromoCode` и `PromoRegistry`.\n- **`shop/errors.py`**: `PromoError` и три независимых наследника.\n- **`shop/pricing.py`**: параметр `promo`, поля `discount` в `LineTotal` и `OrderTotal`.\n- **`shop/orders.py`**: параметры `promos` и `promo_code`, поле `Order.promo_code`.\n- **`shop/__init__.py`**: экспорт `DiscountKind`, `PromoCode` и `PromoRegistry`.\n\nРаскладка по строкам и остальные правила сделаны как в обсуждении тикета. Порог бесплатной доставки сравнивается с суммой товаров после скидки.\n\nЧто стоит знать:\n- **Счётчик использований:** увеличивается только в `place_order`, после успешного расчёта. Перед этим реестр ещё раз проверяет лимит.\n- **Отмена:** `cancel` уменьшает счётчик, но не ниже нуля.\n- **Реестр:** добавил в него методы `redeem` и `release`, их нет в API тикета.\n- **Неизвестный код в `uses`:** `uses` для кода, которого нет, возвращает 0 и не бросает исключение. Тикет этого не оговаривает.\n- **Дубликат кода:** повторное добавление того же кода в реестр даёт `ValidationError`, как у SKU.\n\nРаскладку при равных остатках (выигрывает строка выше в чеке) отдельным тестом не проверял. Тест, который я для этого начал, был некорректным, и я его удалил.\n\nНичего не коммитил."
+    }
+  ]
+}

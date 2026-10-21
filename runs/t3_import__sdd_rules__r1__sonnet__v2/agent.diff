@@ -1,0 +1,781 @@
+diff --git a/README.md b/README.md
+index c0cac95..eaf9693 100644
+--- a/README.md
++++ b/README.md
+@@ -12,7 +12,7 @@
+ | `ledger/clock.py`    | часы: `Clock`, `SystemClock`, `FixedClock`                        |
+ | `ledger/storage.py`  | хранилища `MemoryStore` и `JsonFileStore`                         |
+ | `ledger/rules.py`    | правила категоризации `Rule`, `Categorizer`, `load_rules`         |
+-| `ledger/importer.py` | импорт CSV-выписки банка «Нова» (`import_csv`)                    |
++| `ledger/importer.py` | импорт выписок «Нова» и «Сфера»: `import_statement`, `detect_format`, `import_csv` |
+ | `ledger/reports.py`  | месячные сводки по категориям                                     |
+ | `ledger/cli.py`      | командная строка (`python -m ledger ...`)                         |
+ 
+@@ -42,7 +42,35 @@ date,amount,description
+ 2026-03-02,85000.00,Зарплата
+ ```
+ 
+-Разделитель `,`, дата ISO `ГГГГ-ММ-ДД`, сумма с точкой и знаком, кодировка UTF-8.
++Разделитель `,`, дата ISO `ГГГГ-ММ-ДД`, сумма с точкой и знаком.
++
++## Форматы выписки «Сфера»
++
++```
++Дата;Сумма;Описание                  (sfera)
++01.03.2026;-1 200,50;Магазин Лента
++
++Дата;Описание;Приход;Расход          (sfera_split)
++01.03.2026;Кофейня;;150,00
++```
++
++Разделитель `;`, дата `ДД.ММ.ГГГГ`, десятичная запятая, тысячи через пробел или U+00A0.
++Колонки ищутся по названию без учёта регистра, порядок произвольный, лишние колонки
++игнорируются. В `sfera_split` суммы без знака, заполнена ровно одна из колонок.
++
++## Импорт
++
++`import_statement(path, store, *, fmt=None, strict=False, categorizer=None, clock=None)`
++сам определяет формат (`detect_format`) и кодировку (UTF-8 с BOM или без, иначе cp1251),
++пропускает пустые строки и возвращает `ImportResult(format, encoding, added, duplicates, errors)`.
++
++- **Дедупликация**: строка — дубль, если в хранилище до импорта есть операция с той же
++  датой, суммой и описанием (через `normalize_text`); учитывается количество.
++- **Ошибки строк**: в нестрогом режиме попадают в `errors` (`RowError(line_no, message)`),
++  остальное записывается одной пачкой `add_many`. При `strict=True` — `StatementRowError`
++  на первой ошибке, хранилище не меняется.
++- Нераспознанный формат — `UnknownFormatError` в любом режиме.
++- `import_csv` — обёртка: строгий импорт формата `nova`, возвращает число добавленных.
+ 
+ ## Тесты
+ 
+diff --git a/ledger/errors.py b/ledger/errors.py
+index f85aa7b..cec277b 100644
+--- a/ledger/errors.py
++++ b/ledger/errors.py
+@@ -33,3 +33,14 @@ class StatementError(LedgerError):
+         super().__init__(text)
+         self.message = message
+         self.line_no = line_no
++
++
++class UnknownFormatError(StatementError):
++    """Формат или кодировка выписки не распознаны (или не подходят к заданному fmt)."""
++
++
++class StatementRowError(StatementError):
++    """Ошибка конкретной строки выписки в строгом режиме; line_no обязателен."""
++
++    def __init__(self, message: str, *, line_no: int) -> None:
++        super().__init__(message, line_no=line_no)
+diff --git a/ledger/importer.py b/ledger/importer.py
+index 983c4cb..3cfe678 100644
+--- a/ledger/importer.py
++++ b/ledger/importer.py
+@@ -1,44 +1,267 @@
+ """Импорт банковских выписок.
+ 
+-Сейчас поддерживается CSV-выписка банка «Нова»:
++Поддерживаются форматы (определяются по заголовку):
+ 
+-    date,amount,description
+-    2026-03-01,-350.00,Кофейня Зерно
++    nova         date,amount,description               (разделитель «,»)
++    sfera        Дата;Сумма;Описание                   (разделитель «;»)
++    sfera_split  Дата;Описание;Приход;Расход           (разделитель «;»)
++
++Конвейер: декодирование → формат → разбор всего файла → дедупликация →
++одна запись ``store.add_many``. Пока файл не разобран целиком, хранилище
++не меняется.
+ """
+ 
+ from __future__ import annotations
+ 
+ import csv
+ import datetime as dt
++import io
+ import logging
+ import os
++import re
++from collections import Counter
++from dataclasses import dataclass, field, replace
++from decimal import Decimal
++from pathlib import Path
+ 
+ from ledger.clock import Clock, SystemClock
+-from ledger.errors import StatementError, ValidationError
+-from ledger.models import Transaction, parse_amount
+-from ledger.rules import Categorizer
++from ledger.errors import StatementRowError, UnknownFormatError, ValidationError
++from ledger.models import Transaction, parse_amount, to_money
++from ledger.rules import Categorizer, normalize_text
+ from ledger.storage import MemoryStore
+ 
+ logger = logging.getLogger(__name__)
+ 
+-NOVA_COLUMNS = ("date", "amount", "description")
++_SFERA_DATE = re.compile(r"[0-9]{2}\.[0-9]{2}\.[0-9]{4}")
++_SFERA_AMOUNT = re.compile(r"[+-]?(\d{1,3}([  ]\d{3})+|\d+)(,\d{1,2})?", re.ASCII)
++
++
++@dataclass(frozen=True)
++class RowError:
++    line_no: int
++    message: str
++
++
++@dataclass(frozen=True)
++class ImportResult:
++    format: str
++    encoding: str
++    added: int
++    duplicates: int
++    errors: list[RowError] = field(default_factory=list)
++
++
++@dataclass(frozen=True)
++class _Spec:
++    delimiter: str
++    columns: dict[str, str]  # логическое имя -> название колонки в файле
++    exact: bool  # True: точные имена; False: без регистра и краевых пробелов
++
++
++_SPECS: dict[str, _Spec] = {
++    "nova": _Spec(",", {"date": "date", "amount": "amount", "description": "description"}, True),
++    "sfera": _Spec(";", {"date": "дата", "amount": "сумма", "description": "описание"}, False),
++    "sfera_split": _Spec(
++        ";",
++        {"date": "дата", "description": "описание", "income": "приход", "expense": "расход"},
++        False,
++    ),
++}
++
++
++def normalize_description(text: str) -> str:
++    """Приводит описание к виду для поиска дублей (как везде в проекте)."""
++    return normalize_text(text)
++
++
++def _decode(data: bytes) -> tuple[str, str]:
++    try:
++        return data.decode("utf-8-sig"), "utf-8"
++    except UnicodeDecodeError:
++        pass
++    try:
++        return data.decode("cp1251"), "cp1251"
++    except UnicodeDecodeError as exc:
++        raise UnknownFormatError("cannot decode file as utf-8 or cp1251") from exc
++
++
++def _reader(text: str, delimiter: str):
++    return csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
++
++
++def _match_header(spec: _Spec, header: list[str]) -> dict[str, int] | None:
++    """Карта «логическая колонка → индекс» или None, если заголовок не подходит."""
++    names = header if spec.exact else [h.strip().casefold() for h in header]
++    result: dict[str, int] = {}
++    for key, wanted in spec.columns.items():
++        found = [i for i, n in enumerate(names) if n == wanted]
++        if len(found) != 1:
++            return None
++        result[key] = found[0]
++    return result
++
++
++def _detect(text: str, fmt: str | None) -> tuple[str, dict[str, int]]:
++    if not text:
++        raise UnknownFormatError("empty file")
++    if fmt is not None and fmt not in _SPECS:
++        raise UnknownFormatError(f"unknown format {fmt!r}", line_no=1)
++    matched: list[tuple[str, dict[str, int]]] = []
++    for name in (fmt,) if fmt else _SPECS:
++        try:
++            header = next(_reader(text, _SPECS[name].delimiter), None)
++        except csv.Error:
++            header = None
++        columns = _match_header(_SPECS[name], header) if header is not None else None
++        if columns is not None:
++            matched.append((name, columns))
++    if len(matched) > 1:
++        raise UnknownFormatError("ambiguous header", line_no=1)
++    if not matched:
++        what = f"header does not match format {fmt!r}" if fmt else "unrecognized header"
++        raise UnknownFormatError(what, line_no=1)
++    return matched[0]
++
++
++def detect_format(path: str | os.PathLike[str]) -> str:
++    """Определяет формат выписки по заголовку или бросает UnknownFormatError."""
++    text, _ = _decode(Path(path).read_bytes())
++    return _detect(text, None)[0]
+ 
+ 
+-def _parse_row(row: dict[str, str], line_no: int, imported_at: dt.datetime) -> Transaction:
++class _RowProblem(Exception):
++    """Внутреннее: строку нельзя разобрать (сообщение без номера строки)."""
++
++
++def _parse_date(value: str, iso: bool) -> dt.date:
++    value = value.strip()
++    try:
++        if iso:
++            return dt.date.fromisoformat(value)
++        if not _SFERA_DATE.fullmatch(value):
++            raise ValueError(value)
++        return dt.date(int(value[6:]), int(value[3:5]), int(value[:2]))
++    except ValueError:
++        raise _RowProblem(f"invalid date {value!r}") from None
++
++
++def _parse_sfera_amount(value: str, *, signed: bool) -> Decimal:
++    cleaned = value.strip()
++    if not signed and cleaned[:1] in ("+", "-"):
++        raise _RowProblem(f"sign is not allowed in amount {cleaned!r}")
++    if not _SFERA_AMOUNT.fullmatch(cleaned):
++        raise _RowProblem(f"invalid amount {cleaned!r}")
++    number = cleaned.replace(" ", "").replace(" ", "").replace(",", ".")
+     try:
+-        date = dt.date.fromisoformat(row["date"].strip())
+-    except ValueError as exc:
+-        raise StatementError(f"invalid date {row['date']!r}", line_no=line_no) from exc
++        return to_money(Decimal(number))
++    except ValidationError as exc:
++        raise _RowProblem(str(exc)) from None
++
++
++def _build_row(
++    fmt: str, cols: dict[str, int], row: list[str], imported_at: dt.datetime
++) -> Transaction:
++    if len(row) <= max(cols.values()):
++        raise _RowProblem("not enough fields")
++    date = _parse_date(row[cols["date"]], iso=fmt == "nova")
++    if fmt == "nova":
++        try:
++            amount = parse_amount(row[cols["amount"]])
++        except ValidationError as exc:
++            raise _RowProblem(str(exc)) from None
++    elif fmt == "sfera":
++        amount = _parse_sfera_amount(row[cols["amount"]], signed=True)
++    else:
++        income_raw = row[cols["income"]].strip()
++        expense_raw = row[cols["expense"]].strip()
++        income = _parse_sfera_amount(income_raw, signed=False) if income_raw else Decimal(0)
++        expense = _parse_sfera_amount(expense_raw, signed=False) if expense_raw else Decimal(0)
++        if (income != 0) == (expense != 0):
++            raise _RowProblem("exactly one of income/expense must be filled")
++        amount = income if income != 0 else -expense
+     try:
+-        amount = parse_amount(row["amount"])
+         return Transaction(
+             date=date,
+             amount=amount,
+-            description=row["description"].strip(),
++            description=row[cols["description"]].strip(),
+             imported_at=imported_at,
+         )
+     except ValidationError as exc:
+-        raise StatementError(str(exc), line_no=line_no) from exc
++        raise _RowProblem(str(exc)) from None
++
++
++def _parse_rows(
++    text: str, fmt: str, cols: dict[str, int], imported_at: dt.datetime
++) -> list[Transaction | RowError]:
++    reader = _reader(text, _SPECS[fmt].delimiter)
++    next(reader)  # заголовок
++    out: list[Transaction | RowError] = []
++    while True:
++        line_no = reader.line_num + 1
++        try:
++            row = next(reader)
++        except StopIteration:
++            break
++        except csv.Error as exc:
++            out.append(RowError(line_no, str(exc)))
++            if reader.line_num < line_no:
++                break
++            continue
++        if all(not value.strip() for value in row):
++            continue
++        try:
++            out.append(_build_row(fmt, cols, row, imported_at))
++        except _RowProblem as exc:
++            out.append(RowError(line_no, str(exc)))
++    return out
++
++
++def import_statement(
++    path: str | os.PathLike[str],
++    store: MemoryStore,
++    *,
++    fmt: str | None = None,
++    strict: bool = False,
++    categorizer: Categorizer | None = None,
++    clock: Clock | None = None,
++) -> ImportResult:
++    """Импортирует выписку в store: автоформат, без дублей, одной атомарной записью."""
++    clock = clock or SystemClock()
++    imported_at = clock.now()
++    text, encoding = _decode(Path(path).read_bytes())
++    fmt, cols = _detect(text, fmt)
++    parsed = _parse_rows(text, fmt, cols, imported_at)
++
++    errors = [item for item in parsed if isinstance(item, RowError)]
++    if strict and errors:
++        raise StatementRowError(errors[0].message, line_no=errors[0].line_no)
++
++    existing = Counter(
++        (tx.date, tx.amount, normalize_description(tx.description)) for tx in store.all()
++    )
++    new: list[Transaction] = []
++    duplicates = 0
++    for item in parsed:
++        if isinstance(item, RowError):
++            continue
++        key = (item.date, item.amount, normalize_description(item.description))
++        if existing[key] > 0:
++            existing[key] -= 1
++            duplicates += 1
++            continue
++        if categorizer is not None:
++            category = categorizer.categorize(item)
++            if category is not None:
++                item = replace(item, category=category)
++        new.append(item)
++
++    if new:
++        store.add_many(new)
++    logger.info(
++        "imported %d transactions from %s (%s, %d duplicates, %d errors)",
++        len(new), path, fmt, duplicates, len(errors),
++    )
++    return ImportResult(fmt, encoding, len(new), duplicates, errors)
+ 
+ 
+ def import_csv(
+@@ -48,30 +271,6 @@ def import_csv(
+     clock: Clock | None = None,
+ ) -> int:
+     """Импортирует выписку «Новы» в store и возвращает число добавленных транзакций."""
+-    clock = clock or SystemClock()
+-    imported_at = clock.now()
+-    count = 0
+-    with open(path, encoding="utf-8", newline="") as fh:
+-        reader = csv.DictReader(fh)
+-        fieldnames = reader.fieldnames or []
+-        missing = [c for c in NOVA_COLUMNS if c not in fieldnames]
+-        if missing:
+-            raise StatementError(f"missing columns: {', '.join(missing)}", line_no=1)
+-        for line_no, row in enumerate(reader, start=2):
+-            if any(row.get(c) is None for c in NOVA_COLUMNS):
+-                raise StatementError("not enough fields", line_no=line_no)
+-            tx = _parse_row(row, line_no, imported_at)
+-            if categorizer is not None:
+-                category = categorizer.categorize(tx)
+-                if category is not None:
+-                    tx = Transaction(
+-                        date=tx.date,
+-                        amount=tx.amount,
+-                        description=tx.description,
+-                        category=category,
+-                        imported_at=tx.imported_at,
+-                    )
+-            store.add(tx)
+-            count += 1
+-    logger.info("imported %d transactions from %s", count, path)
+-    return count
++    return import_statement(
++        path, store, fmt="nova", strict=True, categorizer=categorizer, clock=clock
++    ).added
+diff --git a/tests/test_import_statement.py b/tests/test_import_statement.py
+new file mode 100644
+index 0000000..73e07ce
+--- /dev/null
++++ b/tests/test_import_statement.py
+@@ -0,0 +1,386 @@
++import dataclasses
++import datetime as dt
++from decimal import Decimal
++
++import pytest
++
++from ledger.errors import StatementError, StatementRowError, UnknownFormatError
++from ledger.importer import (
++    ImportResult,
++    RowError,
++    detect_format,
++    import_csv,
++    import_statement,
++    normalize_description,
++)
++from ledger.rules import Categorizer, Rule
++from ledger.storage import JsonFileStore, MemoryStore
++
++NBSP = " "
++SFERA = (
++    "Дата;Сумма;Описание\n"
++    f"01.03.2026;-1{NBSP}200,50;Магазин Лента\n"
++    "02.03.2026;+85 000,00;Зарплата\n"
++    "03.03.2026;-150,00;Кофейня\n"
++)
++NOVA = "date,amount,description\n2026-03-01,-350.00,Кофейня\n2026-03-02,85000.00,Зарплата\n"
++
++
++def amounts(store):
++    return [t.amount for t in store.all()]
++
++
++# --- errors ---------------------------------------------------------------
++
++
++def test_new_exceptions():
++    assert issubclass(UnknownFormatError, StatementError)
++    assert issubclass(StatementRowError, StatementError)
++    assert StatementRowError("x", line_no=4).line_no == 4
++    with pytest.raises(TypeError):
++        StatementRowError("x")  # type: ignore[call-arg]
++
++
++# --- encoding -------------------------------------------------------------
++
++
++def test_utf8_bom(write_csv, clock):
++    path = write_csv("﻿" + SFERA)
++    res = import_statement(path, MemoryStore(), clock=clock)
++    assert (res.format, res.encoding, res.added) == ("sfera", "utf-8", 3)
++
++
++def test_utf8_plain_and_cp1251(write_csv, clock):
++    assert import_statement(write_csv(SFERA), MemoryStore(), clock=clock).encoding == "utf-8"
++    store = MemoryStore()
++    res = import_statement(write_csv(SFERA, encoding="cp1251"), store, clock=clock)
++    assert res.encoding == "cp1251"
++    assert store.all()[0].description == "Магазин Лента"
++
++
++def test_undecodable(tmp_path):
++    path = tmp_path / "bad.csv"
++    path.write_bytes(b"\xff\x98\x81")
++    store = MemoryStore()
++    with pytest.raises(UnknownFormatError) as info:
++        import_statement(path, store)
++    assert info.value.line_no is None
++    assert store.all() == []
++
++
++# --- format detection -----------------------------------------------------
++
++
++@pytest.mark.parametrize(
++    "text, expected",
++    [
++        (NOVA, "nova"),
++        (SFERA, "sfera"),
++        ("Номер карты;ДАТА; Сумма ;Описание;Остаток\n", "sfera"),
++        ("Дата;Описание;Приход;Расход\n", "sfera_split"),
++    ],
++)
++def test_detect_format(write_csv, text, expected):
++    assert detect_format(write_csv(text)) == expected
++
++
++@pytest.mark.parametrize(
++    "text",
++    [
++        "foo,bar\n",
++        "",
++        "Дата;Сумма;Описание;Приход;Расход\n",
++        "Дата;Сумма;Сумма;Описание\n",
++        "\nДата;Сумма;Описание\n",
++    ],
++)
++def test_detect_format_unknown(write_csv, clock, text):
++    store = MemoryStore()
++    path = write_csv(text)
++    with pytest.raises(UnknownFormatError):
++        detect_format(path)
++    with pytest.raises(UnknownFormatError):
++        import_statement(path, store, clock=clock)
++    assert store.all() == []
++
++
++def test_empty_file_line_no_none(write_csv):
++    with pytest.raises(UnknownFormatError) as info:
++        import_statement(write_csv(""), MemoryStore())
++    assert info.value.line_no is None
++
++
++def test_explicit_fmt_mismatch(write_csv):
++    store = MemoryStore()
++    for bad in ("nova", "bogus"):
++        with pytest.raises(UnknownFormatError):
++            import_statement(write_csv(SFERA), store, fmt=bad, strict=False)
++    assert store.all() == []
++
++
++def test_header_only(write_csv):
++    res = import_statement(write_csv("Дата;Сумма;Описание\n"), MemoryStore())
++    assert (res.added, res.duplicates, res.errors) == (0, 0, [])
++
++
++def test_result_frozen():
++    res = ImportResult("sfera", "utf-8", 0, 0, [])
++    with pytest.raises(dataclasses.FrozenInstanceError):
++        res.added = 1  # type: ignore[misc]
++    with pytest.raises(dataclasses.FrozenInstanceError):
++        RowError(1, "x").line_no = 2  # type: ignore[misc]
++
++
++# --- junk rows and line numbers ------------------------------------------
++
++
++def test_junk_rows(write_csv, clock):
++    text = "Дата;Сумма;Описание\n01.03.2026;-1,00;a\n\n   \n;;;\n02.03.2026;-2,00;b\n;;;\n"
++    res = import_statement(write_csv(text), MemoryStore(), strict=True, clock=clock)
++    assert (res.added, res.duplicates, res.errors) == (2, 0, [])
++
++
++def test_junk_nova(write_csv, clock):
++    res = import_statement(
++        write_csv("date,amount,description\n,,\n2026-03-01,-1.00,a\n"), MemoryStore(), clock=clock
++    )
++    assert res.added == 1
++
++
++def test_line_numbers_blank_and_multiline(write_csv, clock):
++    text = (
++        "Дата;Сумма;Описание\n"
++        "\n"
++        "01.03.2026;abc;x\n"  # line 3
++        '02.03.2026;-1,00;"multi\nline"\n'  # lines 4-5
++        "03.03.2026;-1,00;\n"  # line 6
++    )
++    res = import_statement(write_csv(text), MemoryStore(), clock=clock)
++    assert res.added == 1
++    assert [e.line_no for e in res.errors] == [3, 6]
++    assert not res.errors[0].message.startswith("line")
++
++
++# --- sfera ----------------------------------------------------------------
++
++
++def test_sfera_values(write_csv, clock):
++    store = MemoryStore()
++    import_statement(write_csv(SFERA), store, clock=clock)
++    assert amounts(store) == [Decimal("-1200.50"), Decimal("85000.00"), Decimal("-150.00")]
++    assert store.all()[0].date == dt.date(2026, 3, 1)
++
++
++def test_sfera_plus_and_plain(write_csv, clock):
++    store = MemoryStore()
++    text = "Дата;Сумма;Описание\n02.03.2026;+85 000,00;З\n03.03.2026;85 000,00;З\n"
++    import_statement(write_csv(text), store, clock=clock)
++    assert amounts(store) == [Decimal("85000.00")] * 2
++
++
++@pytest.mark.parametrize(
++    "date, amount",
++    [
++        ("01.03.2026", "1 234.56"),
++        ("01.03.2026", "1,234"),
++        ("01.03.2026", "abc"),
++        ("01.03.2026", "0,00"),
++        ("01.03.2026", "12 34,00"),
++        ("2026-03-01", "-1,00"),
++        ("1.3.2026", "-1,00"),
++        ("31.02.2026", "-1,00"),
++    ],
++)
++def test_sfera_invalid(write_csv, clock, date, amount):
++    text = f"Дата;Сумма;Описание\n01.03.2026;-1,00;ok\n{date};{amount};x\n"
++    store = MemoryStore()
++    res = import_statement(write_csv(text), store, clock=clock)
++    assert res.added == 1
++    assert [e.line_no for e in res.errors] == [3]
++
++
++def test_sfera_short_row(write_csv, clock):
++    res = import_statement(write_csv("Дата;Сумма;Описание\n01.03.2026;-1,00\n"), MemoryStore())
++    assert res.errors[0].line_no == 2
++
++
++# --- sfera_split ----------------------------------------------------------
++
++
++HEAD_SPLIT = "Дата;Описание;Приход;Расход\n"
++
++
++@pytest.mark.parametrize(
++    "row, expected",
++    [
++        ("01.03.2026;Кофейня;;150,00", Decimal("-150.00")),
++        ("02.03.2026;Зарплата;85 000,00;0,00", Decimal("85000.00")),
++        ("02.03.2026;Зарплата;0,00;1 000,5", Decimal("-1000.50")),
++    ],
++)
++def test_split_ok(write_csv, clock, row, expected):
++    store = MemoryStore()
++    res = import_statement(write_csv(HEAD_SPLIT + row + "\n"), store, clock=clock)
++    assert res.format == "sfera_split" and res.errors == []
++    assert amounts(store) == [expected]
++
++
++@pytest.mark.parametrize(
++    "row",
++    [
++        "01.03.2026;x;10,00;20,00",
++        "01.03.2026;x;;",
++        "01.03.2026;x;0,00;0,00",
++        "01.03.2026;x;;-150,00",
++        "01.03.2026;x;+150,00;",
++        "01.03.2026;x;1,234;",
++    ],
++)
++def test_split_invalid(write_csv, clock, row):
++    res = import_statement(write_csv(HEAD_SPLIT + row + "\n"), MemoryStore(), clock=clock)
++    assert res.added == 0 and [e.line_no for e in res.errors] == [2]
++
++
++# --- dedup ----------------------------------------------------------------
++
++
++def test_normalize_description():
++    assert normalize_description("  Ёлка   КАФЕ ") == "елка кафе"
++
++
++def test_reimport(write_csv, clock):
++    store = MemoryStore()
++    path = write_csv(SFERA)
++    import_statement(path, store, clock=clock)
++    res = import_statement(path, store, clock=clock)
++    assert (res.added, res.duplicates) == (0, 3)
++    assert len(store.all()) == 3
++
++
++def test_same_rows_in_one_file(write_csv, clock):
++    text = "Дата;Сумма;Описание\n01.03.2026;-150,00;Кофе\n01.03.2026;-150,00;Кофе\n"
++    res = import_statement(write_csv(text), MemoryStore(), clock=clock)
++    assert (res.added, res.duplicates) == (2, 0)
++
++
++def test_dedup_counts(write_csv, clock):
++    store = MemoryStore()
++    one = "Дата;Сумма;Описание\n01.03.2026;-150,00;Кофе\n"
++    import_statement(write_csv(one, name="a.csv"), store, clock=clock)
++    three = one + "01.03.2026;-150,00;Кофе\n" * 2
++    res = import_statement(write_csv(three, name="b.csv"), store, clock=clock)
++    assert (res.added, res.duplicates) == (2, 1)
++    assert len(store.all()) == 3
++
++
++def test_dedup_normalization_keeps_stored_text(write_csv, clock):
++    store = MemoryStore()
++    import_statement(write_csv("Дата;Сумма;Описание\n01.03.2026;-1,00;Магазин Лента\n"), store)
++    text = "Дата;Сумма;Описание\n01.03.2026;-1,00;  магазин   лента \n"
++    res = import_statement(write_csv(text, name="b.csv"), store, clock=clock)
++    assert (res.added, res.duplicates) == (0, 1)
++    assert store.all()[0].description == "Магазин Лента"
++
++
++def test_overlapping_period(write_csv, clock):
++    store = MemoryStore()
++    import_statement(write_csv(SFERA, name="a.csv"), store, clock=clock)
++    more = SFERA + "04.03.2026;-10,00;Новая\n"
++    res = import_statement(write_csv(more, name="b.csv"), store, clock=clock)
++    assert (res.added, res.duplicates) == (1, 3)
++
++
++def test_errors_not_duplicates(write_csv, clock):
++    store = MemoryStore()
++    import_statement(write_csv("Дата;Сумма;Описание\n01.03.2026;-1,00;a\n"), store)
++    text = "Дата;Сумма;Описание\n01.03.2026;-1,00;a\n99.03.2026;-1,00;a\n"
++    res = import_statement(write_csv(text, name="b.csv"), store, clock=clock)
++    assert (res.added, res.duplicates, len(res.errors)) == (0, 1, 1)
++
++
++# --- store interaction ----------------------------------------------------
++
++
++class CountingStore(MemoryStore):
++    def __init__(self):
++        super().__init__()
++        self.calls = 0
++
++    def add_many(self, txs):
++        self.calls += 1
++        return super().add_many(txs)
++
++
++def test_single_add_many(write_csv, clock):
++    store = CountingStore()
++    path = write_csv(SFERA)
++    import_statement(path, store, clock=clock)
++    assert store.calls == 1
++    import_statement(path, store, clock=clock)  # nothing to add
++    assert store.calls == 1
++
++
++def test_categorizer_and_clock(write_csv, clock):
++    store = MemoryStore()
++    cat = Categorizer([Rule("кофейня", "cafe"), Rule("зарплата", "salary", kind="income")])
++    import_statement(write_csv(SFERA), store, categorizer=cat, clock=clock)
++    assert [t.category for t in store.all()] == [None, "salary", "cafe"]
++    assert all(t.imported_at == clock.now() for t in store.all())
++
++
++# --- strict ---------------------------------------------------------------
++
++
++def test_strict_atomic_json(write_csv, clock, tmp_path):
++    rows = "".join(f"0{i}.03.2026;-{i},00;x{i}\n" for i in range(1, 6))
++    text = "Дата;Сумма;Описание\n" + rows + "xx;-1,00;bad\n"
++    store = JsonFileStore(tmp_path / "db.json")
++    with pytest.raises(StatementRowError) as info:
++        import_statement(write_csv(text), store, strict=True, clock=clock)
++    assert info.value.line_no == 7
++    assert store.all() == []
++    assert not (tmp_path / "db.json").exists()
++
++
++def test_strict_duplicates_ok(write_csv, clock):
++    store = MemoryStore()
++    path = write_csv(SFERA)
++    import_statement(path, store, clock=clock)
++    res = import_statement(path, store, strict=True, clock=clock)
++    assert res.duplicates == 3
++
++
++def test_strict_unknown_format_same_in_both_modes(write_csv):
++    for strict in (True, False):
++        with pytest.raises(UnknownFormatError):
++            import_statement(write_csv("foo,bar\n"), MemoryStore(), strict=strict)
++
++
++# --- import_csv wrapper ---------------------------------------------------
++
++
++def test_import_csv_reimport_and_bom(write_csv, clock):
++    store = MemoryStore()
++    path = write_csv("﻿" + NOVA)
++    assert import_csv(path, store, clock=clock) == 2
++    assert import_csv(path, store, clock=clock) == 0
++
++
++def test_import_csv_no_partial_write(write_csv, clock):
++    store = MemoryStore()
++    text = "date,amount,description\n2026-03-01,-1.00,a\n2026-03-02,-1.00,b\n2026-03-03,abc,c\n"
++    with pytest.raises(StatementError) as info:
++        import_csv(write_csv(text), store, clock=clock)
++    assert info.value.line_no == 4
++    assert store.all() == []
++
++
++def test_import_csv_wrong_columns_line_1(write_csv):
++    with pytest.raises(UnknownFormatError) as info:
++        import_csv(write_csv("date,sum,description\n"), MemoryStore())
++    assert info.value.line_no == 1
++
++
++def test_import_csv_rejects_sfera(write_csv):
++    with pytest.raises(UnknownFormatError):
++        import_csv(write_csv(SFERA), MemoryStore())

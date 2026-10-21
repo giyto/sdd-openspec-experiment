@@ -1,0 +1,273 @@
+{
+  "trial_id": "t2_reserve__sdd_rules__r1__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "sdd_rules",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "hidden_total": 67,
+  "hidden_passed": 67,
+  "hidden_pass_rate": 1.0,
+  "req_total": 14,
+  "req_satisfied": 14,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 40,
+  "regress_passed": 40,
+  "own_tests_total": 77,
+  "own_tests_passed": 77,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "tests/test_reservations.py",
+    "warehouse/__init__.py",
+    "warehouse/errors.py",
+    "warehouse/inventory.py",
+    "warehouse/models.py",
+    "warehouse/reservations.py",
+    "warehouse/storage.py"
+  ],
+  "loc": {
+    "prod_added": 310,
+    "prod_removed": 12,
+    "test_added": 348,
+    "spec_added": 314,
+    "other_files": []
+  },
+  "new_test_funcs": 31,
+  "changed_funcs": 27,
+  "cc_mean": 2.44,
+  "cc_max": 11,
+  "funcs_cc_gt10": 1,
+  "cost_usd": 1.0705,
+  "wall_s": 350.4,
+  "num_turns": 34,
+  "output_tokens": 55969,
+  "input_tokens_total": 861141,
+  "session_rcs": [
+    0,
+    0
+  ],
+  "session_subtypes": [
+    "success",
+    "success"
+  ],
+  "hidden_by_func": {
+    "test_API_cli_scenario_still_works": [
+      true
+    ],
+    "test_API_constructor_signature_unchanged": [
+      true
+    ],
+    "test_API_issue_shortage_without_reservations": [
+      true
+    ],
+    "test_API_old_event_lines_unchanged": [
+      true
+    ],
+    "test_API_old_operations_return_values": [
+      true
+    ],
+    "test_R01_accepts_reservation_line_objects": [
+      true
+    ],
+    "test_R01_default_ttl_is_15_minutes": [
+      true
+    ],
+    "test_R01_rejects_bad_order_id_and_empty_lines": [
+      true
+    ],
+    "test_R01_rejects_bad_ttl": [
+      true,
+      true,
+      true
+    ],
+    "test_R01_reserve_returns_active_snapshot": [
+      true
+    ],
+    "test_R02_bad_quantity_reserves_nothing": [
+      true
+    ],
+    "test_R02_failed_reserve_leaves_no_order": [
+      true
+    ],
+    "test_R02_shortage_reserves_nothing": [
+      true
+    ],
+    "test_R02_unknown_sku_reserves_nothing": [
+      true
+    ],
+    "test_R03_confirm_checks_sum_of_lines": [
+      true
+    ],
+    "test_R03_duplicate_positions_fit_when_sum_fits": [
+      true
+    ],
+    "test_R03_duplicate_positions_summed_on_reserve": [
+      true
+    ],
+    "test_R03_same_sku_in_different_warehouses_is_not_merged": [
+      true
+    ],
+    "test_R04_available_is_on_hand_minus_active_reservations": [
+      true
+    ],
+    "test_R04_registered_sku_without_stock": [
+      true
+    ],
+    "test_R04_reserve_checks_available_not_on_hand": [
+      true
+    ],
+    "test_R04_unknown_sku": [
+      true
+    ],
+    "test_R05_active_until_just_before_expiry": [
+      true
+    ],
+    "test_R05_expired_exactly_at_expires_at": [
+      true
+    ],
+    "test_R05_expired_reservation_frees_stock_for_new_order": [
+      true
+    ],
+    "test_R05_expiry_writes_no_events": [
+      true
+    ],
+    "test_R05_terminal_statuses_survive_ttl": [
+      true
+    ],
+    "test_R06_confirm_just_before_expiry": [
+      true
+    ],
+    "test_R06_confirm_ships_all_lines": [
+      true
+    ],
+    "test_R06_confirm_works_when_everything_is_reserved": [
+      true
+    ],
+    "test_R06_confirmed_reservation_is_not_double_counted": [
+      true
+    ],
+    "test_R07_confirm_cancelled_rejected": [
+      true
+    ],
+    "test_R07_confirm_expired_raises_and_changes_nothing": [
+      true
+    ],
+    "test_R07_confirm_twice_ships_once": [
+      true
+    ],
+    "test_R07_confirm_unknown_order": [
+      true
+    ],
+    "test_R08_cancel_confirmed_rejected": [
+      true
+    ],
+    "test_R08_cancel_expired_is_noop": [
+      true
+    ],
+    "test_R08_cancel_is_idempotent": [
+      true
+    ],
+    "test_R08_cancel_releases_stock": [
+      true
+    ],
+    "test_R08_cancel_unknown_order": [
+      true
+    ],
+    "test_R09_extend_bad_ttl": [
+      true
+    ],
+    "test_R09_extend_confirmed_or_cancelled_rejected": [
+      true
+    ],
+    "test_R09_extend_counts_from_now": [
+      true
+    ],
+    "test_R09_extend_expired_rejected": [
+      true
+    ],
+    "test_R09_extend_never_shortens": [
+      true
+    ],
+    "test_R10_duplicate_active_rejected": [
+      true
+    ],
+    "test_R10_duplicate_confirmed_rejected": [
+      true
+    ],
+    "test_R10_reserve_again_after_cancel_replaces": [
+      true
+    ],
+    "test_R10_reserve_again_after_expiry_replaces": [
+      true
+    ],
+    "test_R11_all_lines_parse_back": [
+      true
+    ],
+    "test_R11_cancel_and_extend_events": [
+      true
+    ],
+    "test_R11_confirm_writes_issue_per_line_then_confirm": [
+      true
+    ],
+    "test_R11_failed_operations_write_nothing": [
+      true
+    ],
+    "test_R11_reserve_event_lines_exact": [
+      true
+    ],
+    "test_R12_expired_reservations_do_not_block_issue": [
+      true
+    ],
+    "test_R12_issue_cannot_take_reserved_stock": [
+      true
+    ],
+    "test_R12_reservations_elsewhere_do_not_block": [
+      true
+    ],
+    "test_R12_transfer_respects_source_reservations": [
+      true
+    ],
+    "test_R13_adjust_below_reservations_available_is_zero": [
+      true
+    ],
+    "test_R13_confirm_succeeds_after_restock": [
+      true
+    ],
+    "test_R13_confirm_with_physical_shortage_is_atomic": [
+      true
+    ],
+    "test_R13_issue_blocked_when_on_hand_below_reservations": [
+      true
+    ],
+    "test_R14_low_stock_uses_physical_quantities": [
+      true
+    ],
+    "test_R14_movement_summary_counts_confirmed_orders_as_issued": [
+      true
+    ],
+    "test_R14_on_hand_and_stock_levels_stay_physical": [
+      true
+    ]
+  },
+  "hidden_out_tail": "...................................................................      [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\38cba378bb\\project\\_hidden.xml -\n67 passed in 0.30s\n"
+}

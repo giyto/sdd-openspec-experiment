@@ -1,0 +1,58 @@
+{
+  "trial_id": "t3_import__baseline__r2__haiku__v2",
+  "task": "t3_import",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3cb10cce3c",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3cb10cce3c\\project",
+  "base_commit": "cd3d8060cf42e0e24cea6b75b1639ec774657c88",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 215.8,
+      "cost_usd": 0.04147735000000001,
+      "duration_ms": 214006,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 60591,
+        "cache_read_input_tokens": 630085,
+        "output_tokens": 46111,
+        "output_tokens_details": {
+          "thinking_tokens": 29686
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 60591,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1162,
+            "cache_read_input_tokens": 66434,
+            "cache_creation_input_tokens": 873,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 873
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Импорт «Сферы» реализован, все 84 теста проходят: 41 старый без изменений и 43 новых в `tests/test_statement_import.py`. Коммит не делал, изменения лежат в рабочей копии.\n\n**Что сделано**\n- `ledger/importer.py`: `import_statement`, `detect_format`, `normalize_description`, `RowError`, `ImportResult`. Форматы `nova`, `sfera`, `sfera_split` определяются по заголовку. Колонки ищутся без учёта регистра и пробелов по краям, лишние игнорируются.\n- Дубли считаются по количеству: для каждой пары (дата, сумма, нормализованное описание) первые min(k, n) строк файла пропускаются, где k — число уже сохранённых. Одинаковые строки внутри одного файла дублями не считаются.\n- Запись в хранилище одна, через `add_many`. В строгом режиме первая ошибка бросает `StatementRowError` до любой записи.\n- `import_csv` теперь строгая обёртка над `nova` с `strict=True` и возвращает прежний `int`.\n- `ledger/errors.py`: добавлены `UnknownFormatError` и `StatementRowError`.\n- `README.md`: описаны новые форматы и API импорта.\n- `ledger/cli.py` и `ledger/reports.py` не трогал.\n\n**Решения, которые принял сам**\n- Проблемы заголовка (`UnknownFormatError`) несут `line_no` строки заголовка (обычно 1). Без этого не проходил существующий тест `test_import_missing_column`, который ждёт `line_no == 1`. Для пустого файла `line_no` = None.\n- Заголовок, подходящий сразу под два формата, например одновременно `Сумма` и `Приход`/`Расход`, считаю нераспознанным и бросаю `UnknownFormatError`.\n- Неизвестное имя `fmt` тоже даёт `UnknownFormatError`.\n- Файл, который не декодируется ни как UTF-8, ни как cp1251, даёт обычный `StatementError` без номера строки.\n- Ведущие пустые строки до заголовка пропускаются. Номера строк при этом физические, с учётом многострочных записей в кавычках.\n- Как разделитель тысяч принимаю обычный пробел, U+00A0 и U+202F (узкий неразрывный). Последний — за пределами текста тикета.\n\n**Ограничения**\n- CLI по-прежнему умеет только «Нову», потому что `cli.py` по условию не трогаем. Импорт «Сферы» доступен через Python API.\n- Строгий `import_csv` теперь не пишет ничего при ошибке в любой строке. Раньше часть строк записывалась, это и было проблемой из тикета."
+    }
+  ]
+}

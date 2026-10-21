@@ -1,0 +1,58 @@
+{
+  "trial_id": "t4_retry__baseline__r3__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\29ee795405",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\29ee795405\\project",
+  "base_commit": "1b7af968653a1653dbd821927c962c08742d10fb",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 90.9,
+      "cost_usd": 0.27345060000000004,
+      "duration_ms": 89175,
+      "num_turns": 10,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 26992,
+        "cache_read_input_tokens": 192566,
+        "output_tokens": 14619,
+        "output_tokens_details": {
+          "thinking_tokens": 1900
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 26992,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 698,
+            "cache_read_input_tokens": 31756,
+            "cache_creation_input_tokens": 1172,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1172
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Повторы с экспоненциальной задержкой и dead-letter очередь работают. Все 46 тестов проходят: 36 старых без изменений и 10 новых в `tests/test_retry.py`. Новые тесты проверяют расчёт задержки, валидацию, цепочку «повтор → dead-letter → requeue», счётчики и подпись в отчёте. Правила про jitter и rng, наследников `non_retryable`, отсутствие обработчика и отмену задания в ожидании повтора тестами не покрыты.\n\nЯ добавил `jobq/retry.py` с `RetryPolicy`, `PermanentJobError` в `errors.py`, новые статусы и `DeadLetterEntry` в `models.py`. Метод `due()` в `store.py` теперь берёт и `RETRY_SCHEDULED`. Остальное по тикету сделано как описано. `dashboard.py` и `cli.py` не тронуты, отчёт подхватил новые подписи из `JobStatus`.\n\nЧто решил сам, где тикет не уточнял:\n- **Dead-letter и очистка:** `DEAD_LETTERED` не считается терминальным статусом, иначе `purge_finished` его бы удалил. `RETRY_SCHEDULED` тоже нерминальный.\n- **Успех после повтора:** `mark_succeeded` теперь обнуляет `error`, как требует docstring модели.\n- **Requeue:** сделал по UPD тимлида, `attempts` обнуляется. В тексте тикета до UPD было «сохраняем».\n- **Лишние проверки:** я добавил проверку типов в `RetryPolicy` и `set_retry_policy` (ошибка конфигурации `ConfigError`). Для `attempt` в `delay_for` требуется целое число, а `bool` не принимается ни там, ни в числовых полях.\n- **Чем занят requeue:** возврат работает только из `DEAD_LETTERED`. Для любого другого статуса бросается `InvalidTransitionError`.\n\nКоммит не делал."
+    }
+  ]
+}

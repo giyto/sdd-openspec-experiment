@@ -1,0 +1,102 @@
+{
+  "trial_id": "t3_import__sdd_rules__r2__sonnet__v2",
+  "task": "t3_import",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\af98aa48b2",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\af98aa48b2\\project",
+  "base_commit": "b6a28cf2080402ac5b303c63e4103022c64c3c16",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 225.2,
+      "cost_usd": 0.5717838999999999,
+      "duration_ms": 223307,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 54244,
+        "cache_read_input_tokens": 402439,
+        "output_tokens": 31452,
+        "output_tokens_details": {
+          "thinking_tokens": 6888
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54244,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1179,
+            "cache_read_input_tokens": 60006,
+            "cache_creation_input_tokens": 174,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 174
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Артефакты для `add-sfera-import` готовы, `openspec validate add-sfera-import --strict` проходит без замечаний. Код проекта я не менял. Они лежат в `openspec/changes/add-sfera-import/`:\n\n- **`proposal.md`** — зачем нужна правка и что меняется. API из тикета перенесён дословно. Новая возможность одна: `statement-import`. Поведенческое изменение вынесено отдельно: `import_csv` теперь дедуплицирует, поэтому повторный импорт возвращает 0.\n- **`specs/statement-import/spec.md`** — 13 требований со сценариями. Они покрывают:\n  - определение формата и кодировки;\n  - разбор `sfera`, `sfera_split` и `nova`;\n  - мусорные строки, нумерацию и ошибки строк;\n  - строгий режим и атомарность;\n  - дедупликацию по количеству;\n  - категоризацию и `imported_at`;\n  - обёртку `import_csv`.\n- **`design.md`** — основные решения:\n  - **Запись.** Файл целиком разбирается, потом идёт один вызов `store.add_many`. Если добавлять нечего, вызова нет, и JSON-файл не создаётся.\n  - **Нумерация строк.** Её даёт `csv.reader.line_num`.\n  - **Даты и суммы.** Они проверяются регулярками из ASCII-цифр, а не через `strptime` и `\\d`.\n  - **Дубли.** Считаются через `Counter` по снимку хранилища до импорта. `normalize_description` делегирует `rules.normalize_text`.\n- **`tasks.md`** — 5 групп задач, у каждой есть способ проверки. Последняя задача — сверка публичного API.\n\nТикет оставлял несколько развилок, их я решил сам и записал как допущения в `design.md`:\n\n1. Для `nova` оставлен прежний разбор строк, а правила заголовка (регистр, пробелы, лишние колонки, любой порядок) распространены на все три формата.\n2. Заголовок — первая непустая запись файла. Заголовок, подходящий сразу к нескольким форматам, или с повторяющейся нужной колонкой — `UnknownFormatError`.\n3. У `UnknownFormatError` `line_no` равен номеру строки заголовка. Это нужно, чтобы существующий тест `date,sum,description` с `line_no == 1` остался зелёным. Для пустого файла `line_no` равен `None`.\n4. В сумме `sfera` группы тысяч должны быть по три цифры. Допустимые разделители — пробел и U+00A0. Точка и больше двух знаков после запятой — ошибка строки.\n5. В `sfera_split` нулевая сумма, например `0,00`, в неиспользуемой колонке считается пустой. Знак в любой колонке, обе непустые и обе пустые — ошибка строки.\n6. Строка с непустыми полями сверх заголовка — ошибка строки, иначе неэкранированный `;` молча обрежет описание.\n7. Непрочитанный или недекодируемый файл даёт `StatementError` без `line_no`, чтобы CLI не падал трассировкой.\n8. Синтаксическая ошибка CSV считается ошибкой строки и останавливает дальнейший разбор.\n\nАртефакты готовы к проверке. Когда будете готовы к реализации, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 127.2,
+      "cost_usd": 0.4070829,
+      "duration_ms": 125435,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 46516,
+        "cache_read_input_tokens": 365009,
+        "output_tokens": 18447,
+        "output_tokens_details": {
+          "thinking_tokens": 2334
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 46516,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 638,
+            "cache_read_input_tokens": 51730,
+            "cache_creation_input_tokens": 722,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 722
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-sfera-import (schema: spec-driven)\n**Progress:** 14/14 tasks complete ✓\n\nПолный `pytest` проходит: 101 тест, включая прежние `tests/test_importer.py` и `tests/test_cli.py` без изменений.\n\n- **Ошибки:** в `ledger/errors.py` добавлены `UnknownFormatError` и `StatementRowError`.\n- **Импорт:** в `ledger/importer.py` добавлены `import_statement`, `detect_format`, `normalize_description`, `RowError` и `ImportResult`. Определяются три формата (`nova`, `sfera`, `sfera_split`) и две кодировки (UTF-8 с BOM, cp1251).\n- **Атомарность:** записи собираются целиком, затем идёт один вызов `add_many`. Если добавлять нечего, вызова нет, и JSON-файл не создаётся. В режиме `strict` при ошибке строки в хранилище не попадает ничего.\n- **Дубли:** считаются по количеству относительно содержимого хранилища до импорта.\n- **`import_csv`:** теперь обёртка над строгим импортом `nova`. Повторный импорт того же файла возвращает 0.\n- **Тесты и README:** новые тесты лежат в `tests/test_statement_import.py`. Строка про `importer.py` в `README.md` обновлена. `cli.py`, `reports.py` и старые тесты не менялись (проверено по `git diff --stat`).\n\nОдно решение, не прописанное в спеке: `csv.reader` создаётся с `strict=True`. Без этого незакрытая кавычка молча поглощала бы остаток файла вместо ошибки строки. Решение записано в `design.md`.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "trial_id": "t3_import__baseline__r1__haiku__v2",
+  "task": "t3_import",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "hidden_total": 61,
+  "hidden_passed": 61,
+  "hidden_pass_rate": 1.0,
+  "req_total": 14,
+  "req_satisfied": 14,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 41,
+  "regress_passed": 41,
+  "own_tests_total": 85,
+  "own_tests_passed": 85,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "README.md",
+    "ledger/errors.py",
+    "ledger/importer.py",
+    "tests/test_statements.py"
+  ],
+  "loc": {
+    "prod_added": 308,
+    "prod_removed": 49,
+    "test_added": 257,
+    "spec_added": 0,
+    "other_files": [
+      "README.md"
+    ]
+  },
+  "new_test_funcs": 24,
+  "changed_funcs": 19,
+  "cc_mean": 3.53,
+  "cc_max": 14,
+  "funcs_cc_gt10": 1,
+  "cost_usd": 0.0423,
+  "wall_s": 205.1,
+  "num_turns": 19,
+  "output_tokens": 44101,
+  "input_tokens_total": 868065,
+  "session_rcs": [
+    0
+  ],
+  "session_subtypes": [
+    "success"
+  ],
+  "hidden_out_tail": ".............................................................            [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ea57f7cd45\\project\\_hidden.xml -\n61 passed in 0.63s\n"
+}

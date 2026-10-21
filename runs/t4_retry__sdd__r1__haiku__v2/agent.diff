@@ -1,0 +1,1150 @@
+diff --git a/README.md b/README.md
+index f81af79..ecedeb6 100644
+--- a/README.md
++++ b/README.md
+@@ -12,6 +12,7 @@
+ | `jobq/queue.py`     | `JobQueue`: постановка, выборка готовых, переходы статусов         |
+ | `jobq/worker.py`    | `Worker`: синхронное выполнение готовых заданий                    |
+ | `jobq/registry.py`  | `HandlerRegistry`: обработчики по типу задания                     |
++| `jobq/retry.py`     | `RetryPolicy`: политика повторов                                   |
+ | `jobq/store.py`     | `InMemoryJobStore`: хранилище в памяти                             |
+ | `jobq/metrics.py`   | `Metrics`: счётчики `jobs.*`                                       |
+ | `jobq/clock.py`     | `Clock`, `SystemClock`, `ManualClock`                              |
+diff --git a/jobq/__init__.py b/jobq/__init__.py
+index b87f9f0..67e47ae 100644
+--- a/jobq/__init__.py
++++ b/jobq/__init__.py
+@@ -8,18 +8,21 @@ from .errors import (
+     InvalidTransitionError,
+     JobNotFoundError,
+     JobqError,
++    PermanentJobError,
+     UnknownJobTypeError,
+ )
+ from .metrics import Metrics
+-from .models import Job, JobStatus
++from .models import DeadLetterEntry, Job, JobStatus
+ from .queue import JobQueue
+ from .registry import HandlerRegistry
++from .retry import RetryPolicy
+ from .store import InMemoryJobStore
+ from .worker import Worker
+ 
+ __all__ = [
+     "Clock",
+     "ConfigError",
++    "DeadLetterEntry",
+     "DuplicateHandlerError",
+     "HandlerRegistry",
+     "InMemoryJobStore",
+@@ -32,6 +35,8 @@ __all__ = [
+     "JobqError",
+     "ManualClock",
+     "Metrics",
++    "PermanentJobError",
++    "RetryPolicy",
+     "SystemClock",
+     "UnknownJobTypeError",
+     "Worker",
+diff --git a/jobq/errors.py b/jobq/errors.py
+index 67d9c67..dd32e38 100644
+--- a/jobq/errors.py
++++ b/jobq/errors.py
+@@ -36,6 +36,10 @@ class UnknownJobTypeError(JobqError):
+         self.job_type = job_type
+ 
+ 
++class PermanentJobError(JobqError):
++    """Обработчик сообщает, что повтор задания заведомо не поможет."""
++
++
+ class DuplicateHandlerError(JobqError):
+     """Попытка повторно зарегистрировать обработчик для того же типа."""
+ 
+diff --git a/jobq/metrics.py b/jobq/metrics.py
+index 3b66fd0..f975023 100644
+--- a/jobq/metrics.py
++++ b/jobq/metrics.py
+@@ -6,6 +6,9 @@
+ ``jobs.succeeded``, ``jobs.failed``, ``jobs.cancelled`` — переходы в SUCCEEDED, FAILED,
+ CANCELLED. ``jobs.started`` — каждый запуск обработчика, ``jobs.enqueued`` — постановка
+ нового задания, ``jobs.purged`` — удаление заданий из хранилища.
++
++``jobs.retried`` — переход в RETRY_SCHEDULED, ``jobs.dead_lettered`` — переход в DEAD_LETTERED,
++``jobs.requeued`` — возврат задания из dead-letter в работу.
+ """
+ 
+ from __future__ import annotations
+@@ -20,6 +23,9 @@ JOBS_SUCCEEDED = "jobs.succeeded"
+ JOBS_FAILED = "jobs.failed"
+ JOBS_CANCELLED = "jobs.cancelled"
+ JOBS_PURGED = "jobs.purged"
++JOBS_RETRIED = "jobs.retried"
++JOBS_DEAD_LETTERED = "jobs.dead_lettered"
++JOBS_REQUEUED = "jobs.requeued"
+ 
+ 
+ class Metrics:
+diff --git a/jobq/models.py b/jobq/models.py
+index 9fbf6d0..7a816d5 100644
+--- a/jobq/models.py
++++ b/jobq/models.py
+@@ -9,13 +9,18 @@ from typing import Any
+ 
+ 
+ class JobStatus(str, Enum):
+-    """Статус задания. Значение (``.value``) используется как ключ в отчётах и stats()."""
++    """Статус задания. Значение (``.value``) используется как ключ в отчётах и stats().
++
++    Новые статусы добавляются в конец: порядок перечисления задаёт порядок строк в отчёте.
++    """
+ 
+     PENDING = "pending"
+     RUNNING = "running"
+     SUCCEEDED = "succeeded"
+     FAILED = "failed"
+     CANCELLED = "cancelled"
++    RETRY_SCHEDULED = "retry_scheduled"
++    DEAD_LETTERED = "dead_lettered"
+ 
+     @property
+     def label(self) -> str:
+@@ -34,10 +39,12 @@ _LABELS: dict[JobStatus, str] = {
+     JobStatus.SUCCEEDED: "Выполнено",
+     JobStatus.FAILED: "Ошибка",
+     JobStatus.CANCELLED: "Отменено",
++    JobStatus.RETRY_SCHEDULED: "Ожидает повтора",
++    JobStatus.DEAD_LETTERED: "В dead-letter",
+ }
+ 
+ _TERMINAL: frozenset[JobStatus] = frozenset(
+-    {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED}
++    {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.DEAD_LETTERED}
+ )
+ 
+ 
+@@ -68,3 +75,14 @@ class Job:
+     @property
+     def is_terminal(self) -> bool:
+         return self.status.is_terminal
++
++
++@dataclass(frozen=True)
++class DeadLetterEntry:
++    """Запись dead-letter: задание, которое исчерпало все попытки повтора."""
++
++    job_id: str
++    job_type: str
++    attempts: int
++    error: str
++    dead_lettered_at: datetime
+diff --git a/jobq/queue.py b/jobq/queue.py
+index 79153a4..6e8b42a 100644
+--- a/jobq/queue.py
++++ b/jobq/queue.py
+@@ -14,16 +14,22 @@ from typing import Any
+ 
+ from . import metrics as m
+ from .clock import Clock, SystemClock
+-from .errors import InvalidJobError, InvalidTransitionError
++from .errors import ConfigError, InvalidJobError, InvalidTransitionError
+ from .metrics import Metrics
+-from .models import Job, JobStatus
++from .models import DeadLetterEntry, Job, JobStatus
++from .retry import RetryPolicy
+ from .store import InMemoryJobStore
+ 
+ logger = logging.getLogger(__name__)
+ 
+ _TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
+     JobStatus.PENDING: frozenset({JobStatus.RUNNING, JobStatus.CANCELLED}),
+-    JobStatus.RUNNING: frozenset({JobStatus.SUCCEEDED, JobStatus.FAILED}),
++    JobStatus.RUNNING: frozenset(
++        {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.RETRY_SCHEDULED, JobStatus.DEAD_LETTERED}
++    ),
++    JobStatus.RETRY_SCHEDULED: frozenset({JobStatus.RUNNING, JobStatus.CANCELLED}),
++    # CANCELLED намеренно отсутствует: выход из dead-letter только через requeue_dead_letter.
++    JobStatus.DEAD_LETTERED: frozenset({JobStatus.PENDING}),
+ }
+ 
+ 
+@@ -33,6 +39,8 @@ class JobQueue:
+     :param store: хранилище; по умолчанию — новое :class:`InMemoryJobStore`.
+     :param clock: источник времени; по умолчанию — :class:`SystemClock`.
+     :param metrics: счётчики; по умолчанию — новый :class:`Metrics`.
++    :param default_retry_policy: политика повторов для всей очереди; без неё падение
++        задания сразу переводит его в FAILED.
+     """
+ 
+     def __init__(
+@@ -41,11 +49,17 @@ class JobQueue:
+         *,
+         clock: Clock | None = None,
+         metrics: Metrics | None = None,
++        default_retry_policy: RetryPolicy | None = None,
+     ) -> None:
++        if default_retry_policy is not None and not isinstance(default_retry_policy, RetryPolicy):
++            raise ConfigError("default_retry_policy must be a RetryPolicy or None")
+         self._store = store if store is not None else InMemoryJobStore()
+         self._clock = clock if clock is not None else SystemClock()
+         self._metrics = metrics if metrics is not None else Metrics()
+         self._seq = itertools.count(len(self._store) + 1)
++        self._default_retry_policy = default_retry_policy
++        self._type_retry_policies: dict[str, RetryPolicy] = {}
++        self._dead_letters: dict[str, DeadLetterEntry] = {}
+ 
+     # -- свойства -----------------------------------------------------------
+ 
+@@ -121,6 +135,48 @@ class JobQueue:
+         """Количество заданий по статусам: ``{status.value: count}`` для всех статусов."""
+         return {status.value: count for status, count in self._store.count_by_status().items()}
+ 
++    # -- политики повторов --------------------------------------------------
++
++    def set_retry_policy(self, job_type: str, policy: RetryPolicy | None) -> None:
++        """Задать политику повторов для типа задания; ``None`` снимает политику типа.
++
++        Политика типа полностью заменяет политику по умолчанию, поля не сливаются.
++        """
++        if not job_type:
++            raise ConfigError("job_type must be a non-empty string")
++        if policy is None:
++            self._type_retry_policies.pop(job_type, None)
++            return
++        if not isinstance(policy, RetryPolicy):
++            raise ConfigError("retry policy must be a RetryPolicy or None")
++        self._type_retry_policies[job_type] = policy
++
++    def retry_policy_for(self, job_type: str) -> RetryPolicy | None:
++        """Действующая политика повторов: политика типа, иначе по умолчанию, иначе ``None``."""
++        return self._type_retry_policies.get(job_type, self._default_retry_policy)
++
++    # -- dead-letter --------------------------------------------------------
++
++    def dead_letters(self) -> list[DeadLetterEntry]:
++        """Записи dead-letter от самой старой к самой новой."""
++        return list(self._dead_letters.values())
++
++    def requeue_dead_letter(self, job_id: str) -> Job:
++        """Вернуть задание из dead-letter в очередь: то же задание, попытки начинаются заново."""
++        job = self._store.get(job_id)
++        if job_id not in self._dead_letters:
++            raise InvalidTransitionError(job.id, job.status.value, JobStatus.PENDING.value)
++        self._transition(job, JobStatus.PENDING)
++        del self._dead_letters[job_id]
++
++        logger.info("requeued %s from dead-letter after %d attempts", job.id, job.attempts)
++        job.run_at = self._clock.now()
++        job.error = None
++        job.finished_at = None
++        job.attempts = 0
++        self._metrics.incr(m.JOBS_REQUEUED)
++        return job
++
+     # -- управление ---------------------------------------------------------
+ 
+     def cancel(self, job_id: str) -> Job:
+@@ -132,11 +188,19 @@ class JobQueue:
+         return job
+ 
+     def purge_finished(self, older_than: float = 0.0) -> int:
+-        """Удалить завершённые задания, закончившиеся не позже ``now - older_than`` секунд."""
++        """Удалить завершённые задания, закончившиеся не позже ``now - older_than`` секунд.
++
++        Задания в dead-letter не удаляются: они ждут ``requeue_dead_letter``.
++        """
+         cutoff = self._clock.now() - timedelta(seconds=older_than)
+         removed = 0
+         for job in self._store.all():
+-            if job.is_terminal and job.finished_at is not None and job.finished_at <= cutoff:
++            if (
++                job.is_terminal
++                and job.status is not JobStatus.DEAD_LETTERED
++                and job.finished_at is not None
++                and job.finished_at <= cutoff
++            ):
+                 self._store.remove(job.id)
+                 removed += 1
+         if removed:
+@@ -158,6 +222,7 @@ class JobQueue:
+         job = self._store.get(job_id)
+         self._transition(job, JobStatus.SUCCEEDED)
+         job.result = result
++        job.error = None
+         job.finished_at = self._clock.now()
+         self._metrics.incr(m.JOBS_SUCCEEDED)
+         return job
+@@ -170,6 +235,31 @@ class JobQueue:
+         self._metrics.incr(m.JOBS_FAILED)
+         return job
+ 
++    def mark_retry_scheduled(self, job_id: str, error: str, delay: float) -> Job:
++        """Запланировать повтор: задание снова станет готовым через ``delay`` секунд."""
++        job = self._store.get(job_id)
++        self._transition(job, JobStatus.RETRY_SCHEDULED)
++        job.error = error
++        job.run_at = self._clock.now() + timedelta(seconds=delay)
++        self._metrics.incr(m.JOBS_RETRIED)
++        return job
++
++    def mark_dead_lettered(self, job_id: str, error: str) -> Job:
++        """Исчерпав попытки, перевести задание в dead-letter."""
++        job = self._store.get(job_id)
++        self._transition(job, JobStatus.DEAD_LETTERED)
++        job.error = error
++        job.finished_at = self._clock.now()
++        self._dead_letters[job.id] = DeadLetterEntry(
++            job_id=job.id,
++            job_type=job.job_type,
++            attempts=job.attempts,
++            error=error,
++            dead_lettered_at=job.finished_at,
++        )
++        self._metrics.incr(m.JOBS_DEAD_LETTERED)
++        return job
++
+     # -- внутреннее ---------------------------------------------------------
+ 
+     def _transition(self, job: Job, target: JobStatus) -> None:
+diff --git a/jobq/retry.py b/jobq/retry.py
+new file mode 100644
+index 0000000..d1e1ddc
+--- /dev/null
++++ b/jobq/retry.py
+@@ -0,0 +1,106 @@
++"""Политика повторов: сколько попыток сделать, сколько ждать перед каждой и какие ошибки не повторять.
++
++Номер попытки нумеруется с 1. Задержка перед попыткой после падения попытки ``n``
++равна ``base_delay * factor ** (n - 1)``, но не больше ``max_delay``.
++"""
++
++from __future__ import annotations
++
++import math
++import random
++from dataclasses import dataclass
++from typing import Any
++
++from .errors import ConfigError, PermanentJobError
++
++
++@dataclass(frozen=True)
++class RetryPolicy:
++    """Правила повторов упавшего задания.
++
++    :param max_attempts: всего попыток, включая первую.
++    :param base_delay: задержка перед первым повтором, секунды.
++    :param factor: множитель задержки на каждой следующей попытке.
++    :param max_delay: верхний предел задержки; джиттер его не пробивает.
++    :param jitter: доля случайного разброса от ``0`` до ``1``; ``0`` — без разброса.
++    :param non_retryable: классы исключений, после которых задание не повторяется.
++    """
++
++    max_attempts: int = 3
++    base_delay: float = 1.0
++    factor: float = 2.0
++    max_delay: float = 60.0
++    jitter: float = 0.0
++    non_retryable: tuple[type[BaseException], ...] = ()
++
++    def __post_init__(self) -> None:
++        if isinstance(self.max_attempts, bool) or not isinstance(self.max_attempts, int):
++            raise ConfigError("max_attempts must be an int")
++        if self.max_attempts < 1:
++            raise ConfigError("max_attempts must be >= 1")
++
++        for name in ("base_delay", "factor", "max_delay", "jitter"):
++            _require_finite_number(name, getattr(self, name))
++
++        if self.base_delay < 0:
++            raise ConfigError("base_delay must be >= 0")
++        if self.factor < 1:
++            raise ConfigError("factor must be >= 1")
++        if self.max_delay < self.base_delay:
++            raise ConfigError("max_delay must be >= base_delay")
++        if not 0 <= self.jitter <= 1:
++            raise ConfigError("jitter must be within [0, 1]")
++
++        try:
++            classes = tuple(self.non_retryable)
++        except TypeError:
++            raise ConfigError("non_retryable must be an iterable of exception classes") from None
++        for item in classes:
++            if not (isinstance(item, type) and issubclass(item, BaseException)):
++                raise ConfigError(f"non_retryable item {item!r} is not an exception class")
++        # dataclass заморожен, поэтому приведение к кортежу делаем через object.__setattr__
++        object.__setattr__(self, "non_retryable", classes)
++
++    def delay_for(self, attempt: int, rng: random.Random | None = None) -> float:
++        """Задержка перед следующей попыткой после падения попытки ``attempt``.
++
++        ``rng`` нужен только при ``jitter > 0``; ``None`` означает модуль :mod:`random`.
++        Результат всегда лежит в ``[0, max_delay]``.
++        """
++        if attempt < 1:
++            raise ConfigError(f"attempt must be >= 1, got {attempt}")
++        if self.base_delay == 0:
++            return 0.0
++
++        delay = self._capped_growth(attempt)
++        if self.jitter > 0:
++            generator: Any = rng if rng is not None else random
++            delay = min(delay * generator.uniform(1 - self.jitter, 1 + self.jitter), self.max_delay)
++        return delay
++
++    def is_retryable(self, exc: BaseException) -> bool:
++        """Можно ли повторить задание после ошибки ``exc``."""
++        if isinstance(exc, PermanentJobError):
++            return False
++        return not isinstance(exc, self.non_retryable)
++
++    def _capped_growth(self, attempt: int) -> float:
++        """``base_delay * factor ** (attempt - 1)``, ограниченное ``max_delay``, без переполнения."""
++        if self.factor == 1:
++            return self.base_delay
++        try:
++            raw = self.base_delay * self.factor ** (attempt - 1)
++        except OverflowError:
++            # Сравниваем в логарифмах: exp() от такого значения сам бы переполнился.
++            log_raw = math.log(self.base_delay) + (attempt - 1) * math.log(self.factor)
++            if log_raw >= math.log(self.max_delay):
++                return self.max_delay
++            return math.exp(log_raw)
++        return min(raw, self.max_delay)
++
++
++def _require_finite_number(name: str, value: object) -> None:
++    if isinstance(value, bool) or not isinstance(value, (int, float)):
++        raise ConfigError(f"{name} must be a number")
++    if not math.isfinite(value):
++        raise ConfigError(f"{name} must be finite")
+diff --git a/jobq/store.py b/jobq/store.py
+index 9fb49cb..c8ce62e 100644
+--- a/jobq/store.py
++++ b/jobq/store.py
+@@ -10,6 +10,8 @@ from .models import Job, JobStatus
+ 
+ logger = logging.getLogger(__name__)
+ 
++_READY = frozenset({JobStatus.PENDING, JobStatus.RETRY_SCHEDULED})
++
+ 
+ class InMemoryJobStore:
+     """Хранит задания в словаре; порядок вставки сохраняется."""
+@@ -47,14 +49,14 @@ class InMemoryJobStore:
+         return [job for job in self._jobs.values() if job.status is status]
+ 
+     def due(self, now: datetime) -> list[Job]:
+-        """Задания, готовые к запуску: PENDING с ``run_at <= now``.
++        """Задания, готовые к запуску: PENDING или RETRY_SCHEDULED с ``run_at <= now``.
+ 
+         Отсортированы по ``run_at``, при равенстве — по порядку постановки (``seq``).
+         """
+         ready = [
+             job
+             for job in self._jobs.values()
+-            if job.status is JobStatus.PENDING and job.run_at <= now
++            if job.status in _READY and job.run_at <= now
+         ]
+         ready.sort(key=lambda job: (job.run_at, job.seq))
+         return ready
+diff --git a/jobq/worker.py b/jobq/worker.py
+index fcce638..88f9b12 100644
+--- a/jobq/worker.py
++++ b/jobq/worker.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import logging
++import random
+ 
+ from .errors import UnknownJobTypeError
+ from .models import Job
+@@ -21,12 +22,21 @@ class Worker:
+     """Выполняет задания из очереди по одному, в текущем потоке.
+ 
+     Время берётся из часов очереди, счётчики — из её метрик.
++    ``rng`` нужен только для джиттера задержки повтора; ``None`` — модуль :mod:`random`.
+     """
+ 
+-    def __init__(self, queue: JobQueue, registry: HandlerRegistry, *, name: str = "worker") -> None:
++    def __init__(
++        self,
++        queue: JobQueue,
++        registry: HandlerRegistry,
++        *,
++        name: str = "worker",
++        rng: random.Random | None = None,
++    ) -> None:
+         self._queue = queue
+         self._registry = registry
+         self.name = name
++        self._rng = rng
+         self.processed = 0
+ 
+     @property
+@@ -53,11 +63,25 @@ class Worker:
+             result = handler(job)
+         except Exception as exc:  # обработчик может бросить что угодно
+             logger.warning("%s: job %s failed: %s", self.name, job.id, exc)
+-            return self._queue.mark_failed(job.id, format_error(exc))
++            return self._handle_failure(job, exc)
+ 
+         logger.info("%s: job %s succeeded", self.name, job.id)
+         return self._queue.mark_succeeded(job.id, result)
+ 
++    def _handle_failure(self, job: Job, exc: Exception) -> Job:
++        """Выбрать статус упавшего задания: FAILED, DEAD_LETTERED или RETRY_SCHEDULED."""
++        error = format_error(exc)
++        policy = self._queue.retry_policy_for(job.job_type)
++        if policy is None or not policy.is_retryable(exc):
++            return self._queue.mark_failed(job.id, error)
++        if job.attempts >= policy.max_attempts:
++            logger.warning("%s: job %s exhausted %d attempts", self.name, job.id, job.attempts)
++            return self._queue.mark_dead_lettered(job.id, error)
++
++        delay = policy.delay_for(job.attempts, self._rng)
++        logger.info("%s: job %s retry in %.2fs", self.name, job.id, delay)
++        return self._queue.mark_retry_scheduled(job.id, error, delay)
++
+     def run_pending(self, max_jobs: int | None = None) -> int:
+         """Выполнять готовые задания, пока они есть (или пока не выполнено ``max_jobs``).
+ 
+diff --git a/tests/test_dead_letter.py b/tests/test_dead_letter.py
+new file mode 100644
+index 0000000..9fa37e5
+--- /dev/null
++++ b/tests/test_dead_letter.py
+@@ -0,0 +1,255 @@
++from datetime import timedelta
++
++import pytest
++
++from jobq import (
++    ConfigError,
++    HandlerRegistry,
++    InvalidTransitionError,
++    JobNotFoundError,
++    JobQueue,
++    JobStatus,
++    ManualClock,
++    RetryPolicy,
++    Worker,
++)
++
++from .conftest import START
++
++
++def _policy(**overrides) -> RetryPolicy:
++    params = {"max_attempts": 2, "base_delay": 1.0, "factor": 2.0, "max_delay": 60.0}
++    params.update(overrides)
++    return RetryPolicy(**params)
++
++
++def _dead_letter_one(queue, registry, worker, clock, job_type="flaky"):
++    """Довести задание до DEAD_LETTERED: все попытки падают с ConnectionError."""
++
++    def down(job):
++        raise ConnectionError("503")
++
++    registry.register(job_type, down)
++    job = queue.enqueue(job_type)
++    worker.run_once()
++    clock.advance(60)
++    worker.run_once()
++    assert job.status is JobStatus.DEAD_LETTERED
++    return job
++
++
++@pytest.fixture
++def retry_queue(clock):
++    return JobQueue(clock=clock, default_retry_policy=_policy())
++
++
++@pytest.fixture
++def retry_worker(retry_queue, registry):
++    return Worker(retry_queue, registry)
++
++
++# -- разрешение политик ----------------------------------------------------
++
++
++def test_queue_rejects_non_policy_default(clock):
++    with pytest.raises(ConfigError):
++        JobQueue(clock=clock, default_retry_policy="3")
++
++
++def test_no_policy_by_default(queue):
++    assert queue.retry_policy_for("anything") is None
++
++
++def test_default_policy_applies_to_all_types(clock):
++    policy = _policy()
++    queue = JobQueue(clock=clock, default_retry_policy=policy)
++    assert queue.retry_policy_for("a") is policy
++    assert queue.retry_policy_for("b") is policy
++
++
++def test_type_policy_replaces_default_without_merging(clock):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy(non_retryable=(ValueError,)))
++    typed = RetryPolicy()
++    queue.set_retry_policy("email", typed)
++    assert queue.retry_policy_for("email") is typed
++    assert queue.retry_policy_for("email").non_retryable == ()
++    assert queue.retry_policy_for("other").non_retryable == (ValueError,)
++
++
++def test_clearing_type_policy_falls_back_to_default(clock):
++    default = _policy()
++    queue = JobQueue(clock=clock, default_retry_policy=default)
++    queue.set_retry_policy("email", RetryPolicy(max_attempts=5))
++    queue.set_retry_policy("email", None)
++    assert queue.retry_policy_for("email") is default
++
++
++def test_clearing_type_policy_without_default_gives_none(queue):
++    queue.set_retry_policy("email", RetryPolicy())
++    queue.set_retry_policy("email", None)
++    assert queue.retry_policy_for("email") is None
++
++
++def test_set_retry_policy_rejects_non_policy(queue):
++    with pytest.raises(ConfigError):
++        queue.set_retry_policy("email", "3")
++
++
++# -- dead-letter записи ----------------------------------------------------
++
++
++def test_exhausted_job_goes_to_dead_letter(retry_queue, registry, retry_worker, clock):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++
++    assert job.error == "ConnectionError: 503"
++    assert job.finished_at == clock.now()
++    entries = retry_queue.dead_letters()
++    assert len(entries) == 1
++    entry = entries[0]
++    assert entry.job_id == job.id
++    assert entry.job_type == "flaky"
++    assert entry.attempts == 2
++    assert entry.error == "ConnectionError: 503"
++    assert entry.dead_lettered_at == clock.now()
++    assert retry_queue.metrics.get("jobs.dead_lettered") == 1
++
++
++def test_dead_letters_keep_entry_order(retry_queue, registry, retry_worker, clock):
++    first = _dead_letter_one(retry_queue, registry, retry_worker, clock, job_type="first")
++    second = _dead_letter_one(retry_queue, registry, retry_worker, clock, job_type="second")
++
++    assert [entry.job_id for entry in retry_queue.dead_letters()] == [first.id, second.id]
++
++
++def test_non_retryable_failure_is_not_dead_lettered(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy(non_retryable=(ValueError,)))
++    worker = Worker(queue, registry)
++
++    def reject(job):
++        raise ValueError("bad input")
++
++    registry.register("strict", reject)
++    job = queue.enqueue("strict")
++    worker.run_once()
++
++    assert job.status is JobStatus.FAILED
++    assert queue.dead_letters() == []
++
++
++# -- requeue_dead_letter ---------------------------------------------------
++
++
++def test_requeue_returns_same_job_reset(retry_queue, registry, retry_worker, clock):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    clock.advance(30)
++    now = clock.now()
++
++    returned = retry_queue.requeue_dead_letter(job.id)
++
++    assert returned is job
++    assert job.status is JobStatus.PENDING
++    assert job.run_at == now
++    assert job.error is None
++    assert job.finished_at is None
++    assert job.attempts == 0
++    assert retry_queue.dead_letters() == []
++    assert retry_queue.metrics.get("jobs.requeued") == 1
++
++
++def test_requeue_does_not_create_new_job(retry_queue, registry, retry_worker, clock):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    count = len(retry_queue.store)
++    retry_queue.requeue_dead_letter(job.id)
++    assert len(retry_queue.store) == count
++
++
++def test_requeue_logs_previous_attempts(retry_queue, registry, retry_worker, clock, caplog):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    with caplog.at_level("INFO", logger="jobq.queue"):
++        retry_queue.requeue_dead_letter(job.id)
++    assert any("2 attempts" in record.getMessage() for record in caplog.records)
++
++
++def test_requeue_missing_job_raises(retry_queue):
++    with pytest.raises(JobNotFoundError):
++        retry_queue.requeue_dead_letter("job-999999")
++
++
++def test_requeue_job_not_in_dead_letter_raises(queue):
++    job = queue.enqueue("echo")
++    with pytest.raises(InvalidTransitionError):
++        queue.requeue_dead_letter(job.id)
++    assert job.status is JobStatus.PENDING
++
++
++def test_requeued_job_gets_retry_policy_again(retry_queue, registry, retry_worker, clock):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    retry_queue.requeue_dead_letter(job.id)
++
++    retry_worker.run_once()
++
++    assert job.status is JobStatus.RETRY_SCHEDULED
++    assert job.attempts == 1
++
++
++# -- purge и cancel --------------------------------------------------------
++
++
++def test_purge_keeps_dead_letters(retry_queue, registry, retry_worker, clock):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    clock.advance(10)
++
++    assert retry_queue.purge_finished(older_than=0) == 0
++    assert retry_queue.dead_letters()[0].job_id == job.id
++    assert retry_queue.get(job.id) is job
++
++
++def test_cancel_is_forbidden_for_dead_letter(retry_queue, registry, retry_worker, clock):
++    job = _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    with pytest.raises(InvalidTransitionError):
++        retry_queue.cancel(job.id)
++    assert job.status is JobStatus.DEAD_LETTERED
++
++
++def test_cancel_works_from_retry_scheduled(retry_queue, registry, retry_worker, clock):
++    def flaky(job):
++        raise TimeoutError("slow")
++
++    registry.register("slow", flaky)
++    job = retry_queue.enqueue("slow")
++    retry_worker.run_once()
++    assert job.status is JobStatus.RETRY_SCHEDULED
++
++    retry_queue.cancel(job.id)
++
++    assert job.status is JobStatus.CANCELLED
++    assert job.finished_at == clock.now()
++    assert retry_queue.metrics.get("jobs.cancelled") == 1
++
++
++# -- статусы ---------------------------------------------------------------
++
++
++def test_status_labels_and_terminal_flags():
++    assert JobStatus.RETRY_SCHEDULED.label == "Ожидает повтора"
++    assert JobStatus.DEAD_LETTERED.label == "В dead-letter"
++    assert JobStatus.RETRY_SCHEDULED.is_terminal is False
++    assert JobStatus.DEAD_LETTERED.is_terminal is True
++
++
++def test_status_values():
++    assert JobStatus.RETRY_SCHEDULED.value == "retry_scheduled"
++    assert JobStatus.DEAD_LETTERED.value == "dead_lettered"
++
++
++def test_new_statuses_appended_after_existing_ones():
++    names = [status.value for status in JobStatus]
++    assert names[:5] == ["pending", "running", "succeeded", "failed", "cancelled"]
++    assert names[5:] == ["retry_scheduled", "dead_lettered"]
++
++
++def test_stats_include_new_statuses(retry_queue, registry, retry_worker, clock):
++    _dead_letter_one(retry_queue, registry, retry_worker, clock)
++    stats = retry_queue.stats()
++    assert stats["dead_lettered"] == 1
++    assert stats["retry_scheduled"] == 0
+diff --git a/tests/test_retry.py b/tests/test_retry.py
+new file mode 100644
+index 0000000..73bdfb3
+--- /dev/null
++++ b/tests/test_retry.py
+@@ -0,0 +1,167 @@
++import math
++import random
++
++import pytest
++
++from jobq import ConfigError, PermanentJobError, RetryPolicy
++
++
++class _RecordingRng:
++    """Стаб генератора: возвращает заданное значение из ``uniform`` и запоминает вызовы."""
++
++    def __init__(self, value: float) -> None:
++        self.value = value
++        self.calls: list[tuple[float, float]] = []
++
++    def uniform(self, low: float, high: float) -> float:
++        self.calls.append((low, high))
++        return self.value
++
++
++class _NeverCalledRng:
++    def uniform(self, low: float, high: float) -> float:
++        raise AssertionError("rng must not be used when jitter == 0")
++
++
++def test_defaults():
++    policy = RetryPolicy()
++    assert policy.max_attempts == 3
++    assert policy.base_delay == 1.0
++    assert policy.factor == 2.0
++    assert policy.max_delay == 60.0
++    assert policy.jitter == 0.0
++    assert policy.non_retryable == ()
++
++
++def test_non_retryable_list_is_stored_as_tuple():
++    policy = RetryPolicy(non_retryable=[ValueError])
++    assert policy.non_retryable == (ValueError,)
++
++
++@pytest.mark.parametrize(
++    "kwargs",
++    [
++        {"max_attempts": 0},
++        {"max_attempts": 2.0},
++        {"max_attempts": True},
++        {"base_delay": -0.1},
++        {"factor": 0.5},
++        {"max_delay": 0.5, "base_delay": 1.0},
++        {"jitter": -0.1},
++        {"jitter": 1.5},
++        {"base_delay": "1"},
++        {"factor": None},
++        {"max_delay": True},
++        {"base_delay": math.nan},
++        {"factor": math.inf},
++        {"max_delay": -math.inf},
++        {"jitter": math.nan},
++        {"non_retryable": ("timeout",)},
++        {"non_retryable": (ValueError, 3)},
++        {"non_retryable": 42},
++    ],
++)
++def test_invalid_parameters_are_rejected(kwargs):
++    with pytest.raises(ConfigError):
++        RetryPolicy(**kwargs)
++
++
++def test_policy_is_frozen():
++    policy = RetryPolicy()
++    with pytest.raises(AttributeError):
++        policy.max_attempts = 5  # type: ignore[misc]
++
++
++def test_delay_grows_exponentially():
++    policy = RetryPolicy(base_delay=1.0, factor=2.0, max_delay=60.0)
++    assert policy.delay_for(1) == 1.0
++    assert policy.delay_for(2) == 2.0
++    assert policy.delay_for(3) == 4.0
++
++
++def test_delay_is_capped_by_max_delay():
++    policy = RetryPolicy(base_delay=1.0, factor=2.0, max_delay=60.0)
++    assert policy.delay_for(10) == 60.0
++
++
++def test_huge_attempt_does_not_overflow():
++    policy = RetryPolicy(base_delay=1.0, factor=2.0, max_delay=60.0)
++    assert policy.delay_for(5000) == 60.0
++
++
++def test_huge_attempt_with_factor_close_to_one_does_not_overflow():
++    policy = RetryPolicy(base_delay=1.0, factor=1.0000001, max_delay=60.0)
++    assert policy.delay_for(10**12) == 60.0
++
++
++def test_overflow_branch_matches_direct_formula_when_below_cap():
++    # factor ** 400 не помещается в float, но base_delay * factor ** 400 = 1e100 < max_delay
++    policy = RetryPolicy(base_delay=1e-300, factor=10.0, max_delay=1e300)
++    assert policy.delay_for(401) == pytest.approx(1e100, rel=1e-9)
++
++
++def test_zero_base_delay_returns_zero_without_computation():
++    policy = RetryPolicy(base_delay=0.0, factor=2.0, max_delay=60.0)
++    assert policy.delay_for(100) == 0.0
++
++
++def test_factor_one_keeps_base_delay():
++    policy = RetryPolicy(base_delay=5.0, factor=1.0, max_delay=60.0)
++    assert policy.delay_for(1) == 5.0
++    assert policy.delay_for(10**6) == 5.0
++
++
++def test_jitter_scales_capped_delay():
++    policy = RetryPolicy(base_delay=2.0, factor=2.0, max_delay=60.0, jitter=0.5)
++    rng = _RecordingRng(1.5)
++    assert policy.delay_for(1, rng) == 3.0
++    assert rng.calls == [(0.5, 1.5)]
++
++
++def test_jitter_does_not_exceed_max_delay():
++    policy = RetryPolicy(base_delay=1.0, factor=2.0, max_delay=60.0, jitter=1.0)
++    rng = _RecordingRng(2.0)
++    assert policy.delay_for(10_000, rng) == 60.0
++
++
++def test_rng_is_not_called_without_jitter():
++    policy = RetryPolicy(jitter=0.0)
++    assert policy.delay_for(2, _NeverCalledRng()) == 2.0
++
++
++def test_jitter_without_rng_uses_random_module():
++    policy = RetryPolicy(base_delay=1.0, factor=1.0, max_delay=60.0, jitter=0.5)
++    for _ in range(20):
++        assert 0.5 <= policy.delay_for(1) <= 1.5
++
++
++def test_jitter_with_seeded_random_is_reproducible():
++    policy = RetryPolicy(base_delay=1.0, factor=2.0, max_delay=60.0, jitter=0.3)
++    first = policy.delay_for(3, random.Random(7))
++    second = policy.delay_for(3, random.Random(7))
++    assert first == second
++
++
++@pytest.mark.parametrize("attempt", [0, -1])
++def test_delay_rejects_attempt_below_one(attempt):
++    with pytest.raises(ConfigError):
++        RetryPolicy().delay_for(attempt)
++
++
++def test_is_retryable_respects_subclasses():
++    policy = RetryPolicy(non_retryable=(ValueError,))
++
++    class BadInput(ValueError):
++        pass
++
++    assert policy.is_retryable(BadInput("bad")) is False
++    assert policy.is_retryable(ValueError("bad")) is False
++
++
++def test_permanent_error_is_never_retryable():
++    assert RetryPolicy().is_retryable(PermanentJobError("no")) is False
++
++
++def test_other_errors_are_retryable():
++    policy = RetryPolicy(non_retryable=(ValueError,))
++    assert policy.is_retryable(TimeoutError("slow")) is True
+diff --git a/tests/test_retry_worker.py b/tests/test_retry_worker.py
+new file mode 100644
+index 0000000..364a098
+--- /dev/null
++++ b/tests/test_retry_worker.py
+@@ -0,0 +1,198 @@
++import inspect
++from datetime import timedelta
++
++from jobq import JobQueue, JobStatus, PermanentJobError, RetryPolicy, Worker
++
++from .conftest import START
++
++
++class _StubRng:
++    def __init__(self, value: float) -> None:
++        self.value = value
++
++    def uniform(self, low: float, high: float) -> float:
++        return self.value
++
++
++def _policy(**overrides) -> RetryPolicy:
++    params = {"max_attempts": 3, "base_delay": 1.0, "factor": 2.0, "max_delay": 60.0}
++    params.update(overrides)
++    return RetryPolicy(**params)
++
++
++def _scripted(*outcomes):
++    """Обработчик, который на каждом вызове берёт следующий исход: исключение или значение."""
++    calls = iter(outcomes)
++
++    def handler(job):
++        outcome = next(calls)
++        if isinstance(outcome, BaseException):
++            raise outcome
++        return outcome
++
++    return handler
++
++
++def test_first_failure_schedules_retry(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy())
++    worker = Worker(queue, registry)
++    registry.register("net", _scripted(TimeoutError("slow")))
++    job = queue.enqueue("net")
++
++    worker.run_once()
++
++    assert job.status is JobStatus.RETRY_SCHEDULED
++    assert job.error == "TimeoutError: slow"
++    assert job.run_at == START + timedelta(seconds=_policy().delay_for(1))
++
++
++def test_retry_waits_for_run_at(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy())
++    worker = Worker(queue, registry)
++    registry.register("net", _scripted(TimeoutError("slow"), "ok"))
++    job = queue.enqueue("net")
++    worker.run_once()
++
++    assert worker.run_once() is None
++
++    clock.advance(_policy().delay_for(1))
++    assert worker.run_once() is job
++    assert job.attempts == 2
++    assert job.status is JobStatus.SUCCEEDED
++
++
++def test_single_attempt_policy_dead_letters_retryable_error(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy(max_attempts=1))
++    worker = Worker(queue, registry)
++    registry.register("net", _scripted(ConnectionError("503")))
++    job = queue.enqueue("net")
++
++    worker.run_once()
++
++    assert job.status is JobStatus.DEAD_LETTERED
++    assert queue.metrics.get("jobs.failed") == 0
++
++
++def test_non_retryable_error_fails_on_first_attempt(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy(non_retryable=(ValueError,)))
++    worker = Worker(queue, registry)
++    registry.register("parse", _scripted(ValueError("bad")))
++    job = queue.enqueue("parse")
++
++    worker.run_once()
++
++    assert job.status is JobStatus.FAILED
++    assert queue.dead_letters() == []
++
++
++def test_permanent_error_on_last_attempt_fails(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy(max_attempts=3))
++    worker = Worker(queue, registry)
++    registry.register(
++        "billing",
++        _scripted(TimeoutError("a"), TimeoutError("b"), PermanentJobError("card declined")),
++    )
++    job = queue.enqueue("billing")
++
++    for _ in range(3):
++        clock.advance(60)
++        worker.run_once()
++
++    assert job.attempts == 3
++    assert job.status is JobStatus.FAILED
++    assert job.error == "PermanentJobError: card declined"
++    assert queue.dead_letters() == []
++
++
++def test_unknown_job_type_fails_even_with_policy(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy())
++    worker = Worker(queue, registry)
++    job = queue.enqueue("nobody")
++
++    worker.run_once()
++
++    assert job.status is JobStatus.FAILED
++    assert job.error.startswith("UnknownJobTypeError:")
++    assert queue.metrics.get("jobs.retried") == 0
++
++
++def test_no_policy_keeps_old_behaviour(clock, registry):
++    queue = JobQueue(clock=clock)
++    worker = Worker(queue, registry)
++    registry.register("net", _scripted(TimeoutError("slow")))
++    job = queue.enqueue("net")
++
++    worker.run_once()
++
++    assert job.status is JobStatus.FAILED
++    assert queue.metrics.get("jobs.retried") == 0
++    assert queue.metrics.get("jobs.dead_lettered") == 0
++
++
++def test_policy_is_taken_at_time_of_failure(clock, registry):
++    queue = JobQueue(clock=clock)
++    worker = Worker(queue, registry)
++    registry.register("net", _scripted(TimeoutError("slow")))
++    job = queue.enqueue("net")
++    queue.set_retry_policy("net", _policy())
++
++    worker.run_once()
++
++    assert job.status is JobStatus.RETRY_SCHEDULED
++
++
++def test_success_after_retry_clears_error(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy())
++    worker = Worker(queue, registry)
++    registry.register("net", _scripted(TimeoutError("slow"), "done"))
++    job = queue.enqueue("net")
++    worker.run_once()
++    assert job.error == "TimeoutError: slow"
++
++    clock.advance(60)
++    worker.run_once()
++
++    assert job.status is JobStatus.SUCCEEDED
++    assert job.result == "done"
++    assert job.error is None
++
++
++def test_success_on_third_attempt_metrics(clock, registry):
++    queue = JobQueue(clock=clock, default_retry_policy=_policy(max_attempts=3))
++    worker = Worker(queue, registry)
++    registry.register(
++        "net",
++        _scripted(ConnectionError("1"), ConnectionError("2"), "ok"),
++    )
++    queue.enqueue("net")
++
++    for _ in range(3):
++        clock.advance(60)
++        worker.run_once()
++
++    assert queue.metrics.get("jobs.started") == 3
++    assert queue.metrics.get("jobs.retried") == 2
++    assert queue.metrics.get("jobs.succeeded") == 1
++    assert queue.metrics.get("jobs.failed") == 0
++
++
++def test_jitter_uses_worker_rng(clock, registry):
++    policy = _policy(base_delay=2.0, jitter=0.5)
++    queue = JobQueue(clock=clock, default_retry_policy=policy)
++    worker = Worker(queue, registry, rng=_StubRng(1.5))
++    registry.register("net", _scripted(TimeoutError("slow")))
++    job = queue.enqueue("net")
++
++    worker.run_once()
++
++    assert job.run_at == START + timedelta(seconds=3.0)
++
++
++def test_worker_and_queue_signatures_keep_new_params_keyword_only():
++    worker_params = inspect.signature(Worker.__init__).parameters
++    assert worker_params["rng"].kind is inspect.Parameter.KEYWORD_ONLY
++    assert worker_params["rng"].default is None
++
++    queue_params = inspect.signature(JobQueue.__init__).parameters
++    assert queue_params["default_retry_policy"].kind is inspect.Parameter.KEYWORD_ONLY
++    assert queue_params["default_retry_policy"].default is None

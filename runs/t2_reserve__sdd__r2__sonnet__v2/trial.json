@@ -1,0 +1,102 @@
+{
+  "trial_id": "t2_reserve__sdd__r2__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\d52d87ccfe",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\d52d87ccfe\\project",
+  "base_commit": "bb526a155073b7ba11fe0ea9103e6fe91115b17a",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 146.2,
+      "cost_usd": 0.41645160000000003,
+      "duration_ms": 144335,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 45134,
+        "cache_read_input_tokens": 219636,
+        "output_tokens": 21392,
+        "output_tokens_details": {
+          "thinking_tokens": 1456
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 45134,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 792,
+            "cache_read_input_tokens": 50730,
+            "cache_creation_input_tokens": 340,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 340
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал изменение `add-order-reservations` в `openspec/changes/add-order-reservations/` со всеми четырьмя артефактами. `openspec validate add-order-reservations --strict` проходит. Код проекта я не менял.\n\n- **`proposal.md`**: зачем нужны резервы и что меняется. Одна новая capability, `order-reservations`.\n- **`specs/order-reservations/spec.md`**: требования со сценариями по каждому пункту тикета: создание, валидация, `available` и `reserved`, истечение, повторный `reserve`, `confirm`, `cancel`, `extend`, `NotFound`, ограничение `issue` и события журнала.\n- **`design.md`**: решения и допущения. `EXPIRED` вычисляется по часам в момент обращения и не хранится. Резервы лежат в `InMemoryStore`.\n- **`tasks.md`**: 4 группы задач, у каждой указан способ проверки.\n\nГде в тикете были противоречия, я взял более поздние решения из обсуждения:\n- **TTL по умолчанию:** 15 минут (обновление Анны), а не 30.\n- **Повторный `reserve`:** разрешён, если прежний резерв истёк или отменён, и тогда он заменяет старый. `DuplicateReservationError` только при активном или подтверждённом резерве.\n- **`extend`:** считается от текущего момента, срок не сокращается. Если новый срок не позже прежнего, событие не пишется.\n- **`CONFIRMED` и `CANCELLED`:** окончательные, истечение их не меняет.\n\nДопущения, которых в тикете нет (все записаны в `design.md`):\n- **`transfer`:** ограничен резервами так же, как `issue`, потому что в его docstring проверки заявлены такими же.\n- **`extend` с неверным `ttl`:** `ttl` проверяется раньше, чем ищется резерв.\n- **`available` и `reserved`:** для незарегистрированного SKU бросают `UnknownSkuError`.\n- **Срок в журнале:** поле `expires` в журнале усекается до секунд, потому что формат журнала менять нельзя. В снимке `Reservation` срок остаётся точным.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 135.3,
+      "cost_usd": 0.4590299000000001,
+      "duration_ms": 133682,
+      "num_turns": 18,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 49273,
+        "cache_read_input_tokens": 434859,
+        "output_tokens": 21840,
+        "output_tokens_details": {
+          "thinking_tokens": 1239
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 49273,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 596,
+            "cache_read_input_tokens": 54665,
+            "cache_creation_input_tokens": 544,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 544
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена\n\n**Изменение:** add-order-reservations (схема spec-driven)\n**Прогресс:** 12/12 задач выполнено ✓\n\n- **Тесты:** `python -m pytest -q` проходит, 96 тестов. 40 существующих не менялись, 56 новых в `tests/test_reservations.py`.\n- **Валидация:** `openspec validate add-order-reservations --strict` проходит без ошибок.\n- **Журнал:** проверил, что строки новых событий разбираются через `parse_line` и форматируются обратно без изменений.\n\n**Что сделано**\n- `models.py`: `ReservationStatus`, `ReservationLine`, `Reservation`.\n- `errors.py`: `ReservationError` с атрибутом `order_id` и четыре наследника.\n- `reservations.py` (новый): `DEFAULT_RESERVATION_TTL` и проверки `ttl` и строк.\n- `storage.py` и `__init__.py`: хранение резервов и экспорт новых имён.\n- `inventory.py`: `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `reserved`, `available`. `issue` и `transfer` теперь ограничены значением `available`.\n\n**Решения, не заданные спецификацией.** Я записал их в конец `design.md`:\n- `order_id` проверяется как код во всех методах резервов, включая `confirm`, `cancel`, `extend` и `get_reservation`.\n- `ReservationStateError` дополнительно хранит `status`.\n- Строки-кортежи приводятся к `ReservationLine`, поэтому снимок всегда содержит `ReservationLine`.\n\nИзменение можно архивировать: `/opsx:archive`."
+    }
+  ]
+}

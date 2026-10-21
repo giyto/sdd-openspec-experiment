@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd__r1__haiku__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\cf4a33f82b",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\cf4a33f82b\\project",
+  "base_commit": "e315bbce0b6e5f62f1ffbb80f9a4d392cbfe84c4",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 158.2,
+      "cost_usd": 0.029315229999999998,
+      "duration_ms": 156298,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 53179,
+        "cache_read_input_tokens": 471583,
+        "output_tokens": 27922,
+        "output_tokens_details": {
+          "thinking_tokens": 13336
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53179,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1108,
+            "cache_read_input_tokens": 59437,
+            "cache_creation_input_tokens": 458,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 458
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Артефакты для change `add-promo-codes` созданы в `openspec/changes/add-promo-codes/`. `openspec validate add-promo-codes --strict` проходит, `openspec status` показывает 4/4. Код проекта не менялся, коммитов нет.\n\n**Что создано**\n- `proposal.md`: зачем и что меняется. Две новые capability: `promo-codes` и `promo-discounts`. Изменённых capability нет, потому что `openspec/specs/` пока пуст.\n- `specs/promo-codes/spec.md`: регистрация и нормализация кода, неизвестный код, срок `[starts_at, expires_at)`, лимит и порядок проверок, учёт использований (успешное оформление и отмена), пустой код как «без промокода».\n- `specs/promo-discounts/spec.md`: участвующие строки, минимальная сумма, размер скидки, раскладка по копейкам, налог после скидки, порог доставки, итоги, обратная совместимость. Примеры чисел взяты из тикета и проверены вручную (например, итог 4145.50).\n- `design.md`: архитектура, порядок операций в `place_order`, алгоритм раскладки в целых копейках, риски и список допущений.\n- `tasks.md`: 5 групп, 13 задач. У каждой указана проверка, включая отсутствие изменений в старых тестах, `cli.py` и `reports.py`.\n\n**Решения, которые я принял сам (тикет неоднозначен)**\n1. Фиксированная скидка больше суммы участвующих строк ограничивается этой суммой, а не отвергается ошибкой.\n2. Для счётчика добавлены два метода реестра, `consume` и `release`, которых нет в API тикета. `consume` проверяет лимит и увеличивает счётчик за один вызов.\n3. Процентная скидка, которая округляется до `0.00`, всё равно засчитывает использование.\n4. Порог бесплатной доставки сравнивает `subtotal - discount`, куда входят суммы сертификатов, как и раньше.\n5. README получает раздел о промокодах, потому что правила расчёта описаны там целиком. Это выходит за рамки явного текста тикета.\n6. Реестр и `OrderService` получают один и тот же `Clock`.\n\n**Ограничение:** счётчик хранится в памяти, как и `OrderStore`. Защиты от гонки между процессами нет. Это записано в design.md как риск.\n\nАртефакты готовы к проверке. Для реализации запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 256.7,
+      "cost_usd": 0.056966,
+      "duration_ms": 252088,
+      "num_turns": 27,
+      "usage": {
+        "input_tokens": 42,
+        "cache_creation_input_tokens": 89614,
+        "cache_read_input_tokens": 1307750,
+        "output_tokens": 51923,
+        "output_tokens_details": {
+          "thinking_tokens": 22424
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 89614,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1489,
+            "cache_read_input_tokens": 95616,
+            "cache_creation_input_tokens": 714,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 714
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация `add-promo-codes` завершена: 14/14 задач\n\nВсе задачи из `tasks.md` выполнены и отмечены `[x]`. `python -m pytest -q` проходит: 127 тестов (38 старых без изменений и 89 новых). `openspec validate add-promo-codes --strict` тоже проходит.\n\n### Что сделано\n- **`shop/errors.py`**: `PromoError(ShopError)` и три независимых наследника.\n- **`shop/promo.py`** (новый): `DiscountKind`, `PromoCode` с проверками значений, `PromoRegistry` (`add`, `resolve`, `uses`, `consume`, `release`). Порядок проверок: существование, срок `[starts_at, expires_at)`, лимит.\n- **`shop/pricing.py`**: `calculate_total(..., *, promo=None)`. Скидка раскладывается по строкам в целых копейках, налог считается после скидки, порог доставки сравнивается с суммой после скидки. Поля `discount` добавлены последними в `LineTotal` и `OrderTotal`.\n- **`shop/orders.py`**: `Order.promo_code`, `OrderService(promos=...)`, `quote`/`place_order` принимают `promo_code`, `cancel` вызывает `release`.\n- **Тесты**: `test_promo_errors.py`, `test_promo_code.py`, `test_promo_registry.py`, `test_pricing_promo.py`, `test_orders_promo.py`. В `test_pricing_promo.py` есть проверка суммы раскладки на 200 случайных корзинах с фиксированным seed.\n- **`README.md`**: раздел о промокодах и обновлённая формула `total`.\n- **`design.md`**: добавлен раздел «Решения при реализации».\n\n### Решения, принятые без вас\n- `release` при нулевом счётчике выбрасывает `ValidationError`, потому что это нарушение инварианта.\n- `cancel` заказа с промокодом у сервиса без реестра выбрасывает `UnknownPromoCodeError`, и заказ остаётся `placed`.\n- `consume` вызывается до `store.next_id()`, а не только до `store.add`. Так отказ по лимиту не сжигает номер заказа, как требует spec.\n- `shop/__init__.py` экспортирует `DiscountKind`, `PromoCode`, `PromoRegistry`. Версия пакета не менялась.\n- Фиксированная скидка больше суммы участвующих строк ограничивается этой суммой (допущение 1 из design).\n\n### Проверки\n- `shop/cli.py`, `shop/reports.py` и все защищённые тестовые файлы не изменены (`git diff --stat` пуст).\n- Линтер в окружении не установлен, поэтому проверка на неиспользуемые импорты сделана вручную.\n\nИзменения не закоммичены: `openspec/changes/` всё ещё не отслеживается git, а коммит вы не просили."
+    }
+  ]
+}

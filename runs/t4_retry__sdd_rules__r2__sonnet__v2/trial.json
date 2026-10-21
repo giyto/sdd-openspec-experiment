@@ -1,0 +1,102 @@
+{
+  "trial_id": "t4_retry__sdd_rules__r2__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\081fca1ead",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\081fca1ead\\project",
+  "base_commit": "2ee85e07743745f1dc58b3bdca8e9aee1f91c3c2",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 211.2,
+      "cost_usd": 0.5886028000000001,
+      "duration_ms": 209315,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 57426,
+        "cache_read_input_tokens": 365048,
+        "output_tokens": 32235,
+        "output_tokens_details": {
+          "thinking_tokens": 2842
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 57426,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 988,
+            "cache_read_input_tokens": 60517,
+            "cache_creation_input_tokens": 2845,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2845
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `add-job-retry-dead-letter` создан в `openspec/changes/add-job-retry-dead-letter/`, все четыре артефакта готовы. `openspec validate --strict` прошёл без замечаний. Код проекта не менялся, в git добавилась только папка `openspec/changes/`.\n\n## Артефакты\n- **`proposal.md`**: зачем нужно изменение, что меняется (публичный API из тикета перенесён дословно), три новые возможности и допущения.\n- **`specs/`**: три спецификации со сценариями, которые можно проверить тестами.\n  - **`retry-policy`**: `RetryPolicy`, ошибки конфигурации, `delay_for` (в том числе `attempt=5000` без `OverflowError` и `base_delay=0`) и `is_retryable`.\n  - **`job-retry-execution`**: выбор политики, решение воркера, `run_at` для повтора, отмена, метрика `jobs.retried`, обратная совместимость.\n  - **`dead-letter-queue`**: новые статусы и подписи, `DeadLetterEntry`, `dead_letters()`, `requeue_dead_letter`, `purge_finished`, метрики `jobs.dead_lettered` и `jobs.requeued`.\n- **`design.md`**: решения и риски.\n- **`tasks.md`**: 7 групп задач, последняя — сверка публичного API.\n\n## Допущения и спорные места\n- **Обнуление `attempts` при requeue:** в описании тикета написано «сохраняем», но тимлид в UPD поменял на «обнуляем». Взял последнее решение.\n- **`DEAD_LETTERED` и `RETRY_SCHEDULED` не терминальные.** Поэтому `purge_finished` их не удаляет, как и требовал тимлид, и `dashboard.py` менять не нужно.\n- **Порядок решения воркера:** нет политики или ошибка неповторяемая → `FAILED`; иначе, если попытки кончились, → `DEAD_LETTERED`; иначе → `RETRY_SCHEDULED`. `rng` вызывается только в последнем случае.\n- **Выход из dead-letter:** `cancel` на таком задании даёт `InvalidTransitionError`. Тот же `InvalidTransitionError` получит `requeue_dead_letter` для задания не в dead-letter. Для неизвестного id будет `JobNotFoundError`.\n- **`finished_at`:** для `DEAD_LETTERED` ставится, при requeue очищается.\n- **`NaN`** и нечисловые параметры политики считаются ошибкой конфигурации.\n- **Генератор по умолчанию:** при `rng=None` и `jitter>0` используется общий `random.Random()` из модуля `retry`.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 143.1,
+      "cost_usd": 0.4693414,
+      "duration_ms": 141226,
+      "num_turns": 19,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 54857,
+        "cache_read_input_tokens": 405254,
+        "output_tokens": 20934,
+        "output_tokens_details": {
+          "thinking_tokens": 523
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54857,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 754,
+            "cache_read_input_tokens": 60369,
+            "cache_creation_input_tokens": 424,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 424
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-job-retry-dead-letter (schema: spec-driven)\n**Progress:** 23/23 tasks complete ✓\n\nВсе 79 тестов проходят (`python -m pytest -q`). Новых тестов 3 файла, старые не менялись. `dashboard.py` и `cli.py` не тронуты.\n\n### Что сделано\n- **Ошибки и модели:** добавлены `PermanentJobError`, статусы `RETRY_SCHEDULED` и `DEAD_LETTERED` (оба нетерминальные) и `DeadLetterEntry`. Добавлены счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **Новый модуль `jobq/retry.py`:** `RetryPolicy` с валидацией, `delay_for` и `is_retryable`. `delay_for` не падает на огромных номерах попыток и при `base_delay=0`, результат всегда в `[0, max_delay]`.\n- **Очередь:**\n  - `default_retry_policy`, `set_retry_policy` и `retry_policy_for`;\n  - новые переходы статусов;\n  - `mark_retry_scheduled` и `mark_dead_lettered`;\n  - `dead_letters()` и `requeue_dead_letter()`.\n  - `store.due` теперь берёт и `RETRY_SCHEDULED`.\n- **Воркер:** `Worker` принимает `rng`, а при падении обработчика выбирает `FAILED`, повтор или dead-letter в порядке из design.md.\n- **Экспорты и документация:** новые имена экспортируются из `jobq`, в README добавлен раздел о повторах.\n\n### Решение, не прописанное в spec\n`mark_succeeded` теперь сбрасывает `job.error` в `None`. Без этого задание, успешное после повтора, хранило бы ошибку прошлой попытки. Это противоречило бы сценарию «SUCCEEDED, `error is None`» и docstring модели. Сигнатура метода не изменилась. В design.md это решение я не записал.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

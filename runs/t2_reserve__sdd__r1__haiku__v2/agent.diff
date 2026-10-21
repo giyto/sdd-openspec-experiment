@@ -1,0 +1,1084 @@
+diff --git a/README.md b/README.md
+index 7fea7ce..ba518a9 100644
+--- a/README.md
++++ b/README.md
+@@ -10,6 +10,7 @@ warehouse/
+   models.py     неизменяемые датаклассы предметной области
+   events.py     журнал событий и его строковый формат
+   storage.py    хранилище в памяти
++  reservations.py  TTL резервов и эффективный статус (EXPIRED по часам)
+   inventory.py  сервис Inventory — вся бизнес-логика
+   reports.py    отчёты (только чтение)
+   cli.py        командная строка: прогон JSON-сценария
+diff --git a/tests/test_reservations.py b/tests/test_reservations.py
+new file mode 100644
+index 0000000..194c9a6
+--- /dev/null
++++ b/tests/test_reservations.py
+@@ -0,0 +1,575 @@
++from datetime import datetime, timedelta, timezone
++
++import pytest
++
++from warehouse.clock import ManualClock
++from warehouse.errors import (
++    DuplicateReservationError,
++    InsufficientStockError,
++    InvalidQuantityError,
++    ReservationError,
++    ReservationExpiredError,
++    ReservationNotFoundError,
++    ReservationStateError,
++    UnknownSkuError,
++    ValidationError,
++    WarehouseError,
++)
++from warehouse.events import format_timestamp, parse_line, parse_timestamp
++from warehouse.models import Reservation, ReservationLine, ReservationStatus
++from warehouse.reservations import DEFAULT_RESERVATION_TTL, effective_status, validate_ttl
++from warehouse.storage import InMemoryStore
++
++ACTIVE = ReservationStatus.ACTIVE
++CONFIRMED = ReservationStatus.CONFIRMED
++CANCELLED = ReservationStatus.CANCELLED
++EXPIRED = ReservationStatus.EXPIRED
++
++T1 = datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc)
++
++
++def make_reservation(status: ReservationStatus = ACTIVE, expires_at: datetime = T1) -> Reservation:
++    return Reservation(
++        order_id="SO-1",
++        lines=(ReservationLine("MAIN", "BOLT-M8", 2),),
++        status=status,
++        created_at=T1 - timedelta(minutes=15),
++        expires_at=expires_at,
++    )
++
++
++def reserve_bolts(inv, order_id="SO-1", qty=4, warehouse="MAIN", **kwargs):
++    return inv.reserve(order_id, [(warehouse, "BOLT-M8", qty)], **kwargs)
++
++
++# --- ошибки (1.2) -----------------------------------------------------------
++
++def test_reservation_errors_inherit_warehouse_error():
++    for cls in (DuplicateReservationError, ReservationNotFoundError, ReservationExpiredError):
++        assert issubclass(cls, ReservationError)
++        assert issubclass(cls, WarehouseError)
++    assert issubclass(ReservationStateError, ReservationError)
++    assert issubclass(ReservationError, WarehouseError)
++
++
++def test_reservation_errors_carry_order_id():
++    errors = [
++        DuplicateReservationError("SO-7"),
++        ReservationNotFoundError("SO-7"),
++        ReservationExpiredError("SO-7"),
++        ReservationStateError("SO-7", "CONFIRMED"),
++    ]
++    for error in errors:
++        assert error.order_id == "SO-7"
++        assert "SO-7" in str(error)
++
++
++# --- TTL и эффективный статус (1.3) -----------------------------------------
++
++def test_default_ttl_is_fifteen_minutes():
++    assert DEFAULT_RESERVATION_TTL == timedelta(minutes=15)
++
++
++@pytest.mark.parametrize("ttl", [15, "15m", None, 1.5])
++def test_validate_ttl_rejects_non_timedelta(ttl):
++    with pytest.raises(ValidationError):
++        validate_ttl(ttl)
++
++
++@pytest.mark.parametrize("ttl", [timedelta(0), timedelta(minutes=-1)])
++def test_validate_ttl_rejects_non_positive(ttl):
++    with pytest.raises(ValidationError):
++        validate_ttl(ttl)
++
++
++def test_validate_ttl_accepts_positive():
++    validate_ttl(timedelta(seconds=1))
++
++
++def test_effective_status_active_before_expiry():
++    reservation = make_reservation(expires_at=T1)
++    assert effective_status(reservation, T1 - timedelta(seconds=1)) is ACTIVE
++
++
++def test_effective_status_expired_exactly_at_expires_at():
++    reservation = make_reservation(expires_at=T1)
++    assert effective_status(reservation, T1) is EXPIRED
++
++
++def test_effective_status_expired_after_expires_at():
++    reservation = make_reservation(expires_at=T1)
++    assert effective_status(reservation, T1 + timedelta(hours=1)) is EXPIRED
++
++
++@pytest.mark.parametrize("status", [CONFIRMED, CANCELLED])
++def test_effective_status_terminal_states_do_not_expire(status):
++    reservation = make_reservation(status=status, expires_at=T1)
++    assert effective_status(reservation, T1 + timedelta(hours=1)) is status
++
++
++# --- хранилище (2.1) --------------------------------------------------------
++
++def test_store_returns_reservation_as_stored():
++    store = InMemoryStore()
++    reservation = make_reservation()
++    store.put_reservation(reservation)
++    assert store.get_reservation("SO-1") is reservation
++    assert store.get_reservation("SO-2") is None
++    assert store.list_reservations() == [reservation]
++
++
++def test_store_lists_reservations_in_creation_order():
++    store = InMemoryStore()
++    first = make_reservation()
++    second = Reservation("SO-2", first.lines, ACTIVE, T1, T1)
++    store.put_reservation(first)
++    store.put_reservation(second)
++    assert store.list_reservations() == [first, second]
++
++
++# --- reserve (3.2) ----------------------------------------------------------
++
++def test_reserve_holds_stock_without_changing_on_hand(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reservation = reserve_bolts(inv, qty=4)
++    assert reservation.status is ACTIVE
++    assert reservation.created_at == clock.now()
++    assert inv.on_hand("MAIN", "BOLT-M8") == 10
++    events = inv.log.events("RESERVE")
++    assert len(events) == 1
++    assert events[0].fields["order"] == "SO-1"
++    assert events[0].fields["qty"] == "4"
++    assert events[0].fields["expires"] == format_timestamp(reservation.expires_at)
++
++
++def test_reservation_across_warehouses_keeps_line_order(inv):
++    inv.receive("MAIN", "BOLT-M8", 5)
++    inv.receive("EAST", "BOLT-M8", 5)
++    reservation = inv.reserve(
++        "SO-1", [("MAIN", "BOLT-M8", 2), ("EAST", "BOLT-M8", 1)]
++    )
++    assert reservation.status is ACTIVE
++    assert reservation.lines == (
++        ReservationLine("MAIN", "BOLT-M8", 2),
++        ReservationLine("EAST", "BOLT-M8", 1),
++    )
++    assert inv.on_hand("MAIN", "BOLT-M8") == 5
++    assert inv.on_hand("EAST", "BOLT-M8") == 5
++    assert [e.fields["wh"] for e in inv.log.events("RESERVE")] == ["MAIN", "EAST"]
++
++
++def test_reserve_accepts_reservation_line_objects(inv):
++    inv.receive("MAIN", "BOLT-M8", 5)
++    reservation = inv.reserve("SO-1", [ReservationLine("MAIN", "BOLT-M8", 2)])
++    assert reservation.lines == (ReservationLine("MAIN", "BOLT-M8", 2),)
++
++
++def test_default_ttl_sets_expires_at(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 5)
++    reservation = reserve_bolts(inv, qty=1)
++    assert reservation.expires_at == clock.now() + timedelta(minutes=15)
++
++
++def test_custom_ttl_sets_expires_at(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 5)
++    reservation = reserve_bolts(inv, qty=1, ttl=timedelta(minutes=3))
++    assert reservation.expires_at == clock.now() + timedelta(minutes=3)
++
++
++def test_duplicate_sku_lines_are_checked_by_sum(inv):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    with pytest.raises(InsufficientStockError) as info:
++        inv.reserve("SO-1", [("MAIN", "BOLT-M8", 2), ("MAIN", "BOLT-M8", 3)])
++    assert (info.value.requested, info.value.available) == (5, 4)
++    with pytest.raises(ReservationNotFoundError):
++        inv.get_reservation("SO-1")
++    assert inv.log.events("RESERVE") == []
++
++
++def test_insufficient_stock_creates_nothing(inv):
++    inv.receive("MAIN", "BOLT-M8", 5)
++    with pytest.raises(InsufficientStockError):
++        reserve_bolts(inv, qty=6)
++    with pytest.raises(ReservationNotFoundError):
++        inv.get_reservation("SO-1")
++    assert len(inv.log) == 1
++
++
++def test_active_reservation_cannot_be_duplicated(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    first = reserve_bolts(inv, qty=2)
++    with pytest.raises(DuplicateReservationError):
++        reserve_bolts(inv, qty=3)
++    assert inv.get_reservation("SO-1") == first
++    assert inv.reserved("MAIN", "BOLT-M8") == 2
++
++
++def test_expired_reservation_is_replaced(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=2)
++    clock.advance(timedelta(minutes=15))
++    replacement = reserve_bolts(inv, qty=5)
++    assert replacement.status is ACTIVE
++    assert replacement.lines == (ReservationLine("MAIN", "BOLT-M8", 5),)
++    assert inv.get_reservation("SO-1").lines == replacement.lines
++
++
++def test_cancelled_reservation_is_replaced(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=2)
++    inv.cancel("SO-1")
++    replacement = reserve_bolts(inv, qty=3)
++    assert replacement.status is ACTIVE
++    assert inv.reserved("MAIN", "BOLT-M8") == 3
++
++
++@pytest.mark.parametrize(
++    "call",
++    [
++        lambda inv: inv.reserve("SO-1", []),
++        lambda inv: reserve_bolts(inv, ttl=timedelta(0)),
++        lambda inv: reserve_bolts(inv, ttl=timedelta(minutes=-5)),
++        lambda inv: reserve_bolts(inv, ttl=15),
++        lambda inv: inv.reserve("SO 1", [("MAIN", "BOLT-M8", 1)]),
++        lambda inv: inv.reserve("SO-1", [("MAIN", "BOLT-M8")]),
++    ],
++)
++def test_reserve_validation_errors_change_nothing(inv, call):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    events_before = len(inv.log)
++    with pytest.raises(ValidationError):
++        call(inv)
++    with pytest.raises(ReservationNotFoundError):
++        inv.get_reservation("SO-1")
++    assert len(inv.log) == events_before
++
++
++@pytest.mark.parametrize("qty", [0, -1, True, 1.5])
++def test_reserve_rejects_bad_quantity(inv, qty):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    with pytest.raises(InvalidQuantityError):
++        reserve_bolts(inv, qty=qty)
++
++
++def test_reserve_unknown_sku(inv):
++    with pytest.raises(UnknownSkuError):
++        inv.reserve("SO-1", [("MAIN", "NOPE", 1)])
++
++
++# --- reserved / available (3.1) ---------------------------------------------
++
++def test_available_after_reserve(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    assert inv.reserved("MAIN", "BOLT-M8") == 4
++    assert inv.available("MAIN", "BOLT-M8") == 6
++
++
++def test_physical_stock_below_reserved_gives_zero_available(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=5)
++    inv.adjust("MAIN", "BOLT-M8", 2, "recount")
++    assert inv.available("MAIN", "BOLT-M8") == 0
++    assert inv.reserved("MAIN", "BOLT-M8") == 5
++    assert inv.on_hand("MAIN", "BOLT-M8") == 2
++
++
++def test_registered_sku_without_stock_gives_zero(inv):
++    assert inv.reserved("MAIN", "BOLT-M8") == 0
++    assert inv.available("MAIN", "BOLT-M8") == 0
++
++
++def test_reserved_and_available_unknown_sku(inv):
++    with pytest.raises(UnknownSkuError):
++        inv.reserved("MAIN", "NOPE")
++    with pytest.raises(UnknownSkuError):
++        inv.available("MAIN", "NOPE")
++
++
++def test_cancelled_reservation_releases_stock(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    inv.cancel("SO-1")
++    assert inv.reserved("MAIN", "BOLT-M8") == 0
++    assert inv.available("MAIN", "BOLT-M8") == 10
++
++
++# --- get_reservation (3.3) --------------------------------------------------
++
++def test_get_reservation_unknown_order(inv):
++    with pytest.raises(ReservationNotFoundError):
++        inv.get_reservation("SO-404")
++
++
++def test_snapshot_does_not_change_after_confirm(inv):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    reserve_bolts(inv, qty=4)
++    snapshot = inv.get_reservation("SO-1")
++    inv.confirm("SO-1")
++    assert snapshot.status is ACTIVE
++    assert inv.get_reservation("SO-1").status is CONFIRMED
++
++
++def test_snapshot_reports_expired_by_clock(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=15))
++    assert inv.get_reservation("SO-1").status is EXPIRED
++
++
++# --- confirm (4.1) ----------------------------------------------------------
++
++def test_confirm_with_zero_available_ships_stock(inv):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    reserve_bolts(inv, order_id="SO-1", qty=4)
++    assert inv.available("MAIN", "BOLT-M8") == 0
++    confirmed = inv.confirm("SO-1")
++    assert confirmed.status is CONFIRMED
++    assert inv.on_hand("MAIN", "BOLT-M8") == 0
++    kinds = [event.kind for event in inv.log][1:]
++    assert kinds == ["RESERVE", "ISSUE", "RESERVE_CONFIRM"]
++    issue = inv.log.events("ISSUE")[0]
++    assert issue.fields["ref"] == "SO-1"
++    assert issue.fields["qty"] == "4"
++    assert inv.log.events("RESERVE_CONFIRM")[0].fields["order"] == "SO-1"
++
++
++def test_confirm_issues_each_line_in_order(inv):
++    inv.receive("MAIN", "BOLT-M8", 5)
++    inv.receive("EAST", "BOLT-M8", 5)
++    inv.reserve("SO-1", [("MAIN", "BOLT-M8", 2), ("EAST", "BOLT-M8", 1)])
++    inv.confirm("SO-1")
++    issues = inv.log.events("ISSUE")
++    assert [(e.fields["wh"], e.fields["qty"]) for e in issues] == [("MAIN", "2"), ("EAST", "1")]
++    assert inv.on_hand("MAIN", "BOLT-M8") == 3
++    assert inv.on_hand("EAST", "BOLT-M8") == 4
++
++
++def test_confirm_physical_shortage_changes_nothing(inv):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    reserve_bolts(inv, qty=4)
++    inv.adjust("MAIN", "BOLT-M8", 3, "recount")
++    events_before = len(inv.log)
++    with pytest.raises(InsufficientStockError):
++        inv.confirm("SO-1")
++    assert inv.on_hand("MAIN", "BOLT-M8") == 3
++    assert inv.get_reservation("SO-1").status is ACTIVE
++    assert len(inv.log) == events_before
++
++
++def test_confirm_expired_raises(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=15))
++    with pytest.raises(ReservationExpiredError):
++        inv.confirm("SO-1")
++
++
++def test_confirm_twice_raises(inv):
++    inv.receive("MAIN", "BOLT-M8", 4)
++    reserve_bolts(inv, qty=4)
++    inv.confirm("SO-1")
++    with pytest.raises(ReservationStateError):
++        inv.confirm("SO-1")
++
++
++def test_confirm_unknown_order(inv):
++    with pytest.raises(ReservationNotFoundError):
++        inv.confirm("SO-404")
++
++
++# --- cancel (4.2) -----------------------------------------------------------
++
++def test_cancel_active_releases_and_logs(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    assert inv.cancel("SO-1").status is CANCELLED
++    assert inv.available("MAIN", "BOLT-M8") == 10
++    assert inv.log.events("RESERVE_CANCEL")[0].fields["order"] == "SO-1"
++
++
++def test_cancel_is_idempotent_without_events(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    inv.cancel("SO-1")
++    events_before = len(inv.log)
++    assert inv.cancel("SO-1").status is CANCELLED
++    assert len(inv.log) == events_before
++
++
++def test_cancel_expired_stays_expired_without_events(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=15))
++    events_before = len(inv.log)
++    assert inv.cancel("SO-1").status is EXPIRED
++    assert len(inv.log) == events_before
++
++
++def test_cancel_confirmed_raises(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    inv.confirm("SO-1")
++    with pytest.raises(ReservationStateError):
++        inv.cancel("SO-1")
++
++
++def test_cancel_unknown_order(inv):
++    with pytest.raises(ReservationNotFoundError):
++        inv.cancel("SO-404")
++
++
++# --- extend (4.3) -----------------------------------------------------------
++
++def test_extend_active_moves_expiry_to_now_plus_ttl(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=10))
++    extended = inv.extend("SO-1", timedelta(minutes=15))
++    assert extended.expires_at == clock.now() + timedelta(minutes=15)
++    event = inv.log.events("RESERVE_EXTEND")[0]
++    assert event.fields["order"] == "SO-1"
++    assert event.fields["expires"] == format_timestamp(extended.expires_at)
++
++
++def test_extend_never_shortens_expiry(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reservation = reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=1))
++    events_before = len(inv.log)
++    result = inv.extend("SO-1", timedelta(minutes=5))
++    assert result.expires_at == reservation.expires_at
++    assert len(inv.log) == events_before
++
++
++def test_extend_default_ttl_is_fifteen_minutes(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=10))
++    assert inv.extend("SO-1").expires_at == clock.now() + timedelta(minutes=15)
++
++
++def test_extend_validates_ttl_before_status(inv):
++    with pytest.raises(ValidationError):
++        inv.extend("SO-404", timedelta(0))
++
++
++def test_extend_expired_raises(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=15))
++    with pytest.raises(ReservationExpiredError):
++        inv.extend("SO-1")
++
++
++@pytest.mark.parametrize("finish", ["confirm", "cancel"])
++def test_extend_after_finish_raises_state_error(inv, finish):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    getattr(inv, finish)("SO-1")
++    with pytest.raises(ReservationStateError):
++        inv.extend("SO-1")
++
++
++def test_extend_unknown_order(inv):
++    with pytest.raises(ReservationNotFoundError):
++        inv.extend("SO-404")
++
++
++# --- issue / transfer (5.1, 5.2) --------------------------------------------
++
++def test_issue_beyond_available_is_rejected(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, order_id="SO-OTHER", qty=8)
++    with pytest.raises(InsufficientStockError) as info:
++        inv.issue("MAIN", "BOLT-M8", 3, ref="SO-9")
++    assert (info.value.requested, info.value.available) == (3, 2)
++    assert inv.on_hand("MAIN", "BOLT-M8") == 10
++    assert len(inv.log.events("ISSUE")) == 0
++
++
++def test_issue_up_to_available_succeeds(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=8)
++    assert inv.issue("MAIN", "BOLT-M8", 2) == 8
++
++
++def test_issue_without_reservations_works_as_before(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    assert inv.issue("MAIN", "BOLT-M8", 10) == 0
++
++
++def test_transfer_respects_reservations(inv):
++    inv.receive("MAIN", "OIL-5L", 10)
++    inv.reserve("SO-1", [("MAIN", "OIL-5L", 8)])
++    with pytest.raises(InsufficientStockError):
++        inv.transfer("MAIN", "NORTH", "OIL-5L", 3)
++    assert inv.on_hand("MAIN", "OIL-5L") == 10
++    inv.transfer("MAIN", "NORTH", "OIL-5L", 2)
++    assert inv.on_hand("NORTH", "OIL-5L") == 2
++
++
++def test_transfer_without_reservations_works_as_before(inv):
++    inv.receive("MAIN", "OIL-5L", 5)
++    inv.transfer("MAIN", "NORTH", "OIL-5L", 5)
++    assert inv.on_hand("MAIN", "OIL-5L") == 0
++    assert inv.on_hand("NORTH", "OIL-5L") == 5
++
++
++# --- журнал (6.1) -----------------------------------------------------------
++
++def test_reservation_events_round_trip(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    inv.reserve("SO-1", [("MAIN", "BOLT-M8", 2), ("MAIN", "BOLT-M8", 1)])
++    inv.extend("SO-1", timedelta(minutes=30))
++    inv.cancel("SO-1")
++    inv.reserve("SO-2", [("MAIN", "BOLT-M8", 1)])
++    inv.confirm("SO-2")
++    kinds = {event.kind for event in inv.log if event.kind.startswith("RESERVE")}
++    assert kinds == {"RESERVE", "RESERVE_EXTEND", "RESERVE_CANCEL", "RESERVE_CONFIRM"}
++    for line in inv.log.lines():
++        assert parse_line(line).format() == line
++
++
++def test_expires_field_uses_journal_timestamp(inv):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reservation = reserve_bolts(inv, qty=1)
++    expires = inv.log.events("RESERVE")[0].fields["expires"]
++    assert expires == format_timestamp(reservation.expires_at)
++    assert parse_timestamp(expires) == reservation.expires_at
++
++
++# --- истечение по часам (6.3) -----------------------------------------------
++
++@pytest.mark.parametrize(
++    "operation",
++    [
++        lambda inv: inv.confirm("SO-1"),
++        lambda inv: inv.cancel("SO-1"),
++        lambda inv: inv.extend("SO-1"),
++        lambda inv: inv.get_reservation("SO-1"),
++        lambda inv: inv.reserved("MAIN", "BOLT-M8"),
++        lambda inv: inv.available("MAIN", "BOLT-M8"),
++    ],
++)
++def test_expiry_crossing_writes_no_event(inv, clock, operation):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=15))
++    events_before = len(inv.log)
++    try:
++        operation(inv)
++    except ReservationError:
++        pass
++    assert len(inv.log) == events_before
++
++
++def test_expired_reservation_stops_counting_in_all_queries(inv, clock):
++    inv.receive("MAIN", "BOLT-M8", 10)
++    reserve_bolts(inv, qty=4)
++    clock.advance(timedelta(minutes=15) - timedelta(seconds=1))
++    assert inv.reserved("MAIN", "BOLT-M8") == 4
++    clock.advance(timedelta(seconds=1))
++    assert inv.reserved("MAIN", "BOLT-M8") == 0
++    assert inv.available("MAIN", "BOLT-M8") == 10
++    assert inv.get_reservation("SO-1").status is EXPIRED
+diff --git a/warehouse/__init__.py b/warehouse/__init__.py
+index f545dfc..65b59ab 100644
+--- a/warehouse/__init__.py
++++ b/warehouse/__init__.py
+@@ -5,18 +5,24 @@ from .errors import (
+     DuplicateSkuError,
+     EventFormatError,
+     InsufficientStockError,
++    DuplicateReservationError,
+     InvalidQuantityError,
++    ReservationError,
++    ReservationExpiredError,
++    ReservationNotFoundError,
++    ReservationStateError,
+     UnknownSkuError,
+     ValidationError,
+     WarehouseError,
+ )
+ from .events import Event, EventLog, parse_line
+ from .inventory import Inventory
+-from .models import Sku, StockLevel
++from .models import Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
+ from .storage import InMemoryStore
+ 
+ __all__ = [
+     "Clock",
++    "DuplicateReservationError",
+     "DuplicateSkuError",
+     "Event",
+     "EventFormatError",
+@@ -26,6 +32,13 @@ __all__ = [
+     "InvalidQuantityError",
+     "Inventory",
+     "ManualClock",
++    "Reservation",
++    "ReservationError",
++    "ReservationExpiredError",
++    "ReservationLine",
++    "ReservationNotFoundError",
++    "ReservationStateError",
++    "ReservationStatus",
+     "Sku",
+     "StockLevel",
+     "SystemClock",
+diff --git a/warehouse/errors.py b/warehouse/errors.py
+index 7d47c04..9a49151 100644
+--- a/warehouse/errors.py
++++ b/warehouse/errors.py
+@@ -58,3 +58,40 @@ class InsufficientStockError(WarehouseError):
+ 
+ class EventFormatError(WarehouseError):
+     """Строку журнала невозможно записать или разобрать."""
++
++
++class ReservationError(WarehouseError):
++    """Базовое исключение резервов. ``order_id`` — заказ, к которому относится ошибка."""
++
++    def __init__(self, order_id: str, message: str) -> None:
++        super().__init__(message)
++        self.order_id = order_id
++
++
++class DuplicateReservationError(ReservationError):
++    """У заказа уже есть активный или подтверждённый резерв."""
++
++    def __init__(self, order_id: str) -> None:
++        super().__init__(order_id, f"order {order_id!r} already has a reservation")
++
++
++class ReservationNotFoundError(ReservationError):
++    """Резерва для заказа не существует."""
++
++    def __init__(self, order_id: str) -> None:
++        super().__init__(order_id, f"no reservation for order {order_id!r}")
++
++
++class ReservationExpiredError(ReservationError):
++    """Резерв истёк по TTL и больше не может быть использован."""
++
++    def __init__(self, order_id: str) -> None:
++        super().__init__(order_id, f"reservation for order {order_id!r} has expired")
++
++
++class ReservationStateError(ReservationError):
++    """Операция недопустима для текущего статуса резерва."""
++
++    def __init__(self, order_id: str, status: str) -> None:
++        super().__init__(order_id, f"reservation for order {order_id!r} is {status}")
++        self.status = status
+diff --git a/warehouse/inventory.py b/warehouse/inventory.py
+index 44752ed..410ba54 100644
+--- a/warehouse/inventory.py
++++ b/warehouse/inventory.py
+@@ -1,4 +1,4 @@
+-"""Сервис складского учёта: приход, расход, перемещение, инвентаризация.
++"""Сервис складского учёта: приход, расход, перемещение, инвентаризация, резервы.
+ 
+ Любая операция, меняющая остатки, пишет событие в журнал
+ (:class:`~warehouse.events.EventLog`). Операция либо выполняется целиком,
+@@ -8,17 +8,25 @@
+ from __future__ import annotations
+ 
+ import logging
++from collections.abc import Iterable
++from dataclasses import replace
++from datetime import datetime, timedelta
+ 
+ from .clock import Clock, SystemClock
+ from .errors import (
++    DuplicateReservationError,
+     DuplicateSkuError,
+     InsufficientStockError,
+     InvalidQuantityError,
++    ReservationExpiredError,
++    ReservationNotFoundError,
++    ReservationStateError,
+     UnknownSkuError,
+     ValidationError,
+ )
+-from .events import EventLog
+-from .models import Sku, StockLevel
++from .events import EventLog, format_timestamp
++from .models import Reservation, ReservationLine, ReservationStatus, Sku, StockLevel
++from .reservations import DEFAULT_RESERVATION_TTL, effective_status, validate_ttl
+ from .storage import InMemoryStore
+ 
+ logger = logging.getLogger(__name__)
+@@ -73,6 +81,21 @@ class Inventory:
+         self._require_sku(sku)
+         return self._store.get_qty(warehouse, sku)
+ 
++    def reserved(self, warehouse: str, sku: str) -> int:
++        """Сумма строк активных резервов по позиции."""
++        self._require_sku(sku)
++        return self._reserved_at(warehouse, sku, self._clock.now())
++
++    def available(self, warehouse: str, sku: str) -> int:
++        """Физический остаток минус активные резервы, но не меньше 0."""
++        self._require_sku(sku)
++        return self._available_at(warehouse, sku, self._clock.now())
++
++    def get_reservation(self, order_id: str) -> Reservation:
++        """Снимок резерва со статусом на текущий момент."""
++        now = self._clock.now()
++        return _snapshot(self._require_reservation(order_id), now)
++
+     def stock_levels(self, warehouse: str | None = None) -> list[StockLevel]:
+         """Ненулевые физические остатки, отсортированные по складу и SKU."""
+         return [
+@@ -95,15 +118,20 @@ class Inventory:
+         return new_qty
+ 
+     def issue(self, warehouse: str, sku: str, qty: int, ref: str | None = None) -> int:
+-        """Расход (отгрузка, списание). Возвращает новый физический остаток."""
++        """Расход (отгрузка, списание). Возвращает новый физический остаток.
++
++        Нельзя забрать товар, который держат активные резервы: проверка по ``available``.
++        """
+         self._check_position(warehouse, sku)
+         _validate_qty(qty)
+         _validate_ref(ref)
++        now = self._clock.now()
+         current = self._store.get_qty(warehouse, sku)
+-        if qty > current:
+-            raise InsufficientStockError(warehouse, sku, qty, current)
++        available = self._available_at(warehouse, sku, now)
++        if qty > available:
++            raise InsufficientStockError(warehouse, sku, qty, available)
+         self._store.set_qty(warehouse, sku, current - qty)
+-        self._log.append(self._clock.now(), "ISSUE", wh=warehouse, sku=sku, qty=qty, ref=ref)
++        self._log.append(now, "ISSUE", wh=warehouse, sku=sku, qty=qty, ref=ref)
+         logger.info("issued %s x%d from %s", sku, qty, warehouse)
+         return current - qty
+ 
+@@ -112,7 +140,8 @@ class Inventory:
+     ) -> None:
+         """Перемещение между складами одним событием ``TRANSFER``.
+ 
+-        Для склада-источника это обычный расход: проверки те же, что у :meth:`issue`.
++        Для склада-источника это обычный расход: проверки те же, что у :meth:`issue`,
++        включая учёт активных резервов.
+         """
+         self._check_position(source, sku)
+         _validate_code(target, "warehouse")
+@@ -120,13 +149,15 @@ class Inventory:
+             raise ValidationError("source and target warehouses must differ")
+         _validate_qty(qty)
+         _validate_ref(ref)
++        now = self._clock.now()
+         current = self._store.get_qty(source, sku)
+-        if qty > current:
+-            raise InsufficientStockError(source, sku, qty, current)
++        available = self._available_at(source, sku, now)
++        if qty > available:
++            raise InsufficientStockError(source, sku, qty, available)
+         self._store.set_qty(source, sku, current - qty)
+         self._store.set_qty(target, sku, self._store.get_qty(target, sku) + qty)
+         self._log.append(
+-            self._clock.now(), "TRANSFER", src=source, dst=target, sku=sku, qty=qty, ref=ref
++            now, "TRANSFER", src=source, dst=target, sku=sku, qty=qty, ref=ref
+         )
+         logger.info("moved %s x%d %s -> %s", sku, qty, source, target)
+ 
+@@ -148,6 +179,103 @@ class Inventory:
+         logger.warning("stock of %s at %s adjusted %d -> %d", sku, warehouse, current, counted)
+         return counted
+ 
++    def reserve(
++        self,
++        order_id: str,
++        lines: Iterable[ReservationLine | tuple[str, str, int]],
++        ttl: timedelta = DEFAULT_RESERVATION_TTL,
++    ) -> Reservation:
++        """Резервирует товар под заказ. Физический остаток не меняется."""
++        _validate_code(order_id, "order_id")
++        validate_ttl(ttl)
++        reserve_lines = self._parse_lines(lines)
++        now = self._clock.now()
++        existing = self._store.get_reservation(order_id)
++        if existing is not None and effective_status(existing, now) in (
++            ReservationStatus.ACTIVE,
++            ReservationStatus.CONFIRMED,
++        ):
++            raise DuplicateReservationError(order_id)
++        for (warehouse, sku), qty in _sum_by_position(reserve_lines).items():
++            available = self._available_at(warehouse, sku, now)
++            if qty > available:
++                raise InsufficientStockError(warehouse, sku, qty, available)
++        reservation = Reservation(
++            order_id=order_id,
++            lines=reserve_lines,
++            status=ReservationStatus.ACTIVE,
++            created_at=now,
++            expires_at=now + ttl,
++        )
++        self._store.put_reservation(reservation)
++        expires = format_timestamp(reservation.expires_at)
++        for line in reserve_lines:
++            self._log.append(
++                now,
++                "RESERVE",
++                order=order_id,
++                wh=line.warehouse,
++                sku=line.sku,
++                qty=line.qty,
++                expires=expires,
++            )
++        logger.info("reserved order %s (%d lines)", order_id, len(reserve_lines))
++        return reservation
++
++    def confirm(self, order_id: str) -> Reservation:
++        """Превращает активный резерв в отгрузку: списывает физический остаток по строкам."""
++        reservation = self._require_reservation(order_id)
++        now = self._clock.now()
++        _require_active(order_id, effective_status(reservation, now))
++        # проверяем физический остаток по сумме строк, а не available: резерв уже держит товар
++        for (warehouse, sku), qty in _sum_by_position(reservation.lines).items():
++            on_hand = self._store.get_qty(warehouse, sku)
++            if qty > on_hand:
++                raise InsufficientStockError(warehouse, sku, qty, on_hand)
++        for line in reservation.lines:
++            on_hand = self._store.get_qty(line.warehouse, line.sku)
++            self._store.set_qty(line.warehouse, line.sku, on_hand - line.qty)
++            self._log.append(
++                now, "ISSUE", wh=line.warehouse, sku=line.sku, qty=line.qty, ref=order_id
++            )
++        confirmed = replace(reservation, status=ReservationStatus.CONFIRMED)
++        self._store.put_reservation(confirmed)
++        self._log.append(now, "RESERVE_CONFIRM", order=order_id)
++        logger.info("confirmed reservation %s", order_id)
++        return confirmed
++
++    def cancel(self, order_id: str) -> Reservation:
++        """Отменяет резерв. Повторная отмена и истёкший резерв не меняют ничего."""
++        reservation = self._require_reservation(order_id)
++        now = self._clock.now()
++        status = effective_status(reservation, now)
++        if status is ReservationStatus.CONFIRMED:
++            raise ReservationStateError(order_id, status.value)
++        if status is not ReservationStatus.ACTIVE:
++            return _snapshot(reservation, now)
++        cancelled = replace(reservation, status=ReservationStatus.CANCELLED)
++        self._store.put_reservation(cancelled)
++        self._log.append(now, "RESERVE_CANCEL", order=order_id)
++        logger.info("cancelled reservation %s", order_id)
++        return cancelled
++
++    def extend(self, order_id: str, ttl: timedelta = DEFAULT_RESERVATION_TTL) -> Reservation:
++        """Продлевает активный резерв до ``now + ttl``. Срок никогда не сокращается."""
++        validate_ttl(ttl)
++        reservation = self._require_reservation(order_id)
++        now = self._clock.now()
++        _require_active(order_id, effective_status(reservation, now))
++        new_expires_at = now + ttl
++        if new_expires_at <= reservation.expires_at:
++            return _snapshot(reservation, now)
++        extended = replace(reservation, expires_at=new_expires_at)
++        self._store.put_reservation(extended)
++        self._log.append(
++            now, "RESERVE_EXTEND", order=order_id, expires=format_timestamp(new_expires_at)
++        )
++        logger.info("extended reservation %s", order_id)
++        return extended
++
+     # --- служебное ----------------------------------------------------------
+ 
+     def _require_sku(self, sku: str) -> None:
+@@ -158,6 +286,66 @@ class Inventory:
+         _validate_code(warehouse, "warehouse")
+         self._require_sku(sku)
+ 
++    def _require_reservation(self, order_id: str) -> Reservation:
++        reservation = self._store.get_reservation(order_id)
++        if reservation is None:
++            raise ReservationNotFoundError(order_id)
++        return reservation
++
++    def _reserved_at(self, warehouse: str, sku: str, now: datetime) -> int:
++        """Сумма строк активных на момент ``now`` резервов по позиции."""
++        total = 0
++        for reservation in self._store.list_reservations():
++            if effective_status(reservation, now) is not ReservationStatus.ACTIVE:
++                continue
++            for line in reservation.lines:
++                if line.warehouse == warehouse and line.sku == sku:
++                    total += line.qty
++        return total
++
++    def _available_at(self, warehouse: str, sku: str, now: datetime) -> int:
++        on_hand = self._store.get_qty(warehouse, sku)
++        return max(0, on_hand - self._reserved_at(warehouse, sku, now))
++
++    def _parse_lines(
++        self, lines: Iterable[ReservationLine | tuple[str, str, int]]
++    ) -> tuple[ReservationLine, ...]:
++        parsed: list[ReservationLine] = []
++        for line in lines:
++            if isinstance(line, ReservationLine):
++                item = line
++            elif isinstance(line, tuple) and len(line) == 3:
++                item = ReservationLine(*line)
++            else:
++                raise ValidationError(f"reservation line must be (warehouse, sku, qty), got {line!r}")
++            self._check_position(item.warehouse, item.sku)
++            _validate_qty(item.qty)
++            parsed.append(item)
++        if not parsed:
++            raise ValidationError("reservation must have at least one line")
++        return tuple(parsed)
++
++
++def _snapshot(reservation: Reservation, now: datetime) -> Reservation:
++    """Копия резерва с эффективным статусом; сохранённый объект не меняется."""
++    return replace(reservation, status=effective_status(reservation, now))
++
++
++def _require_active(order_id: str, status: ReservationStatus) -> None:
++    if status is ReservationStatus.EXPIRED:
++        raise ReservationExpiredError(order_id)
++    if status is not ReservationStatus.ACTIVE:
++        raise ReservationStateError(order_id, status.value)
++
++
++def _sum_by_position(lines: Iterable[ReservationLine]) -> dict[tuple[str, str], int]:
++    """Сумма количеств по позициям ``(warehouse, sku)`` в порядке первого появления."""
++    totals: dict[tuple[str, str], int] = {}
++    for line in lines:
++        key = (line.warehouse, line.sku)
++        totals[key] = totals.get(key, 0) + line.qty
++    return totals
++
+ 
+ def _validate_code(value: object, what: str) -> None:
+     """Коды складов/SKU/ссылок попадают в журнал, поэтому без пробелов."""
+diff --git a/warehouse/models.py b/warehouse/models.py
+index 30df855..de478c4 100644
+--- a/warehouse/models.py
++++ b/warehouse/models.py
+@@ -3,6 +3,8 @@
+ from __future__ import annotations
+ 
+ from dataclasses import dataclass
++from datetime import datetime
++from enum import Enum
+ 
+ 
+ @dataclass(frozen=True)
+@@ -21,3 +23,32 @@ class StockLevel:
+     warehouse: str
+     sku: str
+     on_hand: int
++
++
++class ReservationStatus(Enum):
++    """Статус резерва. ``EXPIRED`` вычисляется по часам, в хранилище не пишется."""
++
++    ACTIVE = "ACTIVE"
++    CONFIRMED = "CONFIRMED"
++    CANCELLED = "CANCELLED"
++    EXPIRED = "EXPIRED"
++
++
++@dataclass(frozen=True)
++class ReservationLine:
++    """Строка резерва: сколько единиц SKU держать на конкретном складе."""
++
++    warehouse: str
++    sku: str
++    qty: int
++
++
++@dataclass(frozen=True)
++class Reservation:
++    """Резерв товара под заказ. Строки хранятся в том порядке, в котором пришли."""
++
++    order_id: str
++    lines: tuple[ReservationLine, ...]
++    status: ReservationStatus
++    created_at: datetime
++    expires_at: datetime
+diff --git a/warehouse/reservations.py b/warehouse/reservations.py
+new file mode 100644
+index 0000000..59805e8
+--- /dev/null
++++ b/warehouse/reservations.py
+@@ -0,0 +1,28 @@
++"""Правила резервов, не зависящие от хранилища: TTL и эффективный статус.
++
++Истечение не записывается в журнал и не хранится: статус ``EXPIRED`` вычисляется
++по текущему времени сервиса через :func:`effective_status`.
++"""
++
++from __future__ import annotations
++
++from datetime import datetime, timedelta
++
++from .errors import ValidationError
++from .models import Reservation, ReservationStatus
++
++DEFAULT_RESERVATION_TTL = timedelta(minutes=15)
++
++
++def validate_ttl(ttl: object) -> None:
++    if not isinstance(ttl, timedelta):
++        raise ValidationError(f"ttl must be a timedelta, got {ttl!r}")
++    if ttl <= timedelta(0):
++        raise ValidationError(f"ttl must be positive, got {ttl!r}")
++
++
++def effective_status(reservation: Reservation, now: datetime) -> ReservationStatus:
++    """Статус резерва на момент ``now``. Граница включительна: при ``now == expires_at`` резерв истёк."""
++    if reservation.status is ReservationStatus.ACTIVE and now >= reservation.expires_at:
++        return ReservationStatus.EXPIRED
++    return reservation.status
+diff --git a/warehouse/storage.py b/warehouse/storage.py
+index 40e82d2..6172b04 100644
+--- a/warehouse/storage.py
++++ b/warehouse/storage.py
+@@ -4,7 +4,7 @@ from __future__ import annotations
+ 
+ from typing import Iterator
+ 
+-from .models import Sku
++from .models import Reservation, Sku
+ 
+ 
+ class InMemoryStore:
+@@ -13,6 +13,7 @@ class InMemoryStore:
+     def __init__(self) -> None:
+         self._skus: dict[str, Sku] = {}
+         self._quantities: dict[tuple[str, str], int] = {}
++        self._reservations: dict[str, Reservation] = {}
+ 
+     # --- справочник ---------------------------------------------------------
+ 
+@@ -46,3 +47,15 @@ class InMemoryStore:
+ 
+     def warehouses(self) -> list[str]:
+         return sorted({warehouse for warehouse, _ in self._quantities})
++
++    # --- резервы ------------------------------------------------------------
++
++    def get_reservation(self, order_id: str) -> Reservation | None:
++        return self._reservations.get(order_id)
++
++    def put_reservation(self, reservation: Reservation) -> None:
++        self._reservations[reservation.order_id] = reservation
++
++    def list_reservations(self) -> list[Reservation]:
++        """Все сохранённые резервы в порядке их создания (сохранённый статус, без пересчёта)."""
++        return list(self._reservations.values())

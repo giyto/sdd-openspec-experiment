@@ -1,0 +1,58 @@
+{
+  "trial_id": "t3_import__baseline__r1__haiku__v2",
+  "task": "t3_import",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ea57f7cd45",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ea57f7cd45\\project",
+  "base_commit": "e2316c1c6a8980d213d3304252ff3cdaf6dac5a1",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 205.1,
+      "cost_usd": 0.04232041000000001,
+      "duration_ms": 203241,
+      "num_turns": 19,
+      "usage": {
+        "input_tokens": 34,
+        "cache_creation_input_tokens": 60980,
+        "cache_read_input_tokens": 807051,
+        "output_tokens": 44101,
+        "output_tokens_details": {
+          "thinking_tokens": 29137
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 60980,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1414,
+            "cache_read_input_tokens": 67005,
+            "cache_creation_input_tokens": 691,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 691
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Импорт «Сферы» (обе выгрузки) и новый конвейер `import_statement` готовы. Все 85 тестов проходят: 41 старый без изменений и 44 новых в `tests/test_statements.py`. Изменения не закоммичены.\n\n**Что сделано**\n- `ledger/errors.py`: добавлены `UnknownFormatError` и `StatementRowError`, оба наследуют `StatementError`.\n- `ledger/importer.py`: переписан. Есть `import_statement`, `detect_format`, `normalize_description` (делегирует `rules.normalize_text`), `ImportResult`, `RowError`. `import_csv` стал строгой обёрткой над `import_statement(fmt=\"nova\", strict=True)` с той же сигнатурой и `int`.\n- `README.md`: описан формат «Сферы» и новое поведение импорта.\n- `cli.py` и `reports.py` не трогал.\n\n**Решения, которые я принял сам**\n- **Номер строки для `UnknownFormatError`** — первая непустая строка файла. Существующий тест `test_import_missing_column` ждёт `line_no == 1`.\n- **Мусорные строки** (пустые, пробелы, `;;;`, `,,`) пропускаются в любом месте файла, в том числе до заголовка. Разделители обоих видов считаются мусором независимо от формата.\n- **Лишние непустые поля** сверх заголовка игнорируются. Так сказано в тикете: строка ошибочна только если из неё не собирается `Transaction`. Строки с короткими колонками, наоборот, дают ошибку «not enough fields».\n- **`sfera_split`**: `0,00` (и `0`) в колонке считается пустой; `-0,00` или `+5,00` — ошибка знака. Если заполнены обе колонки или ни одна, строка ошибочна.\n- **Дубли**: сверка только с хранилищем до импорта, по количеству. Первые `min(k, n)` строк файла считаются дублями. Добавление одним `add_many`, поэтому запись атомарна. В `strict=True` ошибка на любой строке бросает исключение до записи, и хранилище не меняется.\n- **Заголовок** ищется без учёта регистра и пробелов, через `normalize_text`. Если заголовок подходит к нескольким форматам (например, есть и «Сумма», и «Приход»/«Расход»), это `UnknownFormatError`.\n\n**Что важно знать**\n- В CLI «Сфера» пока недоступна: `cli.py` по тикету не трогаем, а он по-прежнему вызывает `import_csv`, то есть только формат «Нова». Чтобы пользователи могли загружать выписки «Сферы», нужно отдельно менять CLI.\n- Проверено на CRLF-файле с BOM и записью в кавычках на нескольких строках: номера строк совпадают с физическими."
+    }
+  ]
+}

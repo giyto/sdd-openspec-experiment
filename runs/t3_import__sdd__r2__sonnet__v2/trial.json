@@ -1,0 +1,102 @@
+{
+  "trial_id": "t3_import__sdd__r2__sonnet__v2",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\dec2bd0612",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\dec2bd0612\\project",
+  "base_commit": "a69b4f9aabf344349817e357f922996b0499bbf3",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 164.6,
+      "cost_usd": 0.41815220000000003,
+      "duration_ms": 162131,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 44200,
+        "cache_read_input_tokens": 224502,
+        "output_tokens": 21887,
+        "output_tokens_details": {
+          "thinking_tokens": 3560
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 44200,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 969,
+            "cache_read_input_tokens": 49790,
+            "cache_creation_input_tokens": 346,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 346
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал change `import-sfera-statements` в `openspec/changes/import-sfera-statements/` со всеми четырьмя артефактами. `openspec validate --strict` проходит. Код проекта не менял.\n\n## Артефакты\n- **proposal.md** — зачем нужен change и что в него входит. Одна новая capability, `statement-import`.\n- **specs/statement-import/spec.md** — 12 требований со сценариями. Они покрывают:\n  - определение формата и кодировки;\n  - разбор `nova`, `sfera` и `sfera_split`;\n  - пропуск мусорных строк и нумерацию строк;\n  - строгий режим;\n  - дедупликацию по количеству;\n  - атомарную запись;\n  - обёртку `import_csv`.\n- **design.md** — решения и риски. Разбор делается целиком в памяти, затем один `add_many`, поэтому атомарность и `strict` получаются без отката.\n- **tasks.md** — 5 групп задач, у каждой указан способ проверки.\n\n## Допущения, которых нет в тикете\nОни записаны в design.md и spec.md.\n- **`line_no` у `UnknownFormatError`:** 1 для непустого файла, `None` для пустого. Существующий тест ждёт `line_no == 1` для заголовка `date,sum,description`.\n- **Заголовок:** регистр и пробелы по краям игнорируются и для `nova`. Заголовок, подходящий сразу `sfera` и `sfera_split`, считается неизвестным форматом, как и заголовок с повторяющейся обязательной колонкой.\n- **Неизвестное значение `fmt`:** это `UnknownFormatError`, а не `ValueError`.\n- **Файл, не читающийся ни как UTF-8, ни как cp1251:** `StatementError`, в хранилище ничего не попадает.\n- **Суммы «Сферы»:** тысячи только группами по три цифры, разделитель — пробел или U+00A0. Остальное — ошибка строки.\n- **Дата «Сферы»:** сначала проверяется шаблон, потому что один `strptime` принял бы `1.3.2026`.\n- **`normalize_description`:** вызывает существующий `rules.normalize_text`, а не копирует его.\n- **`add_many` при пустом результате:** не вызывается, чтобы не создавать пустой JSON-файл.\n- **`OSError` при открытии файла в `import_csv`:** остаётся как раньше, потому что `cli.py` менять нельзя.\n\nПобочный эффект для CLI: команда `import` теперь пропускает дубли и считает в «Imported N» только новые транзакции. Это следует из тикета, и в proposal это отмечено как изменение поведения.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 99.0,
+      "cost_usd": 0.3149209,
+      "duration_ms": 97119,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 37000,
+        "cache_read_input_tokens": 229549,
+        "output_tokens": 14393,
+        "output_tokens_details": {
+          "thinking_tokens": 1351
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 37000,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 600,
+            "cache_read_input_tokens": 42535,
+            "cache_creation_input_tokens": 401,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 401
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** import-sfera-statements (schema: spec-driven)\n**Progress:** 12/12 tasks complete ✓\n\nВсе 78 тестов проходят, включая существующие `test_importer.py` и `test_cli.py`. `ledger/cli.py`, `ledger/reports.py` и существующие тесты не изменены (по `git status`).\n\nЧто сделано:\n- **`ledger/errors.py`:** добавлены `UnknownFormatError` и `StatementRowError`.\n- **`ledger/importer.py`:**\n  - Добавлены `import_statement`, `detect_format`, `normalize_description`, `RowError` и `ImportResult`.\n  - Определение формата идёт по заголовку, кодировка — UTF-8 с BOM или cp1251.\n  - Разбор строк для `nova`, `sfera`, `sfera_split`.\n  - Пустые и разделительные строки пропускаются.\n  - Дубли отсеиваются с учётом количества.\n  - В strict-режиме ошибочная строка не даёт ничего записать.\n  - Запись идёт одним `add_many`, и только если есть что добавлять.\n  - `import_csv` стал строгой обёрткой над `import_statement` для `nova`.\n- **`tests/test_import_statement.py`:** новые тесты на все пункты спецификации.\n- **`design.md`:** добавлен раздел «Implementation notes» с тремя решениями:\n  - `detect_format` принимает уже декодированный текст.\n  - Для пустого файла `UnknownFormatError` бросается с `line_no=None`, даже если `fmt` неизвестен.\n  - Новые тесты лежат в отдельном файле.\n\nМожно архивировать: `/opsx:archive`."
+    }
+  ]
+}

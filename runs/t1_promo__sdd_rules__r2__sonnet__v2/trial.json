@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd_rules__r2__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c4b08e8448",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c4b08e8448\\project",
+  "base_commit": "166347f5b65263acd704cbd51a5f02126bdcd34d",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 185.4,
+      "cost_usd": 0.4989084,
+      "duration_ms": 183492,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 49630,
+        "cache_read_input_tokens": 298284,
+        "output_tokens": 27052,
+        "output_tokens_details": {
+          "thinking_tokens": 3770
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 49630,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1036,
+            "cache_read_input_tokens": 55223,
+            "cache_creation_input_tokens": 343,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 343
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-promo-codes` создано в `openspec/changes/add-promo-codes/`. Все четыре артефакта готовы, `openspec validate add-promo-codes --strict` проходит без ошибок. Код проекта не менялся, в git добавилась только папка `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` — зачем нужны промокоды, что меняется, три новые возможности и влияние на код. API перенесён из тикета дословно.\n- `specs/promo-codes/spec.md` — `PromoCode`, `PromoRegistry` (`add`, `resolve`, `uses`) и три независимых исключения.\n  - Порядок проверок: неизвестный код, затем срок `[starts_at, expires_at)`, затем лимит.\n  - «Акция ещё не началась» даёт `PromoExpiredError`.\n  - `resolve(\"\")` даёт `UnknownPromoCodeError`.\n- `specs/promo-pricing/spec.md` — расчёт в `calculate_total`.\n  - Скидка идёт только на участвующие строки: сертификаты и исключённые категории не участвуют.\n  - Раскладка по строкам методом наибольшего остатка; при равных остатках лишняя копейка уходит строке выше в чеке.\n  - Налог считается с суммы после скидки.\n  - Порог бесплатной доставки сравнивается с суммой товаров после скидки, а саму доставку скидка не уменьшает.\n  - Условия заказа: минимальная сумма (граница включительно) и наличие хотя бы одной участвующей строки.\n- `specs/order-promos/spec.md` — `quote`, `place_order`, `Order.promo_code`.\n  - Пустой или пробельный код означает «без промокода».\n  - Использованием считается только успешный `place_order`.\n  - `cancel` возвращает использование.\n- `design.md` — решения и допущения. Раскладка считается в целых копейках.\n- `tasks.md` — 5 групп задач. Каждая задача содержит способ проверки. Последняя задача сверяет публичный API с proposal и specs.\n\n**Допущения, которых нет в тикете** (все записаны в `design.md`)\n- Для пустой корзины `EmptyCartError` приоритетнее ошибок кода.\n- `uses()` для незарегистрированного кода выбрасывает `UnknownPromoCodeError`, а не возвращает 0.\n- Реестр получает два дополнительных метода, `record_use` и `release_use`, для учёта использований. Заданный в тикете API они не меняют.\n- Для `FIXED` допустимо не больше двух знаков после запятой. Дробные проценты для `PERCENT` разрешены.\n- Скидка, округлившаяся до 0.00, считается применённой и расходует лимит.\n- Срок промокода проверяют часы реестра. `created_at` заказа по-прежнему берётся с часов сервиса.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 123.3,
+      "cost_usd": 0.4364235,
+      "duration_ms": 121388,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 47628,
+        "cache_read_input_tokens": 379135,
+        "output_tokens": 20795,
+        "output_tokens_details": {
+          "thinking_tokens": 228
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 47628,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 718,
+            "cache_read_input_tokens": 53021,
+            "cache_creation_input_tokens": 543,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 543
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена\n\n**Change:** add-promo-codes (схема spec-driven)\n**Progress:** 12/12 задач, все отмечены в `tasks.md`.\n\n`python -m pytest -q` проходит: 99 тестов. Из них 38 старых и 61 новый. Старые тесты не менялись.\n\n### Что сделано\n- **`shop/errors.py`:** добавлены `PromoError` и три независимых наследника: `UnknownPromoCodeError`, `PromoExpiredError`, `PromoConditionsError`.\n- **`shop/promo.py` (новый):**\n  - `DiscountKind` и `PromoCode` со всеми инвариантами из спецификации.\n  - `PromoRegistry` с методами `add`, `resolve`, `uses`, а также `record_use` и `release_use`.\n- **`shop/pricing.py`:** `calculate_total` принимает `promo` только как именованный аргумент. Скидка раскладывается по строкам в целых копейках методом наибольшего остатка. Налог и порог бесплатной доставки считаются после скидки. Поля `discount` стоят в конце dataclass и по умолчанию равны `0.00`.\n- **`shop/orders.py`:** добавлены `Order.promo_code`, `OrderService(promos=...)`, `quote` и `place_order` с кодом. `record_use` вызывается после успешного сохранения заказа, `cancel` возвращает использование.\n- **Тесты:** новые файлы `tests/test_promo.py`, `tests/test_pricing_promo.py` и `tests/test_orders_promo.py`.\n\n### Решения, записанные в `design.md`\n- Пустая корзина вместе с промокодом даёт `EmptyCartError` раньше, чем любая ошибка кода. Для этого `OrderService` не вызывает `resolve` на пустой корзине.\n- Сверка публичного API с proposal и specs: расхождений нет.\n- `shop/cli.py` и `shop/reports.py` не менялись.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

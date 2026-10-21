@@ -1,0 +1,58 @@
+{
+  "trial_id": "t3_import__baseline__r2__sonnet__v2",
+  "task": "t3_import",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\be7275ad0f",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\be7275ad0f\\project",
+  "base_commit": "34e0a7222643e768a4c56084aa63547841dfa4b1",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 95.1,
+      "cost_usd": 0.25045249999999997,
+      "duration_ms": 93405,
+      "num_turns": 8,
+      "usage": {
+        "input_tokens": 14,
+        "cache_creation_input_tokens": 26206,
+        "cache_read_input_tokens": 139905,
+        "output_tokens": 13161,
+        "output_tokens_details": {
+          "thinking_tokens": 3400
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 26206,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 739,
+            "cache_read_input_tokens": 31909,
+            "cache_creation_input_tokens": 233,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 233
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "`import_statement`, `detect_format` и `normalize_description` готовы в `ledger/importer.py`. Исключения `UnknownFormatError` и `StatementRowError` добавлены в `ledger/errors.py`. Все 46 тестов проходят: 41 старый и 5 новых в `tests/test_import_statement.py`. В новых тестах покрыты `sfera` (BOM, мусорные строки, ошибки строк), `sfera_split` в cp1251, дедупликация при повторном импорте и два кейса `UnknownFormatError`. `strict` проверен на `JsonFileStore`: файл хранилища не создаётся. Дубли внутри файла по правилу Марины отдельным тестом не проверены.\n\n`import_csv` теперь обёртка над строгим импортом `nova` и возвращает число добавленных. `cli.py` и `reports.py` не менялись.\n\nЧто я решил там, где тикет не отвечает:\n- **Номер строки в `UnknownFormatError`:** для непустого файла он равен 1 (старый тест на отсутствующую колонку требует `line_no == 1`). Для пустого файла `line_no` равен `None`.\n- **Разделитель:** `nova` читается только с `,`, обе «Сферы» только с `;`. Заголовок `nova` с `;` будет «не распознан».\n- **Регистр заголовков:** он не учитывается и у `nova`.\n- **Неизвестное значение `fmt`:** оно даёт `UnknownFormatError`.\n- **Тысячи в суммах «Сферы»:** кроме обычного и неразрывного (U+00A0) пробела принимается ещё узкий U+202F.\n- **Мусорная строка:** строка, где все ячейки пустые после обрезки пробелов.\n- **Категоризация:** она применяется только к добавляемым транзакциям, не к дублям.\n- **Запись в хранилище:** она идёт одним `add_many`, и только если есть что добавлять. Поэтому `JsonFileStore` не перезаписывает файл на пустом импорте.\n\nФормат даты у `nova` оставил прежний (`fromisoformat`), как в старом импорте."
+    }
+  ]
+}

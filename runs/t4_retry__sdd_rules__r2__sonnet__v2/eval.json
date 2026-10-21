@@ -1,0 +1,246 @@
+{
+  "trial_id": "t4_retry__sdd_rules__r2__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "sdd_rules",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "hidden_total": 59,
+  "hidden_passed": 58,
+  "hidden_pass_rate": 0.9831,
+  "req_total": 14,
+  "req_satisfied": 13,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": false,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 36,
+  "regress_passed": 36,
+  "own_tests_total": 79,
+  "own_tests_passed": 79,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "README.md",
+    "jobq/__init__.py",
+    "jobq/errors.py",
+    "jobq/metrics.py",
+    "jobq/models.py",
+    "jobq/queue.py",
+    "jobq/retry.py",
+    "jobq/store.py",
+    "jobq/worker.py",
+    "tests/test_dead_letter.py",
+    "tests/test_retry_policy.py",
+    "tests/test_retry_worker.py"
+  ],
+  "loc": {
+    "prod_added": 229,
+    "prod_removed": 9,
+    "test_added": 397,
+    "spec_added": 461,
+    "other_files": [
+      "README.md"
+    ]
+  },
+  "new_test_funcs": 33,
+  "changed_funcs": 17,
+  "cc_mean": 3.41,
+  "cc_max": 13,
+  "funcs_cc_gt10": 1,
+  "cost_usd": 1.0579,
+  "wall_s": 354.3,
+  "num_turns": 35,
+  "output_tokens": 53169,
+  "input_tokens_total": 882631,
+  "session_rcs": [
+    0,
+    0
+  ],
+  "session_subtypes": [
+    "success",
+    "success"
+  ],
+  "hidden_by_func": {
+    "test_API_cancel_stats_and_purge": [
+      true
+    ],
+    "test_API_dashboard_old_statuses_still_rendered": [
+      true
+    ],
+    "test_API_enqueue_and_queue_constructor_unchanged": [
+      true
+    ],
+    "test_API_failure_without_policy_is_failed": [
+      true
+    ],
+    "test_API_worker_construction_and_run_methods": [
+      true
+    ],
+    "test_R01_defaults": [
+      true
+    ],
+    "test_R01_frozen": [
+      true
+    ],
+    "test_R01_invalid_params_raise_config_error": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "test_R01_non_retryable_list_is_stored_as_tuple": [
+      true
+    ],
+    "test_R02_attempt_below_one_is_rejected": [
+      true
+    ],
+    "test_R02_capped_by_max_delay": [
+      true
+    ],
+    "test_R02_exponential_sequence": [
+      true
+    ],
+    "test_R02_huge_attempt_numbers_do_not_overflow": [
+      true
+    ],
+    "test_R03_jitter_never_exceeds_max_delay": [
+      true
+    ],
+    "test_R03_jitter_uses_one_uniform_call": [
+      true
+    ],
+    "test_R03_worker_uses_injected_rng_for_run_at": [
+      true
+    ],
+    "test_R03_zero_jitter_does_not_touch_rng": [
+      true
+    ],
+    "test_R04_failure_schedules_retry": [
+      true
+    ],
+    "test_R04_retry_counters_with_type_policy_only": [
+      true
+    ],
+    "test_R04_second_failure_uses_factor_and_latest_error": [
+      true
+    ],
+    "test_R05_retries_share_time_order_with_pending_jobs": [
+      true
+    ],
+    "test_R05_retry_is_not_picked_before_run_at": [
+      true
+    ],
+    "test_R05_zero_delay_retry_runs_in_same_run_pending": [
+      true
+    ],
+    "test_R06_dead_letter_entry_fields": [
+      true
+    ],
+    "test_R06_max_attempts_includes_first_attempt": [
+      true
+    ],
+    "test_R06_rng_not_used_when_dead_lettering": [
+      true
+    ],
+    "test_R06_rng_sequence_not_consumed_by_final_attempt": [
+      true
+    ],
+    "test_R06_single_attempt_policy_goes_to_dead_letter": [
+      true
+    ],
+    "test_R07_is_retryable": [
+      true
+    ],
+    "test_R07_non_retryable_on_last_attempt_is_failed_not_dead_letter": [
+      true
+    ],
+    "test_R07_permanent_error_is_never_retried": [
+      true
+    ],
+    "test_R07_subclass_of_non_retryable_fails_immediately": [
+      true
+    ],
+    "test_R08_default_policy_applies_to_types_without_own_policy": [
+      true
+    ],
+    "test_R08_policy_is_resolved_at_failure_time": [
+      true
+    ],
+    "test_R08_retry_policy_for_resolution": [
+      true
+    ],
+    "test_R08_type_policy_replaces_default_entirely": [
+      true
+    ],
+    "test_R09_removing_type_policy_without_default_restores_old_behaviour": [
+      true
+    ],
+    "test_R09_type_without_any_policy_keeps_old_behaviour": [
+      true
+    ],
+    "test_R09_unknown_job_type_fails_despite_policy": [
+      true
+    ],
+    "test_R10_dead_letters_keep_arrival_order": [
+      true
+    ],
+    "test_R10_requeue_errors": [
+      true
+    ],
+    "test_R10_requeue_resets_job": [
+      true
+    ],
+    "test_R10_requeued_job_gets_full_set_of_attempts": [
+      true
+    ],
+    "test_R11_cancel_job_waiting_for_retry": [
+      true
+    ],
+    "test_R11_dead_lettered_job_cannot_be_cancelled": [
+      true
+    ],
+    "test_R12_handler_sees_current_attempt_number": [
+      true
+    ],
+    "test_R12_success_after_retry_clears_error": [
+      true
+    ],
+    "test_R13_dashboard_shows_new_statuses": [
+      true
+    ],
+    "test_R13_new_status_values": [
+      true
+    ],
+    "test_R13_purge_keeps_dead_letters": [
+      true
+    ],
+    "test_R13_stats_and_list_jobs_include_new_statuses": [
+      true
+    ],
+    "test_R13_terminal_flags": [
+      false
+    ]
+  },
+  "hidden_out_tail": "..................................................F........              [100%]\n================================== FAILURES ===================================\n___________________________ test_R13_terminal_flags ___________________________\n\n    def test_R13_terminal_flags():\n>       assert JobStatus.DEAD_LETTERED.is_terminal is True\nE       AssertionError: assert False is True\nE        +  where False = <JobStatus.DEAD_LETTERED: 'dead_lettered'>.is_terminal\nE        +    where <JobStatus.DEAD_LETTERED: 'dead_lettered'> = JobStatus.DEAD_LETTERED\n\ntests_hidden\\test_hidden.py:783: AssertionError\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\081fca1ead\\project\\_hidden.xml -\n=========================== short test summary info ===========================\nFAILED tests_hidden/test_hidden.py::test_R13_terminal_flags - AssertionError:...\n1 failed, 58 passed in 0.65s\n"
+}

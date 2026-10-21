@@ -1,0 +1,58 @@
+{
+  "trial_id": "t1_promo__baseline__r1__haiku__v2",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\40e181e689",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\40e181e689\\project",
+  "base_commit": "1e04579d0930e30aa4faa3dd472fb003003725e9",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 215.1,
+      "cost_usd": 0.050318180000000004,
+      "duration_ms": 212886,
+      "num_turns": 39,
+      "usage": {
+        "input_tokens": 52,
+        "cache_creation_input_tokens": 72122,
+        "cache_read_input_tokens": 1254858,
+        "output_tokens": 46680,
+        "output_tokens_details": {
+          "thinking_tokens": 20066
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 72122,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1176,
+            "cache_read_input_tokens": 76982,
+            "cache_creation_input_tokens": 1856,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1856
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды реализованы по тикету SHOP-412, включая UPD про отмену. Все 96 тестов проходят: 38 старых без изменений и 58 новых в трёх файлах. Не коммитил, изменения лежат в рабочей копии.\n\n**Что сделано**\n- `shop/promo.py` (новый): `DiscountKind`, `PromoCode` с валидацией в `__post_init__`, `PromoRegistry` с часами, проверками срока и лимита и счётчиком использований.\n- `shop/errors.py`: `PromoError` и три независимых наследника.\n- `shop/pricing.py`: `calculate_total(..., promo=None)`. Скидка идёт только по участвующим строкам, раскладывается в копейках по правилу бухгалтерии, налог строки считается после скидки, порог доставки сравнивается с суммой после скидки. `LineTotal.discount` и `OrderTotal.discount` добавлены с дефолтом 0.\n- `shop/orders.py`: `OrderService(promos=...)`, `quote`/`place_order` принимают `promo_code`, `Order.promo_code`. Счётчик растёт только при успешном заказе, уменьшается при `cancel`.\n- `shop/__init__.py`: экспорт новых имён. `README.md`: раздел «Промокоды».\n- `shop/cli.py` и `shop/reports.py` не трогал.\n\n**Решения, которые я принял сам**\n- Фиксированная скидка больше суммы участвующих строк **обрезается** до этой суммы, а не даёт ошибку. В тикете написано «не может быть больше», я прочитал это как потолок.\n- `uses(\"неизвестный код\")` кидает `UnknownPromoCodeError`, а не возвращает 0.\n- Порог бесплатной доставки, как и раньше, считается от суммы строк, включая подарочные сертификаты, но уже после скидки. Сертификаты в сумму порога попадали и до этой задачи, поэтому я их не исключал.\n- Для промокода в `quote`/`place_order` пустая строка или пробелы значат «без кода», а `resolve(\"\")` даёт `UnknownPromoCodeError`, как написано в тикете.\n- Версию пакета (`1.4.0`) не менял.\n\nПроверка: `python -m pytest -q` → 96 passed. Линтера в окружении нет, поэтому статическую проверку импортов я делал только глазами."
+    }
+  ]
+}

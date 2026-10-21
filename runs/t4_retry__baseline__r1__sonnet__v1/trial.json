@@ -1,0 +1,58 @@
+{
+  "trial_id": "t4_retry__baseline__r1__sonnet__v1",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\1ce34c5a05",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\1ce34c5a05\\project",
+  "base_commit": "23be21944894262692653c246b7fcb0c0a2444fc",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 92.9,
+      "cost_usd": 0.24149940000000003,
+      "duration_ms": 90877,
+      "num_turns": 10,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 24959,
+        "cache_read_input_tokens": 170474,
+        "output_tokens": 12458,
+        "output_tokens_details": {
+          "thinking_tokens": 902
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 24959,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 840,
+            "cache_read_input_tokens": 30015,
+            "cache_creation_input_tokens": 880,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 880
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Повторы упавших заданий и dead-letter очередь из JOBQ-212 реализованы. Все тесты проходят: 36 старых и 3 новых в `tests/test_retry.py`. Новые тесты проверяют повтор с последующим успехом, уход в dead-letter с перезапуском и неповторяемую ошибку. Остальные пункты тикета отдельными тестами не покрыты.\n\n- **Политика повторов:** `RetryPolicy` лежит в новом `jobq/retry.py`. На `attempt=5000` `delay_for` не падает с `OverflowError`, а итоговая задержка не превышает `max_delay` даже после джиттера.\n- **Очередь:** `JobQueue` получил параметр `default_retry_policy` и методы `set_retry_policy`, `retry_policy_for`, `dead_letters`, `requeue_dead_letter`. Политика берётся в момент обработки ошибки, а не при постановке.\n- **Воркер:** в `Worker` добавлен параметр `rng`, ошибка обработчика идёт по трём веткам из тикета: `FAILED`, `DEAD_LETTERED` или `RETRY_SCHEDULED`.\n- **Статусы и модели:** добавлены статусы `RETRY_SCHEDULED` и `DEAD_LETTERED`, `DeadLetterEntry`, ошибка `PermanentJobError` и метрики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **Отмена и purge:** `cancel()` работает для `RETRY_SCHEDULED`, а для `DEAD_LETTERED` даёт `InvalidTransitionError`. `purge_finished()` не удаляет задания из dead-letter.\n\n`dashboard.py` и `cli.py` не менял. Отчёт перебирает все значения `JobStatus`, поэтому подписи «Ожидает повтора» и «В dead-letter» с количеством появятся в нём сами. Саму выдачу отчёта с новыми статусами я не проверял.\n\nРешения, которых в тикете не было:\n- Успешное выполнение теперь всегда очищает `job.error`, а при `requeue_dead_letter` обнуляется ещё и `finished_at`.\n- Пакетный экспорт расширил: `RetryPolicy`, `PermanentJobError` и `DeadLetterEntry` доступны из `jobq`.\n\nКоммит не делал."
+    }
+  ],
+  "tag": "v1",
+  "ticket_file": "ticket.md(v1)"
+}

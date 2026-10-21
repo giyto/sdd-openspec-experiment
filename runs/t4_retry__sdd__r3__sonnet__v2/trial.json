@@ -1,0 +1,102 @@
+{
+  "trial_id": "t4_retry__sdd__r3__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a196d24037",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\a196d24037\\project",
+  "base_commit": "2c5e0d85446f7d2c95a3b4fd8cf00e9dc2e8e7c1",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 188.6,
+      "cost_usd": 0.5188933,
+      "duration_ms": 186711,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 53245,
+        "cache_read_input_tokens": 320333,
+        "output_tokens": 27384,
+        "output_tokens_details": {
+          "thinking_tokens": 3296
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53245,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1058,
+            "cache_read_input_tokens": 58387,
+            "cache_creation_input_tokens": 794,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 794
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-job-retry-dead-letter` создано в `openspec/changes/add-job-retry-dead-letter/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся, `git status` показывает только новую папку `openspec/changes/`.\n\n**Артефакты**\n- `proposal.md` — зачем нужно изменение, что меняется и какие три capability затронуты.\n- `specs/retry-policy/spec.md` — `RetryPolicy`: валидация параметров, `delay_for`, `is_retryable`, `PermanentJobError`.\n- `specs/job-retry/spec.md` — политики в очереди и выбор воркером между `FAILED`, `RETRY_SCHEDULED` и `DEAD_LETTERED`. Там же `rng`, отмена, счётчики и подписи в отчёте.\n- `specs/dead-letter/spec.md` — `dead_letters()`, `requeue_dead_letter`, защита от `purge_finished`.\n- `design.md` — технические решения и риски.\n- `tasks.md` — 5 групп задач, у каждой указано, как проверить.\n\nДля реализации менять `dashboard.py` не нужно: отчёт перебирает `JobStatus` и берёт подписи из `label`.\n\n**Допущения, которые я принял сам**\n- **`attempts` при requeue.** В описании тикета сказано «сохраняем», но в обсуждении тимлид позже уточнил «обнуляем». Взял обнуление.\n- **`DEAD_LETTERED` и `is_terminal`.** Статус терминальный, но `purge_finished` исключает его явно. `RETRY_SCHEDULED` нетерминальный.\n- **Очистка `error` при успехе.** Сейчас `mark_succeeded` не очищает `error`, поэтому после успешного повтора там осталась бы старая ошибка. В задачах предусмотрено очищать его.\n- **Переполнение в `delay_for`.** При огромном `attempt` (например, 5000) и при `base_delay=0` функция возвращает значение в `[0, max_delay]`, `OverflowError` не бросает.\n- **Нефинитные значения.** NaN, бесконечность и `bool` в `max_attempts` дают `ConfigError`.\n- **`rng` при `base_delay=0`.** Если `jitter>0`, `uniform` всё равно вызывается один раз, чтобы расход `rng` не зависел от значений.\n- **`rng=None`.** Воркер создаёт свой `random.Random()`, а `delay_for` без `rng` использует общий модуль `random`.\n- **Хранение dead-letter.** Записи лежат в памяти `JobQueue`, а не в хранилище.\n\n**Для владельцев `dashboard.py`:** `failure_rate` не считает задания в dead-letter провалами. В тикете этот файл трогать нельзя, поэтому я оставил как есть и записал в рисках `design.md`.\n\nАртефакты готовы к ревью. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 129.9,
+      "cost_usd": 0.4673524,
+      "duration_ms": 128121,
+      "num_turns": 13,
+      "usage": {
+        "input_tokens": 22,
+        "cache_creation_input_tokens": 54195,
+        "cache_read_input_tokens": 362584,
+        "output_tokens": 21427,
+        "output_tokens_details": {
+          "thinking_tokens": 371
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54195,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 996,
+            "cache_read_input_tokens": 58859,
+            "cache_creation_input_tokens": 1272,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1272
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-job-retry-dead-letter (schema: spec-driven)\n**Progress:** 16/16 tasks complete ✓\n\n`python -m pytest -q` проходит: 90 тестов, из них 36 старых (не менял) и 54 новых в `tests/test_retry.py`. `jobq/dashboard.py` и `jobq/cli.py` не изменены, а в отчёте дежурных новые строки «Ожидает повтора» и «В dead-letter» появляются сами.\n\n### Что сделано\n- **Ошибки, модели, метрики:**\n  - добавлены `PermanentJobError`, статусы `RETRY_SCHEDULED` и `DEAD_LETTERED` с подписями, `DeadLetterEntry`;\n  - `DEAD_LETTERED` считается терминальным, `RETRY_SCHEDULED` нет;\n  - добавлены счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **`jobq/retry.py`:** `RetryPolicy` (frozen dataclass).\n  - Все ошибки параметров выходят как `ConfigError`.\n  - `delay_for` не переполняется на `attempt=5000` и `10**9`, результат остаётся в `[0, max_delay]` после джиттера.\n  - `is_retryable` всегда возвращает `False` для `PermanentJobError`.\n- **Хранилище и очередь:**\n  - `due()` берёт и `RETRY_SCHEDULED`;\n  - добавлены `default_retry_policy`, `set_retry_policy`, `retry_policy_for` (политика типа заменяет дефолт целиком), `mark_retry_scheduled`, `mark_dead_lettered`, `dead_letters()`, `requeue_dead_letter`;\n  - `mark_succeeded` очищает `error`, `purge_finished` не трогает dead-letter.\n- **Воркер:** keyword-only `rng` и `_handle_failure` с порядком из спецификации. `rng` расходуется только при планировании повтора. Падение из-за отсутствия обработчика сразу даёт `FAILED`.\n- **Экспорт и README:** `RetryPolicy`, `PermanentJobError`, `DeadLetterEntry` экспортируются из `jobq`. В README добавлены модуль `retry.py`, раздел о повторах и dead-letter и оговорка, что записи dead-letter живут в памяти очереди.\n\nРешений, которых нет в артефактах, принимать не пришлось, поэтому `design.md` не менял.\n\nВ `design.md` отмечено, что `failure_rate` в `dashboard.py` не учитывает dead-letter как провал. Файл не наш, поэтому владельцам стоит сообщить об этом в описании PR.\n\nНичего не закоммичено. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

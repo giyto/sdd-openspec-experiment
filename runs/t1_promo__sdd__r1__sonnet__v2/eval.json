@@ -1,0 +1,78 @@
+{
+  "trial_id": "t1_promo__sdd__r1__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "hidden_total": 57,
+  "hidden_passed": 57,
+  "hidden_pass_rate": 1.0,
+  "req_total": 14,
+  "req_satisfied": 14,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    3,
+    3
+  ],
+  "regress_total": 38,
+  "regress_passed": 38,
+  "own_tests_total": 94,
+  "own_tests_passed": 94,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "README.md",
+    "shop/__init__.py",
+    "shop/errors.py",
+    "shop/orders.py",
+    "shop/pricing.py",
+    "shop/promo.py",
+    "tests/test_orders_promo.py",
+    "tests/test_pricing_promo.py",
+    "tests/test_promo.py"
+  ],
+  "loc": {
+    "prod_added": 286,
+    "prod_removed": 17,
+    "test_added": 451,
+    "spec_added": 366,
+    "other_files": [
+      "README.md"
+    ]
+  },
+  "new_test_funcs": 45,
+  "changed_funcs": 19,
+  "cc_mean": 4.58,
+  "cc_max": 22,
+  "funcs_cc_gt10": 2,
+  "cost_usd": 1.0256,
+  "wall_s": 380.3,
+  "num_turns": 33,
+  "output_tokens": 52371,
+  "input_tokens_total": 933814,
+  "session_rcs": [
+    0,
+    0
+  ],
+  "session_subtypes": [
+    "success",
+    "success"
+  ],
+  "hidden_out_tail": ".........................................................                [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9265ff9620\\project\\_hidden.xml -\n57 passed in 0.21s\n"
+}

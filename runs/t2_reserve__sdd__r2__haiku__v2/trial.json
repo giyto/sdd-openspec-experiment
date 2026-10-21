@@ -1,0 +1,102 @@
+{
+  "trial_id": "t2_reserve__sdd__r2__haiku__v2",
+  "task": "t2_reserve",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\1ea19c85ff",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\1ea19c85ff\\project",
+  "base_commit": "3bc509a9af7cbc2bfe1b3cfc9386e478995b8fbc",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 126.6,
+      "cost_usd": 0.02234558,
+      "duration_ms": 124718,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 43735,
+        "cache_read_input_tokens": 347568,
+        "output_tokens": 20241,
+        "output_tokens_details": {
+          "thinking_tokens": 5854
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 43735,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 916,
+            "cache_read_input_tokens": 48429,
+            "cache_creation_input_tokens": 2022,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2022
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `add-inventory-reservations` is created in `openspec/changes/` with all four planning artifacts, and `openspec validate add-inventory-reservations --strict` passes. I did not touch project code, and the apply step has not started.\n\n**Artifacts**\n- `proposal.md`: why and what changes. The capability is new, so there are no modified capabilities.\n- `specs/reservations/spec.md`: the delta spec, with requirements and WHEN/THEN scenarios for reserve, confirm, cancel, extend, lazy expiry, `reserved`/`available`, the effect on `issue`/`transfer`, and the journal events.\n- `design.md`: how it fits into the existing code.\n- `tasks.md`: 6 groups of checkbox tasks, each with its verification step.\n\n**Assumptions I made where the ticket was silent or ambiguous**\n- **Expiry is computed, not stored.** A stored `ACTIVE` record with `now >= expires_at` reads as `EXPIRED`. Nothing is written to the journal.\n- **`transfer` uses the same availability check as `issue`.** The ticket names only `issue`, but it describes transfer's source-side checks as the same as `issue`.\n- **`InsufficientStockError` from `confirm` reports the physical on-hand as `available`.** The check runs against physical stock, so that is the number it reports.\n- **Check order is fixed:** argument validation, then lookup, then status, then stock. Expired and cancelled records are replaced by a new `reserve` with no history kept.\n- **Expiry boundary:** the reservation is expired at `now == expires_at`. The journal `expires` field is truncated to seconds, as the journal already does for all timestamps.\n- **Capability name is `reservations`.** The project has no existing specs to follow, so I chose a flat name.\n- **TTL default is 15 minutes,** per Anna's later update in the ticket.\n\nNothing is committed. Reply with a new request to start the apply workflow when you're ready."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 194.0,
+      "cost_usd": 0.05330911,
+      "duration_ms": 192163,
+      "num_turns": 39,
+      "usage": {
+        "input_tokens": 44,
+        "cache_creation_input_tokens": 86830,
+        "cache_read_input_tokens": 1322471,
+        "output_tokens": 45428,
+        "output_tokens_details": {
+          "thinking_tokens": 15742
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 86830,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 989,
+            "cache_read_input_tokens": 92724,
+            "cache_creation_input_tokens": 822,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 822
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: change `add-inventory-reservations`, 14/14 задач\n\nВсе задачи из `tasks.md` выполнены и отмечены. `openspec validate --strict` проходит, `openspec instructions apply` сообщает `all_done`. `python -m pytest -q`: 100 passed (40 существующих без изменений и 60 новых).\n\n### Что сделано\n- **`warehouse/models.py`**: `ReservationStatus`, `ReservationLine`, `Reservation` (frozen).\n- **`warehouse/errors.py`**: `ReservationError` (наследник `WarehouseError`, с `order_id`) и `ReservationNotFoundError`, `ReservationExpiredError`, `ReservationStateError`, `DuplicateReservationError`.\n- **`warehouse/reservations.py`** (новый): `DEFAULT_RESERVATION_TTL = 15 мин` и внутренняя изменяемая запись `ReservationRecord`.\n- **`warehouse/storage.py`**: хранение записей по `order_id`, выборка активных записей по позиции.\n- **`warehouse/inventory.py`**: `reserved`, `available`, `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`. `issue` и `transfer` проверяют по `available`.\n- **`warehouse/__init__.py`**: экспорт новых публичных имён.\n- **`tests/test_reservations.py`** (новый): сценарии из `spec.md`, границы истечения, журнал, неизменяемость снимков.\n\n### Решения, которые я принял сам\nЗаписаны в `design.md` (раздел «Решения при реализации»):\n- Хранилище не знает о времени: оно отдаёт записи со статусом `ACTIVE`, а истечение проверяет сервис.\n- `ttl=None` в `reserve` означает значение по умолчанию. Любой другой некорректный TTL даёт `ValidationError`.\n- Порядок проверок в `reserve`: ввод, неизвестный SKU, дубль, доступность.\n- `extend` проверяет TTL до поиска заказа.\n- `transfer` тоже переведён на `available`. Это следует из текста `design.md`, но в задаче прямо назван только `issue`.\n\n### Что не закоммичено\nИзменения лежат в рабочем дереве, коммита нет. `openspec/changes/` остаётся неотслеживаемым, как было в начале сессии. `cli.py`, `reports.py` и существующие тесты не менялись (проверено через `git diff`)."
+    }
+  ]
+}

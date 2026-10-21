@@ -1,0 +1,102 @@
+{
+  "trial_id": "t4_retry__sdd__r2__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9830fcdd1c",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9830fcdd1c\\project",
+  "base_commit": "69a12a11a44afd0912054086acb7455b4b18ff02",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 175.2,
+      "cost_usd": 0.4779872,
+      "duration_ms": 172691,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 50234,
+        "cache_read_input_tokens": 315212,
+        "output_tokens": 24549,
+        "output_tokens_details": {
+          "thinking_tokens": 2523
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 50234,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 963,
+            "cache_read_input_tokens": 55805,
+            "cache_creation_input_tokens": 365,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 365
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Изменение `add-job-retry-dead-letter` создано в `openspec/changes/add-job-retry-dead-letter/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта я не менял, в git появилась только новая папка `openspec/changes/`.\n\nАртефакты:\n- **proposal.md:** зачем нужно изменение, что меняется и три новые возможности.\n- **specs/** (три файла):\n  - `retry-policy`: параметры и проверка `RetryPolicy`, расчёт задержки, классификация ошибок, политика очереди и типа.\n  - `job-retry-handling`: новые статусы, выбор между `FAILED`, `RETRY_SCHEDULED` и `DEAD_LETTERED`, использование `rng`, счётчики.\n  - `dead-letter-queue`: просмотр, возврат в работу, защита от отмены и `purge_finished`.\n- **design.md:** решения, риски и список допущений.\n- **tasks.md:** 5 групп задач, у каждой указано, как проверить результат.\n\nРешения и допущения, которые стоит проверить:\n- **Нетерминальные статусы:** `RETRY_SCHEDULED` и `DEAD_LETTERED` не считаются завершёнными, поэтому `purge_finished` не удаляет dead-letter. В `dashboard.py` ничего менять не нужно: отчёт перебирает статусы сам и подхватит подписи.\n- **`attempts` при возврате:** при `requeue_dead_letter` счётчик обнуляется. Так сказано в UPD тимлида, и это противоречит фразе «attempts сохраняем» в теле тикета.\n- **Защита `delay_for`:** `base_delay=0` даёт 0, `OverflowError` при огромном `attempt` даёт `max_delay`. После джиттера результат снова ограничивается потолком.\n- **Успешный повтор:** `mark_succeeded` теперь очищает `error`. Иначе после успешного повтора осталась бы старая ошибка, а у `SUCCEEDED` она должна быть `None`.\n- **Выборка и переходы:** `InMemoryJobStore.due()` теперь учитывает `RETRY_SCHEDULED`. Отмена из `DEAD_LETTERED` запрещена таблицей переходов.\n- **Мелкие допущения:** любые ошибки в параметрах политики дают `ConfigError`, в том числе NaN и неверные типы. Неизвестный id при возврате даёт `JobNotFoundError`, задание не из dead-letter даёт `InvalidTransitionError`. Записи dead-letter хранятся в очереди, а не в хранилище.\n\nАртефакты готовы к проверке. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 824.8,
+      "cost_usd": 0.5235795999999999,
+      "duration_ms": 6438,
+      "num_turns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2324,
+        "cache_read_input_tokens": 60558,
+        "output_tokens": 213,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 2324,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 213,
+            "cache_read_input_tokens": 60558,
+            "cache_creation_input_tokens": 2324,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2324
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Это сообщение о том, что фоновая команда остановлена. Это та самая зависшая команда с лишним `cat > $TMP/r.py`, которая ждала ввод с stdin. Перезапускать её не нужно: правку README я потом выполнил отдельным запуском `p3.py`.\n\nИтог не изменился:\n- В README есть раздел «Повторы и dead-letter» и строка про `retry.py` в таблице модулей.\n- Все 16 задач отмечены выполненными.\n- `python -m pytest -q` даёт 84 passed.\n\nЧто-то ещё делать с этой остановленной задачей не требуется."
+    }
+  ]
+}

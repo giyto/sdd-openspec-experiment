@@ -1,0 +1,249 @@
+{
+  "trial_id": "t1_promo__baseline__r3__haiku__v2",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "hidden_total": 57,
+  "hidden_passed": 57,
+  "hidden_pass_rate": 1.0,
+  "req_total": 14,
+  "req_satisfied": 14,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    3,
+    3
+  ],
+  "regress_total": 38,
+  "regress_passed": 38,
+  "own_tests_total": 98,
+  "own_tests_passed": 98,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "README.md",
+    "shop/__init__.py",
+    "shop/errors.py",
+    "shop/orders.py",
+    "shop/pricing.py",
+    "shop/promo.py",
+    "tests/test_orders_promo.py",
+    "tests/test_pricing_promo.py",
+    "tests/test_promo.py"
+  ],
+  "loc": {
+    "prod_added": 268,
+    "prod_removed": 17,
+    "test_added": 480,
+    "spec_added": 0,
+    "other_files": [
+      "README.md"
+    ]
+  },
+  "new_test_funcs": 51,
+  "changed_funcs": 18,
+  "cc_mean": 4.39,
+  "cc_max": 20,
+  "funcs_cc_gt10": 1,
+  "cost_usd": 0.0445,
+  "wall_s": 206.9,
+  "num_turns": 24,
+  "output_tokens": 45280,
+  "input_tokens_total": 908172,
+  "session_rcs": [
+    0
+  ],
+  "session_subtypes": [
+    "success"
+  ],
+  "hidden_by_func": {
+    "test_API_calculate_total_old_call_values": [
+      true
+    ],
+    "test_API_calculate_total_positional_arguments": [
+      true
+    ],
+    "test_API_order_service_old_usage": [
+      true
+    ],
+    "test_R01_no_promo_means_zero_discount": [
+      true
+    ],
+    "test_R01_place_order_without_code_with_registry": [
+      true
+    ],
+    "test_R01_promo_is_optional_keyword_only": [
+      true
+    ],
+    "test_R02_code_is_normalized_on_creation": [
+      true
+    ],
+    "test_R02_fixed_must_be_positive": [
+      true
+    ],
+    "test_R02_invalid_code_window_and_uses": [
+      true
+    ],
+    "test_R02_percent_must_be_in_range": [
+      true
+    ],
+    "test_R03_fractional_percent": [
+      true
+    ],
+    "test_R03_percent_of_qualifying_subtotal": [
+      true
+    ],
+    "test_R03_percent_of_sum_not_sum_of_rounded_lines": [
+      true
+    ],
+    "test_R03_percent_rounds_half_up": [
+      true
+    ],
+    "test_R04_fixed_capped_by_qualifying_lines": [
+      true
+    ],
+    "test_R04_fixed_discount": [
+      true
+    ],
+    "test_R04_hundred_percent_leaves_gift_cards_paid": [
+      true
+    ],
+    "test_R05_code_specific_excluded_categories": [
+      true
+    ],
+    "test_R05_excluded_lines_keep_full_tax": [
+      true
+    ],
+    "test_R05_gift_cards_never_discounted": [
+      true
+    ],
+    "test_R06_min_order_counts_only_qualifying_lines": [
+      true
+    ],
+    "test_R06_min_order_ignores_code_excluded_categories": [
+      true
+    ],
+    "test_R06_min_order_is_inclusive_and_before_discount": [
+      true
+    ],
+    "test_R06_min_order_without_tax_and_shipping": [
+      true
+    ],
+    "test_R06_no_qualifying_lines": [
+      true
+    ],
+    "test_R07_end_is_exclusive": [
+      true
+    ],
+    "test_R07_not_started_is_expired_error": [
+      true
+    ],
+    "test_R07_place_order_checks_window_with_injected_clock": [
+      true
+    ],
+    "test_R07_start_is_inclusive": [
+      true
+    ],
+    "test_R08_blank_code_means_no_promo": [
+      true
+    ],
+    "test_R08_duplicate_codes_rejected": [
+      true
+    ],
+    "test_R08_order_stores_normalized_code": [
+      true
+    ],
+    "test_R08_resolve_ignores_case_and_surrounding_spaces": [
+      true
+    ],
+    "test_R09_error_hierarchy": [
+      true
+    ],
+    "test_R09_expired_wins_over_exhausted_limit": [
+      true
+    ],
+    "test_R09_expired_wins_over_unmet_conditions": [
+      true
+    ],
+    "test_R09_service_without_registry_knows_no_codes": [
+      true
+    ],
+    "test_R09_unknown_code": [
+      true
+    ],
+    "test_R10_cancel_returns_use": [
+      true
+    ],
+    "test_R10_failed_order_does_not_consume": [
+      true
+    ],
+    "test_R10_limit_reached": [
+      true
+    ],
+    "test_R10_quote_does_not_consume_uses": [
+      true
+    ],
+    "test_R11_excluded_lines_skipped_ties_by_cart_order": [
+      true
+    ],
+    "test_R11_leftover_goes_to_largest_remainder": [
+      true
+    ],
+    "test_R11_line_discount_never_exceeds_line_amount": [
+      true
+    ],
+    "test_R11_line_discounts_sum_exactly": [
+      true
+    ],
+    "test_R12_tax_follows_allocation_per_category": [
+      true
+    ],
+    "test_R12_tax_on_discounted_line_amounts": [
+      true
+    ],
+    "test_R12_tax_rounded_per_line_after_discount": [
+      true
+    ],
+    "test_R13_discount_never_reduces_shipping": [
+      true
+    ],
+    "test_R13_free_shipping_threshold_uses_amount_after_discount": [
+      true
+    ],
+    "test_R13_threshold_reached_exactly_after_discount": [
+      true
+    ],
+    "test_R13_threshold_with_gift_cards_and_discount": [
+      true
+    ],
+    "test_R13_total_formula": [
+      true
+    ],
+    "test_R14_order_keeps_code_and_discount": [
+      true
+    ],
+    "test_R14_quote_matches_placed_order": [
+      true
+    ],
+    "test_R14_service_uses_its_shipping_and_tax_policies": [
+      true
+    ]
+  },
+  "hidden_out_tail": ".........................................................                [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ee2de1cd07\\project\\_hidden.xml -\n57 passed in 0.28s\n"
+}

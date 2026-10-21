@@ -1,0 +1,58 @@
+{
+  "trial_id": "t1_promo__baseline__r1__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3ae4243a3d",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3ae4243a3d\\project",
+  "base_commit": "59b91860ffb16a2e997bb693461107b9466ddfdf",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 99.0,
+      "cost_usd": 0.2916045,
+      "duration_ms": 96995,
+      "num_turns": 11,
+      "usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 28752,
+        "cache_read_input_tokens": 183605,
+        "output_tokens": 15820,
+        "output_tokens_details": {
+          "thinking_tokens": 1495
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 28752,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 935,
+            "cache_read_input_tokens": 34154,
+            "cache_creation_input_tokens": 534,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 534
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды из SHOP-412 реализованы, все 47 тестов проходят: старые без изменений и новые в `tests/test_promo.py`. Ничего не закоммичено.\n\nЧто сделано:\n- **Новые файлы и ошибки.** Добавлены `shop/promo.py` и три независимых наследника `PromoError` в `shop/errors.py`.\n- **Расчёт.** `calculate_total` теперь принимает `promo`, а в `LineTotal` и `OrderTotal` появилось поле `discount`. Изменения в `shop/pricing.py`.\n- **Заказы.** `OrderService`, `quote`, `place_order` и `Order.promo_code` расширены по API из тикета. Изменения в `shop/orders.py`.\n- **Реестр.** `PromoRegistry` проверяет по порядку: есть ли код, действует ли он, потом лимит.\n- **Порядок проверок.** Условия заказа (минималка, наличие участвующих товаров) проверяет `calculate_total`.\n- **Скидка по строкам.** Раскладка идёт по правилу бухгалтерии: доля, округлённая вниз до копейки, остаток копеек раздаётся по наибольшему остатку, при равенстве раньше идёт строка выше в чеке.\n- **Налог и доставка.** Налог считается с суммы строки после скидки. Порог бесплатной доставки сравнивается с суммой товаров после скидки. Стоимость доставки скидка не уменьшает.\n- **Счётчик использований.** Растёт только при успешном `place_order`, проверка и увеличение делаются под одной блокировкой. `quote` и неудачные попытки счётчик не трогают. `cancel` уменьшает его на один, но не ниже нуля.\n- **Ввод кода.** Коды нормализуются через `normalize_key`. Пустой или пробельный `promo_code` в `quote` и `place_order` означает «без кода», а `resolve(\"\")` даёт `UnknownPromoCodeError`.\n\nРешения по неоднозначным местам:\n- Подарочные сертификаты не участвуют в скидке всегда, даже если их нет в `excluded_categories` кода.\n- Фиксированная скидка с более чем двумя знаками после запятой отклоняется с `ValidationError`.\n- Повторное добавление того же кода в реестр тоже даёт `ValidationError`.\n- Я добавил в `shop/__init__.py` экспорт `PromoCode`, `PromoRegistry` и `DiscountKind`.\n- `OrderTotal.subtotal` остаётся суммой до скидки, как в формуле `total = subtotal - discount + shipping + tax`.\n\n`cli.py` и `reports.py` не менял."
+    }
+  ]
+}

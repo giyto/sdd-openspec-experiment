@@ -1,0 +1,58 @@
+{
+  "trial_id": "t1_promo__baseline__r2__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\210bfd616e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\210bfd616e\\project",
+  "base_commit": "cd4be5df9456bef8954b9c74bcd3e847fed98070",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 97.3,
+      "cost_usd": 0.2983462,
+      "duration_ms": 93678,
+      "num_turns": 10,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 29420,
+        "cache_read_input_tokens": 163842,
+        "output_tokens": 16425,
+        "output_tokens_details": {
+          "thinking_tokens": 1375
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 29420,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 727,
+            "cache_read_input_tokens": 33136,
+            "cache_creation_input_tokens": 2220,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2220
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды при расчёте и оформлении заказа готовы. Все 44 теста проходят: 38 старых и 6 новых в `tests/test_promo.py`. Старые тесты не менял, `cli.py` и `reports.py` не трогал. Коммит не делал.\n\n- **Новый код.** `shop/promo.py` содержит `DiscountKind`, `PromoCode` и `PromoRegistry`. В `shop/errors.py` добавлены `PromoError` и три его независимых наследника. Новые имена экспортируются из `shop/__init__.py`.\n- **Расчёт.** `calculate_total(..., promo=...)` проверяет только условия заказа и считает скидку по правилам тикета. В `LineTotal` и `OrderTotal` появилось поле `discount` со значением `0.00` по умолчанию, поэтому старые вызовы дают прежние суммы.\n- **Порог бесплатной доставки.** Он сравнивается с суммой товаров после скидки, как в поправке Ольги Смирновой.\n- **Заказы.** `quote` и `place_order` принимают `promo_code`, а `Order.promo_code` хранит нормализованный код. Пустой или пробельный код означает «без промокода». Без реестра любой непустой код считается неизвестным. Использование записывается только после успешного сохранения заказа, а `cancel` возвращает его в счётчик.\n\nРешения по неоднозначным местам, о которых стоит знать:\n- Реестр отклоняет повторное добавление того же кода через `ValidationError`, как и для других вводимых кодов.\n- `PromoRegistry.uses` для неизвестного кода бросает `UnknownPromoCodeError`.\n- Фиксированная скидка с более чем двумя знаками после запятой отвергается при создании `PromoCode`.\n- Для работы со счётчиком добавил в `PromoRegistry` два служебных метода, `record_use` и `release_use`, которых нет в API тикета."
+    }
+  ]
+}

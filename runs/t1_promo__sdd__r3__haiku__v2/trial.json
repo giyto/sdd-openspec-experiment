@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd__r3__haiku__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0e45c63b22",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\0e45c63b22\\project",
+  "base_commit": "a637e6bcd61dfe21915270d0b81d3f5ed23810e9",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 157.2,
+      "cost_usd": 0.029839530000000003,
+      "duration_ms": 155469,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 40,
+        "cache_creation_input_tokens": 50191,
+        "cache_read_input_tokens": 745283,
+        "output_tokens": 24689,
+        "output_tokens_details": {
+          "thinking_tokens": 8567
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 50191,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 702,
+            "cache_read_input_tokens": 56682,
+            "cache_creation_input_tokens": 225,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 225
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `add-promo-codes` is created with all four planning artifacts, and `openspec validate add-promo-codes --strict` passes. I did not touch project code; the only new files are under `openspec/changes/add-promo-codes/`. Implementation has not started.\n\n**Artifacts**\n- `proposal.md`: why and what, plus two new capabilities: `promo-codes` and `checkout-discounts`. Nothing is modified because `openspec/specs/` is empty.\n- `specs/promo-codes/spec.md`: promo code model and validation, normalization and lookup, unknown code, validity window `[starts_at, expires_at)`, usage limit, return of a use on cancel, and resolution check order.\n- `specs/checkout-discounts/spec.md`: participating lines, no-lines and minimum checks, discount amount, per-line distribution, tax and shipping after discount, totals, blank-code behavior, and `quote`, `place_order`, `cancel` integration.\n- `design.md`: module layout, integer-kopeck distribution algorithm, risks, and rollout.\n- `tasks.md`: 5 groups, 14 tasks. Each task names its verification.\n\n**Assumptions I made where the ticket was ambiguous**\n- A fixed discount larger than the participating sum is capped at that sum, not rejected.\n- `uses(code)` for an unknown code raises `UnknownPromoCodeError`, not `0`.\n- Cancelling an order returns its use without checking the code's validity period.\n- Blank or whitespace-only codes are treated as no code. `resolve(\"\")` is an unknown code.\n- The free-shipping threshold is compared against goods after discount. The shipping fee itself is not reduced.\n- The in-memory registry is not thread-safe. This matches the existing `OrderStore`. Concurrent checkouts of a limited code are a known risk, and a concurrency fix is out of scope.\n\n**Not in scope:** `shop/cli.py`, `shop/reports.py`, README, and existing tests are untouched, as the ticket requires.\n\nWhen you're ready to implement, run `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 188.7,
+      "cost_usd": 0.043589119999999995,
+      "duration_ms": 186915,
+      "num_turns": 28,
+      "usage": {
+        "input_tokens": 44,
+        "cache_creation_input_tokens": 69189,
+        "cache_read_input_tokens": 1072992,
+        "output_tokens": 38034,
+        "output_tokens_details": {
+          "thinking_tokens": 11681
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 69189,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1267,
+            "cache_read_input_tokens": 73797,
+            "cache_creation_input_tokens": 2108,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 2108
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все 16 задач из `tasks.md` в `add-promo-codes` выполнены и отмечены. Полный набор тестов проходит: 166 тестов, из них 38 были до изменений и не менялись. `openspec validate add-promo-codes --strict` проходит без ошибок.\n\n**Что сделано**\n- **`shop/errors.py`**: `PromoError(ShopError)` и три независимых наследника: `UnknownPromoCodeError`, `PromoExpiredError`, `PromoConditionsError`.\n- **`shop/promo.py`** (новый): `DiscountKind`, неизменяемый `PromoCode` с проверкой инвариантов, `normalize_promo_input` и `PromoRegistry` (добавление, `resolve` в порядке существование → срок → лимит, `uses`, `record_use`, `release_use` без ухода ниже нуля).\n- **`shop/pricing.py`**: `calculate_total(..., *, promo=None)`. Участвующие строки, минимум и пустой набор строк, скидка (процент с `ROUND_HALF_UP`, фиксированная с ограничением суммой базы), распределение скидки в целых копейках по методу наибольшего остатка, налог с суммы после скидки, порог бесплатной доставки по товарам после скидки. Новые поля `LineTotal.discount` и `OrderTotal.discount` добавлены в конец с значением `0.00`.\n- **`shop/orders.py`**: `OrderService(..., promos=None)`, `quote(cart, promo_code=None)`, `place_order(cart, promo_code=None)`, `Order.promo_code`, возврат использования в `cancel`. Если реестра нет, возврат пропускается с предупреждением в лог.\n- **Тесты** в новых файлах: `test_promo_errors.py`, `test_promo_code.py`, `test_promo_registry.py`, `test_promo_pricing.py` (включая свойственную проверку: сумма скидок по строкам равна скидке заказа на 30 случайных корзинах), `test_promo_orders.py`.\n- **`design.md`**: добавлен раздел «Implementation Notes» с решениями, которые спецификация не задаёт явно.\n\n**Решения, которые я принял сам**\n- `PromoCode.kind` обязан быть `DiscountKind`, иначе `ValidationError`. В списке инвариантов спецификации этого нет, но без проверки расчёт скидки не определён.\n- Для `PERCENT` не ограничиваю число знаков после запятой: спецификация этого не требует.\n- Новые публичные имена не экспортируются из `shop/__init__.py`, потому что задачи этого не предусматривают.\n\n**Проверки из задач 5.x**\n- `shop/cli.py` и `shop/reports.py` не изменены.\n- Новых зависимостей нет.\n- Существующие тестовые файлы и `conftest.py` не изменены.\n\nКоммит не создавал: `openspec/changes/` всё ещё не отслеживается git, а коммиты вы не просили."
+    }
+  ]
+}

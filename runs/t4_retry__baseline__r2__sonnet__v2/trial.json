@@ -1,0 +1,58 @@
+{
+  "trial_id": "t4_retry__baseline__r2__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\83f6d7c8c7",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\83f6d7c8c7\\project",
+  "base_commit": "754c961287c57a06c7b26e769c7c724ea9157707",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 95.6,
+      "cost_usd": 0.2740762,
+      "duration_ms": 93712,
+      "num_turns": 9,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 28100,
+        "cache_read_input_tokens": 163142,
+        "output_tokens": 14533,
+        "output_tokens_details": {
+          "thinking_tokens": 1849
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 28100,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1101,
+            "cache_read_input_tokens": 32219,
+            "cache_creation_input_tokens": 1817,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1817
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Повторы с экспоненциальной задержкой и dead-letter очередь добавлены. Старые тесты проходят, как и 12 новых в `tests/test_retry.py`: всего 48 зелёных.\n\n**Что сделано**\n- **Политика.** Новый `jobq/retry.py` с `RetryPolicy` по контракту тикета. Некорректные параметры (включая NaN) дают `ConfigError`.\n  - При `base_delay=0` задержка равна 0.\n  - Переполнение `factor ** n` на больших `attempt` (например, 5000) даёт `max_delay`, а не `OverflowError`.\n  - Результат всегда в `[0, max_delay]`, джиттер потолок не пробивает.\n  - `rng` трогается только при `jitter > 0`.\n- **Воркер.** Если политики нет или ошибка неповторяемая (в том числе `PermanentJobError`), задание уходит в `FAILED`, даже на последней попытке. Если политика есть и `attempts >= max_attempts`, задание уходит в `DEAD_LETTERED`. Иначе оно получает `RETRY_SCHEDULED` и `run_at = now + delay_for(attempts, rng)`. `max_attempts=1` даёт «без повторов, но в dead-letter».\n  - Задержка и `rng` считаются только когда повтор реально планируется.\n  - Политика берётся на момент ошибки, политика типа заменяет дефолт целиком.\n  - Отсутствие обработчика по-прежнему сразу даёт `FAILED`.\n- **Очередь.** Добавлены `default_retry_policy`, `set_retry_policy`, `retry_policy_for`, `dead_letters` и `requeue_dead_letter`.\n  - В `requeue_dead_letter` взято решение из UPD тимлида: `attempts` обнуляется, а не сохраняется, как сказано в описании тикета.\n  - Задание в `RETRY_SCHEDULED` можно отменить. Из `DEAD_LETTERED` выход один — `requeue_dead_letter`.\n  - `purge_finished` dead-letter не трогает, потому что `DEAD_LETTERED` не считается терминальным статусом.\n- **Прочее.** Хранилище отдаёт воркеру `RETRY_SCHEDULED` с наступившим `run_at`. Добавлены счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`, подписи «Ожидает повтора» и «В dead-letter», а также новые имена в `jobq/__init__.py`.\n- **Ограничения тикета.** `dashboard.py` и `cli.py` не менялись. Новые параметры только keyword-only.\n\n**Что не сделано и остаётся на вашей стороне**\n- Dead-letter хранится в памяти самой очереди. Если создать `JobQueue` поверх хранилища, где уже есть задания в `DEAD_LETTERED`, в `dead_letters()` они не попадут.\n- `requeue_dead_letter` для задания не из dead-letter бросает `InvalidTransitionError`, для неизвестного id — `JobNotFoundError`.\n- `README.md` не обновлял."
+    }
+  ]
+}

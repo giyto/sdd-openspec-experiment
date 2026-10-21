@@ -1,0 +1,102 @@
+{
+  "trial_id": "t4_retry__sdd__r2__haiku__v2",
+  "task": "t4_retry",
+  "condition": "sdd",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3b0fbc3bfa",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\3b0fbc3bfa\\project",
+  "base_commit": "1039eeaf244f3df508daec4a448c196d140d8e67",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 129.5,
+      "cost_usd": 0.025889199999999998,
+      "duration_ms": 127560,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 48684,
+        "cache_read_input_tokens": 532140,
+        "output_tokens": 21656,
+        "output_tokens_details": {
+          "thinking_tokens": 5186
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 48684,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 797,
+            "cache_read_input_tokens": 55172,
+            "cache_creation_input_tokens": 228,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 228
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `jobq-retry-dead-letter` is created with all four planning artifacts. `openspec validate` passes, both normal and `--strict`. No project code was edited, and nothing is committed.\n\n**Artifacts** (in `openspec/changes/jobq-retry-dead-letter/`)\n- `proposal.md`: the why and what, with two new capabilities: `job-retry` and `dead-letter`. There are no existing specs in the repo, so nothing is modified.\n- `specs/job-retry/spec.md`: policy validation, delay and jitter, retryability, default and per-type policy assignment, the worker's outcome for a failed attempt, counters, cancelling a waiting retry, and status labels.\n- `specs/dead-letter/spec.md`: ordered dead-letter entries, purge and cancel rules, `requeue_dead_letter` behaviour, and public API compatibility.\n- `design.md`: the design decisions, alternatives, risks, and migration notes.\n- `tasks.md`: 6 groups, each task with a verification step.\n\n**Assumptions I made, since you asked me not to stop for questions**\n- **Requeue resets `attempts` to 0.** The ticket first says to keep it, then the 14.10 update says to reset it. I followed the update and log the previous count.\n- **`retry_policy_for` returns the effective policy.** That is the type policy if set, otherwise the queue default, otherwise `None`.\n- **`DEAD_LETTERED` is terminal, but `purge_finished` skips it.** The worker never runs it, and it stays until requeued.\n- **Dead-letter storage lives in `JobQueue`**, not in the store. `due()` now also picks up `RETRY_SCHEDULED`.\n- **Non-finite numbers are rejected** as `ConfigError`. That covers NaN and inf in any float field.\n- **Requeue on a job that is not dead-lettered** raises `InvalidTransitionError`. An unknown id raises `JobNotFoundError`.\n- **`jitter > 0` with no `rng` passed** uses a fresh `random.Random()`.\n\n**Risk to watch**\n- `dashboard.py` iterates `JobStatus`, so the new statuses will show up in the report automatically. The existing dashboard test should still pass, but that is only verified once the tasks are implemented.\n\nWhen you are ready to implement, run `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 147.4,
+      "cost_usd": 0.04073802000000001,
+      "duration_ms": 145634,
+      "num_turns": 41,
+      "usage": {
+        "input_tokens": 42,
+        "cache_creation_input_tokens": 69984,
+        "cache_read_input_tokens": 1044752,
+        "output_tokens": 32579,
+        "output_tokens_details": {
+          "thinking_tokens": 7086
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 69984,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1391,
+            "cache_read_input_tokens": 75148,
+            "cache_creation_input_tokens": 1552,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1552
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: 25/25 задач\n\nChange `jobq-retry-dead-letter` выполнен полностью. CLI подтверждает статус `all_done`. Задачи отмечены в `tasks.md`. Коммит не делал, изменения лежат в рабочей копии.\n\n**Результат тестов:** `python -m pytest -q` → **94 passed** (36 старых без изменений и 58 новых).\n\n```\n........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 0.18s\n```\n\n### Что сделано\n- **Модели и ошибки:** `PermanentJobError` (`errors.py`), статусы `RETRY_SCHEDULED` и `DEAD_LETTERED` с подписями, `DEAD_LETTERED` в терминальных (`models.py`), frozen `DeadLetterEntry`, константы `jobs.retried` / `jobs.dead_lettered` / `jobs.requeued` (`metrics.py`).\n- **`jobq/retry.py`:** `RetryPolicy` с валидацией (`ConfigError`), `delay_for` без переполнения, джиттер с повторным ограничением `max_delay`, `is_retryable`.\n- **`queue.py`:** `default_retry_policy`, `set_retry_policy`, `retry_policy_for`, `schedule_retry`, `mark_dead_lettered`, `dead_letters`, `requeue_dead_letter`; расширена таблица переходов; `purge_finished` пропускает dead-letter.\n- **`store.py`:** `due()` берёт `PENDING` и `RETRY_SCHEDULED`.\n- **`worker.py`:** keyword-only `rng`; решение `FAILED` / `DEAD_LETTERED` / `RETRY_SCHEDULED` принимается по политике в момент ошибки; `rng` трогается только при реальном повторе.\n- **Экспорт и README:** новые имена в `__init__.py` и `__all__`; строка `retry.py` в таблице модулей и абзац о повторах в «Соглашениях».\n- **Тесты:** `tests/test_retry.py` и `tests/test_dead_letter.py`, покрывают сценарии из обеих спецификаций.\n\n### Проверки ограничений задачи\n- `jobq/dashboard.py`, `jobq/cli.py`, существующие тесты в `tests/` и `pytest.ini` не изменены (`git diff` пуст по этим файлам).\n- Новых зависимостей нет, файлов `requirements*` в проекте нет.\n\n### Решения, которые я принял сам (записаны в `design.md`, раздел «Решения при реализации»)\n- Значения по умолчанию `RetryPolicy`: `max_attempts=3`, `base_delay=1.0`, `factor=2.0`, `max_delay=60.0`, `jitter=0.0`, `non_retryable=()`. Спецификация их не задаёт, но сценарий `RetryPolicy()` требует, чтобы конструктор без аргументов работал.\n- Валидация отвергает `bool` и нечисловые значения, а также `NaN` и `inf`.\n- `is_retryable` — метод `RetryPolicy`, а не функция модуля.\n- `schedule_retry` не выставляет `finished_at`, так как задание ещё не завершено.\n- Новые статусы вставлены рядом с родственными, поэтому порядок строк в отчёте дашборда меняется. Сам дашборд не трогал.\n\n### Что не сделано\nНичего из задач не пропущено. Коммит не создавал, так как вы его не просили."
+    }
+  ]
+}

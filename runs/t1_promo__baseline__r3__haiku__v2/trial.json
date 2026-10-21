@@ -1,0 +1,58 @@
+{
+  "trial_id": "t1_promo__baseline__r3__haiku__v2",
+  "task": "t1_promo",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ee2de1cd07",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\ee2de1cd07\\project",
+  "base_commit": "b25dccb750f78f018a228a784e5cdfcd5f0224c3",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 206.9,
+      "cost_usd": 0.04452393,
+      "duration_ms": 205011,
+      "num_turns": 24,
+      "usage": {
+        "input_tokens": 36,
+        "cache_creation_input_tokens": 67363,
+        "cache_read_input_tokens": 840773,
+        "output_tokens": 45280,
+        "output_tokens_details": {
+          "thinking_tokens": 23803
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 67363,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1075,
+            "cache_read_input_tokens": 72588,
+            "cache_creation_input_tokens": 1491,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1491
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Промокоды из SHOP-412 реализованы: скидка считается при `quote`/`calculate_total` и учитывается при `place_order`, отмена возвращает использование. Все 98 тестов проходят (38 старых без изменений и 60 новых).\n\n## Что сделано\n\n- **`shop/promo.py`** (новый): `DiscountKind`, `PromoCode` с валидацией в `__post_init__`, `PromoRegistry` с `add`, `resolve`, `uses`, а также `consume` и `release` для учёта использований.\n- **`shop/errors.py`**: `PromoError` и три независимых наследника.\n- **`shop/pricing.py`**: `calculate_total(..., *, promo=None)`, `LineTotal.discount`, `OrderTotal.discount`. Скидка распределяется по строкам методом наибольшего остатка в копейках. Налог строки считается с суммы после скидки. Порог доставки сравнивается с суммой товаров после скидки, стоимость доставки не меняется.\n- **`shop/orders.py`**: `OrderService(promos=...)`, `quote`/`place_order` принимают `promo_code`, `Order.promo_code`. `cancel` возвращает использование.\n- **`shop/__init__.py`**: экспорт `DiscountKind`, `PromoCode`, `PromoRegistry`.\n- **README**: модуль в таблице и короткое описание правил промокодов.\n- **Тесты**: `tests/test_promo.py`, `tests/test_pricing_promo.py`, `tests/test_orders_promo.py`. Существующие тесты, `cli.py` и `reports.py` не трогал.\n\n## Решения, которые принял сам\n\n- **Фиксированная скидка больше суммы участвующих строк**: ограничиваю суммой участвующих строк (`min`), а не отклоняю код. Тикет говорит «не может быть больше», поэтому это ближайшее прочтение.\n- **`uses()` для неизвестного кода** выбрасывает `UnknownPromoCodeError`, а не возвращает 0, чтобы опечатки не терялись.\n- **`resolve` проверяет старт и конец**: `starts_at <= now < expires_at`, интервал полуоткрытый, как в README.\n- **Новые поля `discount` и `OrderTotal.discount`** стоят последними с дефолтом `0.00`, чтобы не ломать позиционные конструкторы.\n- **Пустой или пробельный код** в `quote`/`place_order` означает «без кода». Если реестра нет, а код задан, выбрасывается `UnknownPromoCodeError`.\n- **`Order.promo_code`** хранит нормализованный код.\n- **Отмена** возвращает использование без проверки срока действия.\n- **Версия пакета** (`1.4.0`) не менялась.\n\n## Чего не делал\n\n- Не коммитил: изменения лежат в рабочей копии, git-статус показан выше.\n- Линтеров в окружении нет, проверил импорты вручную.\n- Окончания строк в рабочей копии уже были смешанными (часть файлов CRLF, часть LF), я это не нормализовал."
+    }
+  ]
+}

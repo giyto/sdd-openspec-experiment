@@ -1,0 +1,58 @@
+{
+  "trial_id": "t2_reserve__baseline__r3__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\10d2b0e503",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\10d2b0e503\\project",
+  "base_commit": "f7d90a03caa1fe773f051ba292b7cec4171960e0",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 111.3,
+      "cost_usd": 0.3419496,
+      "duration_ms": 109640,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 32581,
+        "cache_read_input_tokens": 225656,
+        "output_tokens": 18902,
+        "output_tokens_details": {
+          "thinking_tokens": 1528
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 32581,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 657,
+            "cache_read_input_tokens": 37514,
+            "cache_creation_input_tokens": 1003,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1003
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Резервы реализованы в `Inventory` по описанию из тикета, включая уточнения из обсуждения. Существующие 40 тестов проходят. Новых тестов я не добавлял. Вручную прогнал один сценарий: резерв из двух строк одной позиции, `issue` в чужой резерв, инвентаризация ниже резерва, `confirm` с нехваткой и с достаточным остатком, истечение. Журнал и статусы получились как в тикете.\n\n**Что изменено**\n- **Файлы:**\n  - `warehouse/models.py`: `ReservationStatus`, `ReservationLine`, `Reservation`.\n  - `warehouse/errors.py`: пять новых ошибок с атрибутом `order_id`.\n  - `warehouse/reservations.py`: `DEFAULT_RESERVATION_TTL` = 15 минут (по обновлению Анны).\n  - `warehouse/inventory.py`: все методы резервов.\n  - `warehouse/__init__.py`: экспорт новых имён.\n- **`cli.py`, `reports.py`:** не трогал.\n- **Истечение:** статус считается в момент обращения по часам сервиса, ничего не пишется в журнал. Резерв истёк, когда `now >= expires_at`.\n- **`transfer`:** тоже учитывает чужие резервы, потому что в README его проверки совпадают с `issue`. В тикете это прямо не сказано.\n- **`InsufficientStockError`:** при нехватке по двум строкам одной позиции `requested` — сумма строк.\n- **Недоступное количество:** оно считается как `max(0, остаток − резервы)`.\n- **Проверки в `extend`:** сначала проверяется `ttl`, потом находится резерв.\n- **`ReservationLine`:** принимаются и кортежи, и объекты.\n\nВ `ReservationStateError` я добавил атрибут `status` сверх требований тикета."
+    }
+  ]
+}

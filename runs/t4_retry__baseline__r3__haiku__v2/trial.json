@@ -1,0 +1,58 @@
+{
+  "trial_id": "t4_retry__baseline__r3__haiku__v2",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\25e84ed8a6",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\25e84ed8a6\\project",
+  "base_commit": "8bc91d3a22894e356908a2a03a7c57d4fc1b94d6",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 208.6,
+      "cost_usd": 0.05324253000000001,
+      "duration_ms": 206973,
+      "num_turns": 44,
+      "usage": {
+        "input_tokens": 46,
+        "cache_creation_input_tokens": 78487,
+        "cache_read_input_tokens": 1231153,
+        "output_tokens": 50458,
+        "output_tokens_details": {
+          "thinking_tokens": 23926
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 78487,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1557,
+            "cache_read_input_tokens": 84758,
+            "cache_creation_input_tokens": 445,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 445
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Задача JOBQ-212 выполнена: повторы с экспоненциальной задержкой и dead-letter очередь. Все 93 теста проходят (36 старых без изменений и 57 новых). Изменения не закоммичены.\n\n**Что сделано**\n- `jobq/retry.py` (новый): `RetryPolicy` с валидацией всех параметров из тикета, плюс отказ от NaN и бесконечностей. `delay_for` не переполняется на огромных `attempt`, а при `base_delay=0` или `factor=1` работает корректно. Джиттер применяется до потолка `max_delay`, и `rng` трогается только при `jitter > 0`.\n- `jobq/errors.py`: `PermanentJobError`.\n- `jobq/models.py`: статусы `RETRY_SCHEDULED` («Ожидает повтора») и `DEAD_LETTERED` («В dead-letter»), датакласс `DeadLetterEntry`.\n- `jobq/queue.py`: политики по умолчанию и по типу, `dead_letters()`, `requeue_dead_letter()`, переходы `mark_retry_scheduled` и `mark_dead_lettered`. Новые переходы добавлены в таблицу, `cancel` работает для ожидающего повтора.\n- `jobq/store.py`: `due()` теперь отдаёт и `RETRY_SCHEDULED`, когда подошло время.\n- `jobq/worker.py`: `_handle_failure` выбирает `FAILED`, `RETRY_SCHEDULED` или `DEAD_LETTERED`. Параметр `rng` keyword-only.\n- `jobq/metrics.py`: `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- `jobq/__init__.py` и `README.md`: экспорт и короткий раздел про повторы.\n- Новые тесты: `tests/test_retry.py` и `tests/test_retry_worker.py`.\n\n**Не трогал:** `jobq/dashboard.py`, `jobq/cli.py`, существующие тесты.\n\n**Решения, где тикет был неоднозначен**\n- `DEAD_LETTERED` считается терминальным, но `purge_finished` его явно пропускает.\n- `set_retry_policy(type, None)` удаляет политику типа, и тогда действует дефолт очереди. Отключить повторы для типа при заданном дефолте таким способом нельзя, для этого нужна `RetryPolicy(max_attempts=1)`.\n- `requeue_dead_letter` обнуляет `attempts` (как в обновлении тикета), `error`, `finished_at`, ставит `run_at` = сейчас. `started_at` не меняется.\n- Для задания без обработчика по-прежнему сразу `FAILED`, даже если у очереди есть политика.\n\n**Что стоит знать**\n- Отчёт дежурных «Последние ошибки» выводит только `FAILED`, поэтому задания в dead-letter там не видны. Dashboard по тикету трогать нельзя, это стоит передать его команде.\n- Очень большой `max_delay` (порядка 10^14 секунд и выше) упирается в ограничение `timedelta` и даст `OverflowError` при планировании повтора. Я это не обрабатывал."
+    }
+  ]
+}

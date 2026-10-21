@@ -1,0 +1,102 @@
+{
+  "trial_id": "t4_retry__sdd_rules__r3__sonnet__v2",
+  "task": "t4_retry",
+  "condition": "sdd_rules",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\22171ba3e1",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\22171ba3e1\\project",
+  "base_commit": "637fd5b8a169d78422fd9089beaa5c7a51dec80a",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 191.5,
+      "cost_usd": 0.5432629999999999,
+      "duration_ms": 189714,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 53707,
+        "cache_read_input_tokens": 245930,
+        "output_tokens": 30381,
+        "output_tokens_details": {
+          "thinking_tokens": 2560
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 53707,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 854,
+            "cache_read_input_tokens": 59247,
+            "cache_creation_input_tokens": 396,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 396
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все четыре артефакта изменения `add-job-retry-dead-letter` созданы, `openspec validate --strict` проходит. Код проекта не менялся, в git только новый каталог `openspec/changes/`.\n\nАртефакты лежат в `openspec/changes/add-job-retry-dead-letter/`:\n- **`proposal.md`**: зачем нужна доработка, что меняется, две новые capability и затронутые файлы.\n- **`specs/job-retry-policy/spec.md`**: `RetryPolicy`, валидация, `delay_for`, `is_retryable`, назначение политики и выбор исхода воркером.\n- **`specs/dead-letter-queue/spec.md`**: новые статусы и переходы между ними, `dead_letters()`, `requeue_dead_letter`, отмена и `purge_finished`, счётчики.\n- **`design.md`**: решения и допущения.\n- **`tasks.md`**: 5 групп задач, у каждой указана проверка. Последняя задача сверяет публичный API с proposal и specs.\n\nВ `design.md` я зафиксировал такие решения по неоднозначным местам тикета:\n- **`attempts` при requeue:** обнуляем, как в UPD тимлида. Это отменяет фразу «attempts сохраняем» в описании.\n- **`is_terminal`:** оба новых статуса не считаются завершёнными. Так `purge_finished` не удалит dead-letter.\n- **`retry_policy_for`:** возвращает действующую политику: сначала политика типа, затем дефолт очереди, иначе `None`.\n- **`requeue_dead_letter` для задания не в dead-letter:** выбрасывает `InvalidTransitionError`, для неизвестного id — `JobNotFoundError`.\n- **Переполнение в `delay_for`:** возведение в степень перехватывает `OverflowError`. Случай `base_delay=0` обработан отдельно, чтобы не получить NaN.\n- **NaN и бесконечность в параметрах `RetryPolicy`:** считаем ошибкой конфигурации. Тикет этого не требует, это моё ужесточение.\n- **`jobq/store.py`:** его придётся изменить, чтобы воркер брал и `RETRY_SCHEDULED`. Файла нет в перечне тикета, но запрет касался только `dashboard.py` и `cli.py`.\n\nАртефакты готовы к проверке. Когда будете готовы начать реализацию, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 151.0,
+      "cost_usd": 0.464368,
+      "duration_ms": 149129,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 26,
+        "cache_creation_input_tokens": 51383,
+        "cache_read_input_tokens": 452140,
+        "output_tokens": 21357,
+        "output_tokens_details": {
+          "thinking_tokens": 962
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 51383,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 838,
+            "cache_read_input_tokens": 55935,
+            "cache_creation_input_tokens": 1384,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1384
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-job-retry-dead-letter (schema: spec-driven)\n**Progress:** 17/17 tasks complete ✓\n\nПолный набор тестов проходит: 87 passed, из них 36 прежних (не менялись) и 51 новый.\n\n### Что сделано\n- **Новые сущности:** `jobq/retry.py` с `RetryPolicy`, `PermanentJobError`, статусы `RETRY_SCHEDULED` и `DEAD_LETTERED`, `DeadLetterEntry`, счётчики `jobs.retried`, `jobs.dead_lettered`, `jobs.requeued`.\n- **`JobQueue`:** параметр `default_retry_policy`, методы `set_retry_policy`, `retry_policy_for`, `dead_letters`, `requeue_dead_letter`, `mark_retry_scheduled`, `mark_dead_lettered`. Таблица переходов обновлена.\n- **`InMemoryJobStore.due()`:** теперь берёт и `RETRY_SCHEDULED`.\n- **`Worker`:** параметр `rng` и выбор исхода `FAILED` / `DEAD_LETTERED` / `RETRY_SCHEDULED`.\n- **Экспорт и документация:** экспорт в `__init__.py` и раздел в README.\n- **Тесты:** новые тесты в `tests/test_retry.py`.\n- **Не тронуты:** `dashboard.py`, `cli.py` и существующие тесты. Метки новых статусов попадают в отчёт через `JobStatus.label`, это проверено тестом.\n\n### Сверка публичного API (задача 5.3)\nИмена, keyword-only параметры, значения enum `\"retry_scheduled\"` и `\"dead_lettered\"` и имена счётчиков совпадают с proposal и specs.\n\n### Решения, записанные в design.md\n- `mark_succeeded` теперь сбрасывает `error` в `None`. Без этого после успешного повтора оставалась бы ошибка прошлой попытки, а спецификация требует `None`.\n- Числовые поля `RetryPolicy` приводятся к `float`, чтобы огромный `int` в `factor` не ломал расчёт задержки.\n- `delay_for` отвергает не-`int` и `bool` в `attempt` с `ConfigError`.\n\nИзменения не закоммичены. Change можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

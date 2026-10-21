@@ -1,0 +1,102 @@
+{
+  "trial_id": "t1_promo__sdd__r1__sonnet__v2",
+  "task": "t1_promo",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9265ff9620",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\9265ff9620\\project",
+  "base_commit": "4c70b58953a51e7e5c9f5f9ea73d536763ec415b",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 201.1,
+      "cost_usd": 0.486282,
+      "duration_ms": 199086,
+      "num_turns": 14,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 50610,
+        "cache_read_input_tokens": 304520,
+        "output_tokens": 25335,
+        "output_tokens_details": {
+          "thinking_tokens": 4024
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 50610,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 881,
+            "cache_read_input_tokens": 56210,
+            "cache_creation_input_tokens": 336,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 336
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Все четыре артефакта для `add-promo-codes` созданы, `openspec validate add-promo-codes --strict` проходит. Код проекта не менялся: в git только новая папка `openspec/changes/`.\n\nВсё лежит в `openspec/changes/add-promo-codes/`:\n- **`proposal.md`**: зачем нужна задача, что меняется, три новые возможности и влияние на код.\n- **Спецификации** в `specs/`:\n  - `promo-codes`: промокод, нормализация кода, реестр, порядок проверок «код есть → срок → лимит», счётчик использований.\n  - `promo-pricing`: какие строки участвуют, размер скидки, раскладка по копейкам, налог после скидки, доставка, условия заказа.\n  - `promo-orders`: пустой код, сервис без реестра, учёт использований при оформлении, возврат при отмене.\n- **`design.md`**: решения, допущения и риски. Скидка раскладывается по строкам в целых копейках, остаток получают строки с наибольшим остатком, при равенстве — та, что раньше в корзине.\n- **`tasks.md`**: 5 групп задач, у каждой указано, чем проверить, что она выполнена.\n\nИз обсуждения в задаче учтено:\n- «Ещё не началось» даёт `PromoExpiredError`.\n- Минимальная сумма считается по участвующим строкам, ровно 1000 при минимуме 1000 подходит.\n- Если участвующих строк нет, будет `PromoConditionsError`.\n- Пустой или пробельный код в `quote`/`place_order` значит «без промокода», а `resolve(\"\")` остаётся неизвестным кодом.\n- Порог бесплатной доставки сравнивается с суммой товаров после скидки.\n- `cancel` возвращает использование кода.\n\nДопущения, которые я принял сам и записал в `design.md`:\n- `uses()` для неизвестного кода бросает `UnknownPromoCodeError`, а не возвращает 0.\n- При непустом коде и пустой корзине сначала проверяется код, потом `EmptyCartError`.\n- Скидка 0.00 допустима, использование при этом считается.\n- Возврат при отмене не зависит от срока действия кода.\n- Реестр не потокобезопасен, как и `OrderStore`.\n\nСверх API из тикета в реестр добавлены два метода, `redeem` и `release`: через них сервис увеличивает и уменьшает счётчик.\n\nАртефакты готовы к ревью. Когда будете готовы, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 179.2,
+      "cost_usd": 0.5393435999999999,
+      "duration_ms": 174835,
+      "num_turns": 19,
+      "usage": {
+        "input_tokens": 30,
+        "cache_creation_input_tokens": 54118,
+        "cache_read_input_tokens": 524516,
+        "output_tokens": 27036,
+        "output_tokens_details": {
+          "thinking_tokens": 672
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 54118,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 697,
+            "cache_read_input_tokens": 59760,
+            "cache_creation_input_tokens": 294,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 294
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-promo-codes (schema: spec-driven)\n**Progress:** 13/13 tasks complete ✓\n\n`python -m pytest -q` проходит: 94 теста (38 старых без изменений плюс 56 новых). `from shop import PromoRegistry` импортируется. `shop/cli.py`, `shop/reports.py` и существующие файлы тестов не тронуты.\n\n**Что сделано**\n- `shop/errors.py`: добавлены `PromoError` и три независимых наследника: `UnknownPromoCodeError`, `PromoExpiredError`, `PromoConditionsError`.\n- `shop/promo.py` (новый): `DiscountKind`, `PromoCode` и `PromoRegistry` (`add`, `resolve`, `uses`, `redeem`, `release`). `PromoCode` валидирует и нормализует код. Реестр проверяет по порядку: существование, срок `[start, end)`, лимит.\n- `shop/pricing.py`:\n  - поле `discount` в `LineTotal` и `OrderTotal` и keyword-only `promo` в `calculate_total`;\n  - скидка раскладывается по строкам в копейках методом наибольшего остатка;\n  - налог считается с суммы после скидки;\n  - порог бесплатной доставки сравнивается с `subtotal - discount`.\n- `shop/orders.py`: `promos` в `OrderService`, `promo_code` в `quote` и `place_order`, поле `Order.promo_code`. Использование считается после `store.add`, возврат делается в `cancel`.\n- `shop/__init__.py` и README обновлены.\n- Тесты: `tests/test_promo.py`, `tests/test_pricing_promo.py`, `tests/test_orders_promo.py`.\n\nПравок `design.md` не потребовалось: неоднозначностей, которые нужно было бы решать самому, не встретилось.\n\nВсе задачи отмечены в `tasks.md`. Изменение можно архивировать через `/opsx:archive`."
+    }
+  ]
+}

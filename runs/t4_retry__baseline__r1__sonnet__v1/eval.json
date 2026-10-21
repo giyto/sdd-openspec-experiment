@@ -1,0 +1,74 @@
+{
+  "trial_id": "t4_retry__baseline__r1__sonnet__v1",
+  "task": "t4_retry",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v1",
+  "hidden_total": 59,
+  "hidden_passed": 59,
+  "hidden_pass_rate": 1.0,
+  "req_total": 14,
+  "req_satisfied": 14,
+  "req_status": {
+    "R01": true,
+    "R02": true,
+    "R03": true,
+    "R04": true,
+    "R05": true,
+    "R06": true,
+    "R07": true,
+    "R08": true,
+    "R09": true,
+    "R10": true,
+    "R11": true,
+    "R12": true,
+    "R13": true,
+    "R14": true
+  },
+  "api_compat_pass": [
+    5,
+    5
+  ],
+  "regress_total": 36,
+  "regress_passed": 36,
+  "own_tests_total": 39,
+  "own_tests_passed": 39,
+  "protected_touched": [],
+  "foreign_deps": [],
+  "files_changed": [
+    "jobq/__init__.py",
+    "jobq/errors.py",
+    "jobq/metrics.py",
+    "jobq/models.py",
+    "jobq/queue.py",
+    "jobq/retry.py",
+    "jobq/store.py",
+    "jobq/worker.py",
+    "tests/test_retry.py"
+  ],
+  "loc": {
+    "prod_added": 195,
+    "prod_removed": 9,
+    "test_added": 46,
+    "spec_added": 0,
+    "other_files": []
+  },
+  "new_test_funcs": 3,
+  "changed_funcs": 16,
+  "cc_mean": 3.31,
+  "cc_max": 10,
+  "funcs_cc_gt10": 0,
+  "cost_usd": 0.2415,
+  "wall_s": 92.9,
+  "num_turns": 10,
+  "output_tokens": 12458,
+  "input_tokens_total": 195451,
+  "session_rcs": [
+    0
+  ],
+  "session_subtypes": [
+    "success"
+  ],
+  "hidden_out_tail": "...........................................................              [100%]\n- generated xml file: C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\1ce34c5a05\\project\\_hidden.xml -\n59 passed in 0.50s\n"
+}

@@ -1,0 +1,58 @@
+{
+  "trial_id": "t2_reserve__baseline__r1__sonnet__v2",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\56710e69c9",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\56710e69c9\\project",
+  "base_commit": "fc124b03e02eb58a88fe874f8aaa2c1277c4d9bb",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 83.7,
+      "cost_usd": 0.2555198,
+      "duration_ms": 81737,
+      "num_turns": 7,
+      "usage": {
+        "input_tokens": 12,
+        "cache_creation_input_tokens": 28175,
+        "cache_read_input_tokens": 124658,
+        "output_tokens": 13033,
+        "output_tokens_details": {
+          "thinking_tokens": 1504
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 28175,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 492,
+            "cache_read_input_tokens": 33388,
+            "cache_creation_input_tokens": 723,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 723
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Резервы в `Inventory` реализованы по тикету. 40 существующих тестов проходят. Новых тестов я не писал, только прогнал короткий сценарий: резерв из двух строк, отказ `issue` из-за резерва, `confirm`, статус подтверждённого резерва после истечения срока и отмена истёкшего. Он дал ожидаемые статусы и записи в журнале.\n\nНовый код лежит в `warehouse/models.py`, `errors.py`, `reservations.py` и `inventory.py`. В `warehouse/__init__.py` добавил экспорт новых имён. `cli.py` и `reports.py` не менял.\n\nВ тикете не оговорено, поэтому решил сам:\n- **`transfer`:** как и `issue`, не берёт товар из чужих активных резервов. Тикет требует этого только для `issue`, но у `transfer` источника проверки те же.\n- **`extend`:** сначала проверяет `ttl` и только потом ищет резерв. Для несуществующего заказа с некорректным `ttl` вернётся `ValidationError`, а не `ReservationNotFoundError`.\n- **Проверка `reserve`:** сначала проверяются входные данные, потом дубликат и только потом наличие товара.\n- **`InsufficientStockError`:** в `requested` попадает сумма по позиции (склад + SKU), в `available` — доступное количество. Для `confirm` `available` — это физический остаток."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "trial_id": "t2_reserve__baseline__r2__haiku__v2",
+  "task": "t2_reserve",
+  "condition": "baseline",
+  "rep": 2,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c7ff1b1285",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\c7ff1b1285\\project",
+  "base_commit": "00cb28c843eaa38b5330600ae4361d9ae9b1c95a",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 153.7,
+      "cost_usd": 0.033882680000000005,
+      "duration_ms": 151787,
+      "num_turns": 20,
+      "usage": {
+        "input_tokens": 40,
+        "cache_creation_input_tokens": 51829,
+        "cache_read_input_tokens": 739338,
+        "output_tokens": 32239,
+        "output_tokens_details": {
+          "thinking_tokens": 12481
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 51829,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1251,
+            "cache_read_input_tokens": 56910,
+            "cache_creation_input_tokens": 1635,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1635
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Резервирование реализовано по тикету WH-214. Все 79 тестов проходят: 40 старых без изменений и 39 новых в `tests/test_reservations.py`.\n\n**Что сделано**\n- `warehouse/models.py`: `ReservationStatus`, `ReservationLine`, `Reservation` (снимки, frozen).\n- `warehouse/errors.py`: `ReservationError` с атрибутом `order_id` и пять наследников.\n- `warehouse/reservations.py`: `DEFAULT_RESERVATION_TTL = 15 мин` и `effective_status`. Статус `EXPIRED` вычисляется по часам при обращении, фоновых задач нет.\n- `warehouse/inventory.py`: `reserve`, `confirm`, `cancel`, `extend`, `get_reservation`, `available`, `reserved`. Резервы хранятся в самом `Inventory`, а не в `InMemoryStore`.\n- `warehouse/__init__.py`: экспорт новых публичных имён.\n\n**Решения, которые я принял сам**\n- **`transfer` тоже не забирает товар из чужих резервов.** В тикете этого прямо нет, но в docstring `transfer` сказано, что для источника проверки такие же, как у `issue`. Если это было не нужно, откат одной строки.\n- **Проверка достаточности по позиции суммарно.** Строки одной позиции (склад + SKU) складываются и при `reserve`, и при `confirm`. Сами строки в резерве не склеиваются.\n- **Повторный `reserve`** разрешён, если прежний резерв `EXPIRED` или `CANCELLED`; он полностью заменяет старый.\n- **`get_reservation` с некорректным кодом заказа** (пробел, не строка) даёт `ValidationError`, а не `ReservationNotFoundError`. Для корректного кода, которого нет, — `ReservationNotFoundError`.\n- **`extend` при уже истёкшем резерве** бросает `ReservationExpiredError`, как и `confirm`. Ttl проверяется первым шагом.\n\n**Известные последствия**\n- `reports.movement_summary` учитывает любое событие с полем `sku`, поэтому `RESERVE` создаёт в сводке позицию с нулевым движением. `reports.py` по требованию не менялся.\n- `cli.py` операций с резервами не знает. Это не требовалось.\n\nРучная проверка сценария (резерв → продление → подтверждение) дала журнал, соответствующий формату из тикета."
+    }
+  ]
+}

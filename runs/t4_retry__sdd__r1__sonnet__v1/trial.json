@@ -1,0 +1,102 @@
+{
+  "trial_id": "t4_retry__sdd__r1__sonnet__v1",
+  "task": "t4_retry",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "sonnet",
+  "tag": "v1",
+  "ticket_file": "D:/Статья/experiment/pilot_v1/t4_ticket_v1.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\75c9bd40b8",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\75c9bd40b8\\project",
+  "base_commit": "0051d3d184c02303d36501092d16161b5be5d144",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 192.6,
+      "cost_usd": 0.5275463,
+      "duration_ms": 188042,
+      "num_turns": 16,
+      "usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 55039,
+        "cache_read_input_tokens": 312003,
+        "output_tokens": 27615,
+        "output_tokens_details": {
+          "thinking_tokens": 1848
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 55039,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 887,
+            "cache_read_input_tokens": 60594,
+            "cache_creation_input_tokens": 381,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 381
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Я создал изменение `add-job-retry-dead-letter` в `openspec/changes/add-job-retry-dead-letter/`. Все четыре артефакта готовы, `openspec validate --strict` проходит. Код проекта не менялся, в git добавилась только папка `openspec/changes/`.\n\n**Артефакты**\n- **`proposal.md`**: зачем нужно изменение, что меняется, четыре новые capability и допущения.\n- **`specs/`** (`retry-policy`, `job-retries`, `dead-letter`, `job-statuses`): требования и сценарии, которые можно проверить тестами. Они покрывают:\n  - защиту `delay_for` от переполнения;\n  - джиттер: ровно один вызов `uniform`, итог не выше `max_delay`;\n  - порядок реакции воркера на ошибку: неповторяемая → `FAILED` даже на последней попытке, исчерпание попыток → dead-letter, иначе повтор;\n  - `rng` вызывается только при реальном планировании повтора;\n  - выборку повторов по `(run_at, seq)`;\n  - `requeue_dead_letter`, отмену и `purge_finished`.\n- **`design.md`**:\n  - Отчёт дежурных обновится сам. Он перебирает `JobStatus` и берёт подписи из `label`, поэтому `dashboard.py` и `cli.py` трогать не надо.\n  - Решение о судьбе задания принимает воркер, а состояние меняет очередь (новые `mark_retry_scheduled` и `mark_dead_lettered`).\n  - Dead-letter хранится в очереди с сохранением порядка попадания.\n  - `purge_finished` явно пропускает `DEAD_LETTERED`, хотя он `is_terminal`.\n- **`tasks.md`**: 5 групп задач, в каждой указано, как проверить результат.\n\n**Допущения** (в `proposal.md`)\n- `ConfigError` также для NaN/inf, нецелого `max_attempts` и не-итерируемого `non_retryable`.\n- Если `delay_for` вызван с `jitter > 0` без `rng`, берётся свежий `random.Random()`.\n- При requeue дополнительно сбрасываются `finished_at` и `result`.\n\n**Замечание для команды дашборда.** `failure_rate` в `dashboard.py` не считает задания в dead-letter сбоями. Править файл нельзя, так что об этом нужно сообщить его владельцам.\n\nАртефакты готовы к проверке. Когда будете готовы к реализации, запустите `/opsx:apply`."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 135.7,
+      "cost_usd": 0.4614122,
+      "duration_ms": 133850,
+      "num_turns": 17,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 52127,
+        "cache_read_input_tokens": 450482,
+        "output_tokens": 20780,
+        "output_tokens_details": {
+          "thinking_tokens": 794
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 52127,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 538,
+            "cache_read_input_tokens": 57308,
+            "cache_creation_input_tokens": 755,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 755
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Implementation Complete\n\n**Change:** add-job-retry-dead-letter (schema: spec-driven)\n**Progress:** 17/17 tasks complete ✓\n\n- **Новый код:** `jobq/retry.py` (`RetryPolicy`: валидация, `delay_for` без `OverflowError`, джиттер, `is_retryable`).\n- **Правки существующих модулей:** `PermanentJobError`, новые статусы и `DeadLetterEntry`, три новые метрики. В `JobQueue` добавлены политики, dead-letter, `requeue_dead_letter`, новые переходы, и `purge_finished` не трогает `DEAD_LETTERED`. В `Worker` — `rng` и выбор между `FAILED`, `DEAD_LETTERED` и `RETRY_SCHEDULED`. Экспорты в `__init__.py` и раздел в README.\n- **Тесты:** добавлены в новых файлах `tests/test_retry_policy.py` и `tests/test_retry_flow.py`, включая проверку отчёта `render_report`.\n- **Результат:** `pytest` — 85 тестов проходят. В `git diff` нет `dashboard.py`, `cli.py` и файлов старых тестов.\n- **Решения при реализации** записаны в конец `design.md`:\n  - `delay_for` принимает только целое `attempt >= 1`.\n  - `factor` приводится к `float` перед возведением в степень, чтобы большой `int` не вызывал переполнение.\n\nИзменение можно архивировать командой `/opsx:archive`."
+    }
+  ]
+}

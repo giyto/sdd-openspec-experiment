@@ -1,0 +1,102 @@
+{
+  "trial_id": "t3_import__sdd__r1__haiku__v2",
+  "task": "t3_import",
+  "condition": "sdd",
+  "rep": 1,
+  "model": "haiku",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b3864f155a",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\b3864f155a\\project",
+  "base_commit": "e6397e413069c48dc56d893c34f5905e548d7555",
+  "sessions": [
+    {
+      "phase": "propose",
+      "rc": 0,
+      "wall_s": 143.1,
+      "cost_usd": 0.025137639999999996,
+      "duration_ms": 141125,
+      "num_turns": 15,
+      "usage": {
+        "input_tokens": 28,
+        "cache_creation_input_tokens": 46255,
+        "cache_read_input_tokens": 494234,
+        "output_tokens": 21883,
+        "output_tokens_details": {
+          "thinking_tokens": 7263
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 46255,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 662,
+            "cache_read_input_tokens": 52746,
+            "cache_creation_input_tokens": 225,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 225
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Change `ledger-58-sfera-import` is created with all four planning artifacts. `openspec validate` passes, both normally and with `--strict`. No project code was touched; the only change is the new `openspec/changes/` directory.\n\n**Artifacts** (`openspec/changes/ledger-58-sfera-import/`)\n- `proposal.md`: why and what changes. The new capability is `statement-import`.\n- `specs/statement-import/spec.md`: 16 requirements covering format detection, encoding, the `sfera`/`sfera_split` amount and date rules, skipped junk rows, count-based duplicates, strict and non-strict modes, and `import_csv` compatibility.\n- `design.md`: the approach within `ledger/importer.py`, with no new package, plus risks and assumptions.\n- `tasks.md`: six groups of checkbox tasks, each with a verification step.\n\n**Decisions I made where the ticket was open**\n- **`line_no=1` on header errors.** `UnknownFormatError` carries `line_no=1` when the file has a header. The existing test `test_import_missing_column` expects that value, so the tests stay unchanged.\n- **Header is the first non-blank line.** Blank lines before it are skipped, but line numbers stay physical.\n- **Strict thousands grouping.** `1 234,56` is valid, but `12 34,00` is a row error.\n- **Narrow separators are rejected.** Only the regular space and U+00A0 are accepted as thousands separators. Other spaces such as U+202F are row errors.\n- **Extra cells are rejected.** A row with non-empty cells beyond the header's columns is a row error.\n- **Invalid `fmt` value.** An unknown `fmt` value raises `UnknownFormatError`.\n- **OSError not wrapped.** A missing file still raises `OSError`, as it does today.\n\n**Open items**\n- No blocking questions remain.\n- Nothing has been implemented. Run `/opsx:apply` to start implementation."
+    },
+    {
+      "phase": "apply",
+      "rc": 0,
+      "wall_s": 192.4,
+      "cost_usd": 0.04415047000000001,
+      "duration_ms": 190591,
+      "num_turns": 31,
+      "usage": {
+        "input_tokens": 42,
+        "cache_creation_input_tokens": 73121,
+        "cache_read_input_tokens": 1011307,
+        "output_tokens": 38818,
+        "output_tokens_details": {
+          "thinking_tokens": 16996
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 73121,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 994,
+            "cache_read_input_tokens": 77883,
+            "cache_creation_input_tokens": 1954,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1954
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "## Реализация завершена: 22/22 задачи\n\n**Change:** `ledger-58-sfera-import` (схема spec-driven). Все задачи из `tasks.md` выполнены и отмечены `[x]`. Итог: `python -m pytest -q` — **96 passed** (41 старый тест и 55 новых).\n\n### Что сделано\n- **`ledger/errors.py`**: добавлены `UnknownFormatError` и `StatementRowError`, оба наследуют `StatementError`.\n- **`ledger/importer.py`**: переписан модуль.\n  - `import_statement(...) -> ImportResult`, `detect_format`, `normalize_description`.\n  - Три формата (`nova`, `sfera`, `sfera_split`) описаны данными в `_FORMATS`.\n  - Кодировка: UTF-8 с BOM или без, иначе cp1251.\n  - Дедупликация по счётчику `Counter`.\n  - Строгий и нестрогий режимы; все новые транзакции пишутся одним `store.add_many`.\n  - `import_csv` стал обёрткой над `import_statement(fmt=\"nova\", strict=True)`, сигнатура сохранена.\n- **`tests/test_statement_import.py`** (новый): покрывает пункты 2–4 и 5.2 задач.\n- **`README.md`**: описаны три формата, правило дублей и структура модуля.\n- **`design.md`**: добавлен раздел «Решения при реализации».\n\n### Проверки\n- `python -m ledger --store <file> import <file>` дважды: второй запуск печатает `Imported 0 transactions`.\n- `git diff -- tests/ ledger/cli.py ledger/reports.py` пуст, существующие тесты не изменены.\n- Файл `tests/test_statement_import.py` пока не отслеживается git, поэтому `git diff --stat` его не показывает. Git-проверка в пункте 6.3 описана буквально и для нового файла не выполнялась.\n\n### Решения, принятые без вас\n- `ImportResult.errors` сделан `tuple`, а не `list`, чтобы результат был полностью неизменяем.\n- BOM снимает кодек `utf-8-sig`, а не ручной `lstrip`.\n- Заголовок ищется как первая непустая запись CSV с учётом кавычек.\n- Ошибка заголовка всегда имеет `line_no=1`, как требует спецификация.\n- Ни один `commit` не создавался: в задаче этого не было. Папка `openspec/changes/` в git остаётся неотслеживаемой, как и была."
+    }
+  ]
+}

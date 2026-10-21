@@ -1,0 +1,58 @@
+{
+  "trial_id": "t3_import__baseline__r3__sonnet__v2",
+  "task": "t3_import",
+  "condition": "baseline",
+  "rep": 3,
+  "model": "sonnet",
+  "tag": "v2",
+  "ticket_file": "ticket.md",
+  "work_dir": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\874660ed0e",
+  "repo": "C:\\Users\\<user>\\AppData\\Local\\Temp\\sdd_runs\\874660ed0e\\project",
+  "base_commit": "2ae218f19827bf4ab31b1c2961c5a54378f3975a",
+  "sessions": [
+    {
+      "phase": "impl",
+      "rc": 0,
+      "wall_s": 92.0,
+      "cost_usd": 0.2523659,
+      "duration_ms": 90263,
+      "num_turns": 9,
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 26119,
+        "cache_read_input_tokens": 165779,
+        "output_tokens": 13128,
+        "output_tokens_details": {
+          "thinking_tokens": 3286
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 26119,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 685,
+            "cache_read_input_tokens": 31803,
+            "cache_creation_input_tokens": 252,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 252
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "subtype": "success",
+      "final_text": "Импорт «Сферы» готов: `import_statement`, `detect_format`, `normalize_description`, `RowError` и `ImportResult` лежат в `ledger/importer.py`. Исключения `UnknownFormatError` и `StatementRowError` добавлены в `ledger/errors.py`. Полный прогон тестов: 46 прошли, в том числе новые из `tests/test_sfera.py`. Существующие тесты не менял, `cli.py` и `reports.py` не трогал.\n\n`import_csv` теперь обёртка над `import_statement(fmt=\"nova\", strict=True)`. Сигнатура и `int` прежние, поэтому CLI получил дедупликацию, BOM/cp1251, пропуск пустых строк и атомарность без правок.\n\nГде тикет молчал, я решил так:\n- **Заголовки у «Новы»:** колонки ищутся без учёта регистра и пробелов, как у «Сферы», хотя Ольга писала только про «Сферу».\n- **Мусорные строки перед заголовком:** пустые строки и `;;;` до заголовка пропускаются. Файл только из таких строк даёт `UnknownFormatError`.\n- **Номер строки в `UnknownFormatError`:** при нераспознанном заголовке `line_no=1`, для пустого файла `None`. Так существующий тест на заголовок `date,sum,description` по-прежнему получает `line_no == 1`.\n- **Неизвестное значение `fmt`:** тоже даёт `UnknownFormatError`.\n- **Сумма у «Сферы»:** допускается только запись вида `1 234,56` с обычным или неразрывным пробелом. Точка вместо запятой, больше двух знаков после запятой или знак в `sfera_split` — ошибка строки.\n- **Файл, который не читается ни как UTF-8, ни как cp1251:** бросает `StatementError` без номера строки.\n- **Сбой самого csv-парсера на строке:** считается ошибкой этой строки."
+    }
+  ]
+}
