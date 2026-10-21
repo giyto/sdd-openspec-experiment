@@ -1,0 +1,15 @@
+{
+  "task_id": "t2_reserve",
+  "title": "Резервирование товара под заказы с TTL",
+  "package": "warehouse",
+  "protected_paths": [
+    "warehouse/cli.py",
+    "warehouse/reports.py",
+    "tests/conftest.py",
+    "tests/test_inventory.py",
+    "tests/test_events.py",
+    "tests/test_reports.py",
+    "tests/test_cli.py"
+  ],
+  "allowed_new_dependencies": false
+}

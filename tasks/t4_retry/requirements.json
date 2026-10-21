@@ -1,0 +1,180 @@
+[
+  {
+    "id": "R01",
+    "text": "RetryPolicy в jobq/retry.py: frozen-датакласс с полями и дефолтами (3, 1.0, 2.0, 60.0, 0.0, ()); некорректные параметры -> ConfigError; non_retryable из списка хранится как tuple",
+    "kind": "functional",
+    "tests": [
+      "test_R01_defaults",
+      "test_R01_frozen",
+      "test_R01_invalid_params_raise_config_error",
+      "test_R01_non_retryable_list_is_stored_as_tuple"
+    ],
+    "source": "ticket",
+    "where": "блок API (дефолты, frozen, 'можно передать список, хранится tuple'); 'ошибкой конфигурации, как везде в проекте' + ConfigError в jobq/errors.py"
+  },
+  {
+    "id": "R02",
+    "text": "delay_for(attempt): base_delay*factor**(attempt-1), ограничено max_delay; attempt<1 -> ConfigError; без OverflowError для огромных attempt (в т.ч. base_delay=0)",
+    "kind": "edge",
+    "tests": [
+      "test_R02_exponential_sequence",
+      "test_R02_capped_by_max_delay",
+      "test_R02_huge_attempt_numbers_do_not_overflow",
+      "test_R02_attempt_below_one_is_rejected"
+    ],
+    "source": "thread",
+    "where": "Артём 12.10 11:40: 'delay_for должна работать для любого attempt, в том числе при base_delay=0 ... [0, max_delay]'; формула и attempt < 1 в теле"
+  },
+  {
+    "id": "R03",
+    "text": "Джиттер: ровно один rng.uniform(1-jitter, 1+jitter) на задержку, применяется к уже ограниченной задержке, итог не больше max_delay; при jitter=0 rng не трогается; Worker(rng=...) использует внедрённый генератор для run_at",
+    "kind": "functional",
+    "tests": [
+      "test_R03_jitter_uses_one_uniform_call",
+      "test_R03_jitter_never_exceeds_max_delay",
+      "test_R03_zero_jitter_does_not_touch_rng",
+      "test_R03_worker_uses_injected_rng_for_run_at"
+    ],
+    "source": "thread",
+    "where": "Артём 12.10 11:40: 'max_delay — жёсткий потолок, джиттер его тоже не пробивает'; Ольга/Артём 12.10 14:20–14:32: один uniform, при jitter=0 не трогаем"
+  },
+  {
+    "id": "R04",
+    "text": "Ошибка при оставшихся попытках -> RETRY_SCHEDULED, run_at = now + задержка, error = последняя ошибка, jobs.retried +1, jobs.failed не растёт",
+    "kind": "functional",
+    "tests": [
+      "test_R04_failure_schedules_retry",
+      "test_R04_second_failure_uses_factor_and_latest_error",
+      "test_R04_retry_counters_with_type_policy_only"
+    ],
+    "source": "repo:jobq/metrics.py",
+    "where": "докстринг: 'Счётчик статуса увеличивается ровно в момент перехода задания в этот статус' (jobs.failed не растёт при повторе); формат error — README 'Текст ошибки в Job.error'"
+  },
+  {
+    "id": "R05",
+    "text": "RETRY_SCHEDULED берётся воркером только при наступлении run_at, в общей очереди с PENDING по времени, при равенстве - по исходному порядку постановки; задержка 0 выполняется в том же run_pending()",
+    "kind": "functional",
+    "tests": [
+      "test_R05_retry_is_not_picked_before_run_at",
+      "test_R05_retries_share_time_order_with_pending_jobs",
+      "test_R05_zero_delay_retry_runs_in_same_run_pending"
+    ],
+    "source": "repo:jobq/store.py",
+    "where": "докстринг due(): 'Отсортированы по run_at, при равенстве — по порядку постановки (seq)'; тело: 'воркер берёт, когда наступил его run_at, как любое другое'"
+  },
+  {
+    "id": "R06",
+    "text": "max_attempts включает первую попытку; при исчерпании -> DEAD_LETTERED + DeadLetterEntry(job_id, job_type, attempts, error, dead_lettered_at), jobs.dead_lettered +1; max_attempts=1 -> сразу dead-letter; rng не вызывается при уходе в dead-letter",
+    "kind": "edge",
+    "tests": [
+      "test_R06_max_attempts_includes_first_attempt",
+      "test_R06_dead_letter_entry_fields",
+      "test_R06_single_attempt_policy_goes_to_dead_letter",
+      "test_R06_rng_not_used_when_dead_lettering",
+      "test_R06_rng_sequence_not_consumed_by_final_attempt"
+    ],
+    "source": "thread",
+    "where": "Артём 12.10 11:40: 'max_attempts=1 означает «без повторов, но в dead-letter»'; 12.10 14:32: 'rng трогаем, только когда реально планируем повтор'"
+  },
+  {
+    "id": "R07",
+    "text": "Неповторяемые ошибки (non_retryable с учётом наследования, PermanentJobError всегда) -> FAILED сразу, даже на последней попытке, без dead-letter; RetryPolicy.is_retryable",
+    "kind": "functional",
+    "tests": [
+      "test_R07_subclass_of_non_retryable_fails_immediately",
+      "test_R07_permanent_error_is_never_retried",
+      "test_R07_non_retryable_on_last_attempt_is_failed_not_dead_letter",
+      "test_R07_is_retryable"
+    ],
+    "source": "thread",
+    "where": "Артём 13.10 10:30: 'как обычный except, с учётом наследования. Неповторяемая ошибка всегда даёт FAILED, даже на последней попытке'"
+  },
+  {
+    "id": "R08",
+    "text": "Политика типа (set_retry_policy) целиком заменяет default_retry_policy очереди; None убирает её; retry_policy_for; политика определяется в момент обработки ошибки",
+    "kind": "functional",
+    "tests": [
+      "test_R08_type_policy_replaces_default_entirely",
+      "test_R08_retry_policy_for_resolution",
+      "test_R08_default_policy_applies_to_types_without_own_policy",
+      "test_R08_policy_is_resolved_at_failure_time"
+    ],
+    "source": "thread",
+    "where": "Артём 14.10 16:48: 'политика типа заменяет дефолт целиком. Берём ту политику, которая действует в момент ошибки'"
+  },
+  {
+    "id": "R09",
+    "text": "Без политики для типа и без дефолта - прежнее поведение (FAILED, jobs.failed); отсутствие обработчика -> FAILED сразу независимо от политики",
+    "kind": "compat",
+    "tests": [
+      "test_R09_type_without_any_policy_keeps_old_behaviour",
+      "test_R09_removing_type_policy_without_default_restores_old_behaviour",
+      "test_R09_unknown_job_type_fails_despite_policy"
+    ],
+    "source": "ticket",
+    "where": "тело: 'Если нет ни той, ни другой, всё работает как сейчас'; отсутствие обработчика — Артём 13.10 10:30 п.3"
+  },
+  {
+    "id": "R10",
+    "text": "requeue_dead_letter: тот же id, PENDING, run_at=now, attempts=0, error=None, удаление из dead_letters, jobs.requeued +1, jobs.enqueued не растёт; JobNotFoundError / InvalidTransitionError; dead_letters() в порядке попадания",
+    "kind": "functional",
+    "tests": [
+      "test_R10_requeue_resets_job",
+      "test_R10_requeued_job_gets_full_set_of_attempts",
+      "test_R10_requeue_errors",
+      "test_R10_dead_letters_keep_arrival_order"
+    ],
+    "source": "thread",
+    "where": "Артём 14.10 16:48: 'UPD по requeue: attempts всё-таки обнуляем' (поправка к телу); остальное — тело; ошибки — README (таблица переходов) и store.get"
+  },
+  {
+    "id": "R11",
+    "text": "cancel() работает для RETRY_SCHEDULED; для DEAD_LETTERED -> InvalidTransitionError",
+    "kind": "edge",
+    "tests": [
+      "test_R11_cancel_job_waiting_for_retry",
+      "test_R11_dead_lettered_job_cannot_be_cancelled"
+    ],
+    "source": "repo:jobq/queue.py",
+    "where": "таблица _TRANSITIONS и README 'сверяются с таблицей допустимых переходов'; тело: 'можно отменить так же, как обычное ожидающее. Из dead-letter выход один'"
+  },
+  {
+    "id": "R12",
+    "text": "Успешный повтор -> SUCCEEDED, error очищается, attempts = общее число попыток; обработчик видит номер текущей попытки",
+    "kind": "edge",
+    "tests": [
+      "test_R12_success_after_retry_clears_error",
+      "test_R12_handler_sees_current_attempt_number"
+    ],
+    "source": "repo:jobq/models.py",
+    "where": "докстринг Job: 'у задания в статусе SUCCEEDED error всегда None'; attempts увеличивается перед вызовом обработчика (tests/test_worker.py::test_handler_sees_running_job)"
+  },
+  {
+    "id": "R13",
+    "text": "Новые статусы retry_scheduled/dead_lettered: stats(), list_jobs(), подписи в отчёте dashboard, is_terminal (DEAD_LETTERED=True, RETRY_SCHEDULED=False); purge_finished не удаляет dead-letter",
+    "kind": "compat",
+    "tests": [
+      "test_R13_new_status_values",
+      "test_R13_terminal_flags",
+      "test_R13_stats_and_list_jobs_include_new_statuses",
+      "test_R13_dashboard_shows_new_statuses",
+      "test_R13_purge_keeps_dead_letters"
+    ],
+    "source": "repo:jobq/models.py",
+    "where": "is_terminal: 'Задание в этом статусе больше не будет выполняться воркером'; подписи — тело; dashboard.py берёт JobStatus.label; purge — Артём 13.10 10:30 п.2"
+  },
+  {
+    "id": "R14",
+    "text": "Сигнатуры существующего публичного API не меняются (enqueue, JobQueue(...), Worker(queue, registry), run_once, run_pending, cancel, stats, purge_finished, register); cli.py, dashboard.py и существующие тесты не трогаются",
+    "kind": "constraint",
+    "tests": [
+      "test_API_enqueue_and_queue_constructor_unchanged",
+      "test_API_worker_construction_and_run_methods",
+      "test_API_failure_without_policy_is_failed",
+      "test_API_cancel_stats_and_purge",
+      "test_API_dashboard_old_statuses_still_rendered"
+    ],
+    "source": "ticket",
+    "where": "раздел 'Ограничения'"
+  }
+]

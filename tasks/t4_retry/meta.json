@@ -1,0 +1,16 @@
+{
+  "task_id": "t4_retry",
+  "title": "Политика повторов с экспоненциальной задержкой и dead-letter очередь для jobq",
+  "package": "jobq",
+  "protected_paths": [
+    "jobq/cli.py",
+    "jobq/dashboard.py",
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/test_queue.py",
+    "tests/test_worker.py",
+    "tests/test_components.py",
+    "tests/test_dashboard_cli.py"
+  ],
+  "allowed_new_dependencies": false
+}

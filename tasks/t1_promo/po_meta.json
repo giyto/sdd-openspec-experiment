@@ -1,0 +1,65 @@
+{
+  "task_id": "t1_promo",
+  "ticket": "ticket_po.md",
+  "decisions": [
+    {
+      "id": "D1",
+      "text": "Минимальная сумма заказа считается только по участвующим товарам (без сертификатов и исключённых категорий), до скидки, без доставки и налога; ровно равная сумма подходит",
+      "removed_from": "ticket.md, обсуждение: Ольга Смирнова 12.10 10:14 (первая часть)",
+      "alternatives": ["по всей сумме корзины", "по сумме после скидки", "с налогом/доставкой", "строго больше"],
+      "requirements": ["R06"],
+      "tests": [
+        "test_R06_min_order_counts_only_qualifying_lines",
+        "test_R06_min_order_ignores_code_excluded_categories",
+        "test_R06_min_order_is_inclusive_and_before_discount",
+        "test_R06_min_order_without_tax_and_shipping"
+      ]
+    },
+    {
+      "id": "D2",
+      "text": "Если в корзине нет ни одного участвующего товара, код не применяется (PromoConditionsError), даже без минимальной суммы",
+      "removed_from": "ticket.md, обсуждение: Ольга Смирнова 12.10 10:14 (последняя фраза)",
+      "alternatives": ["принять код с нулевой скидкой"],
+      "requirements": ["R06"],
+      "tests": [
+        "test_R06_no_qualifying_lines"
+      ]
+    },
+    {
+      "id": "D3",
+      "text": "Раскладка скидки по строкам: доли пропорционально сумме строки, вниз до копейки, остаток копеек по одной строкам с наибольшим отброшенным остатком, при равенстве — раньше в корзине",
+      "removed_from": "ticket.md, обсуждение: Наталья Кравец 13.10 09:40",
+      "alternatives": ["весь остаток самой крупной строке", "остаток первой или последней строке", "HALF_UP по строкам с поправкой на последней строке"],
+      "requirements": ["R11"],
+      "tests": [
+        "test_R03_percent_of_sum_not_sum_of_rounded_lines",
+        "test_R11_line_discounts_sum_exactly",
+        "test_R11_leftover_goes_to_largest_remainder",
+        "test_R11_line_discount_never_exceeds_line_amount",
+        "test_R11_excluded_lines_skipped_ties_by_cart_order",
+        "test_R13_threshold_reached_exactly_after_discount"
+      ]
+    },
+    {
+      "id": "D4",
+      "text": "Порог бесплатной доставки сравнивается с суммой товаров после скидки",
+      "removed_from": "ticket.md, обсуждение: Ольга Смирнова 14.10 10:12 (поправка); в теле «Доставку промокод не трогает» заменено на «На стоимость доставки скидка не распространяется»",
+      "alternatives": ["порог по сумме до скидки (как в текущем коде)"],
+      "requirements": ["R13"],
+      "tests": [
+        "test_R13_free_shipping_threshold_uses_amount_after_discount",
+        "test_R13_threshold_with_gift_cards_and_discount"
+      ]
+    },
+    {
+      "id": "D5",
+      "text": "При отмене заказа использование промокода возвращается (счётчик -1)",
+      "removed_from": "ticket.md, обсуждение: Анна Лебедева 14.10 17:48 (UPD)",
+      "alternatives": ["использование сгорает при отмене"],
+      "requirements": ["R10"],
+      "tests": [
+        "test_R10_cancel_returns_use"
+      ]
+    }
+  ]
+}

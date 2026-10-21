@@ -1,0 +1,125 @@
+[
+  {
+    "id": "C01",
+    "text": "Для типов с политикой неповторяемая ошибка обработчика (non_retryable с учётом наследования, PermanentJobError) сразу отправляет задание в dead-letter без повторов (раньше FAILED)",
+    "kind": "changed",
+    "source": "ticket",
+    "where": "'Неповторяемые ошибки. Раньше договорились ... Теперь ... сразу отправляет задание в dead-letter'; наследование — правило этапа 1",
+    "tests": [
+      "test_C01_non_retryable_subclass_goes_to_dead_letter",
+      "test_C01_permanent_error_goes_to_dead_letter",
+      "test_C01_non_retryable_after_retry_goes_to_dead_letter",
+      "test_C01_type_policy_non_retryable_dead_letters_and_requeue_works"
+    ]
+  },
+  {
+    "id": "C02",
+    "text": "Джиттер только уменьшает задержку: множитель rng.uniform(1 - jitter, 1), по-прежнему один вызов",
+    "kind": "changed",
+    "source": "ticket",
+    "where": "'Джиттер ... множитель равен rng.uniform(1 - jitter, 1)'",
+    "tests": [
+      "test_C02_jitter_range_is_downward_only",
+      "test_C02_seeded_delay_never_above_computed",
+      "test_C02_worker_run_at_uses_downward_jitter"
+    ]
+  },
+  {
+    "id": "C03",
+    "text": "purge_finished удаляет и dead-letter задания по тому же правилу возраста (от момента попадания в dead-letter), записи исчезают из dead_letters(), учитываются в jobs.purged",
+    "kind": "changed",
+    "source": "ticket",
+    "where": "'Очистка. Раньше решили ... Теперь purge_finished чистит и dead-letter'; jobs.purged — repo:jobq/metrics.py",
+    "tests": [
+      "test_C03_purge_removes_old_dead_letters",
+      "test_C03_age_counted_from_dead_letter_moment",
+      "test_C03_purge_keeps_fresh_dead_letters_and_non_terminal_jobs"
+    ]
+  },
+  {
+    "id": "C04",
+    "text": "DeadLetterEntry.reason: DeadLetterReason.EXHAUSTED / NON_RETRYABLE; неповторяемая ошибка на последней попытке — NON_RETRYABLE",
+    "kind": "new",
+    "source": "thread",
+    "where": "блок API; Артём 03.11 12:30: 'Неповторяемая ошибка на последней попытке получает non_retryable'",
+    "tests": [
+      "test_C04_reason_enum_values",
+      "test_C04_exhausted_reason",
+      "test_C04_non_retryable_reason",
+      "test_C04_non_retryable_on_last_attempt_has_non_retryable_reason"
+    ]
+  },
+  {
+    "id": "C05",
+    "text": "JobQueue.requeue_all_dead_letters(job_type=None) -> list[Job]: в порядке dead_letters(), фильтр по типу, пусто -> []",
+    "kind": "new",
+    "source": "thread",
+    "where": "блок API; Артём 03.11 10:40: 'В порядке dead_letters(). Если перезапускать нечего, вернёт пустой список'",
+    "tests": [
+      "test_C05_requeue_all_in_dead_letter_order",
+      "test_C05_requeue_all_filtered_by_type",
+      "test_C05_nothing_to_requeue_returns_empty_list"
+    ]
+  },
+  {
+    "id": "C06",
+    "text": "RetryLaterError(message, *, retry_after): следующая попытка через retry_after (не больше max_delay), без джиттера и без вызова rng; retry_after < 0 -> ConfigError",
+    "kind": "new",
+    "source": "thread",
+    "where": "Артём 03.11 12:30: 'Retry-After режем до него'; UPD 04.11 15:05: 'джиттер к нему всё-таки не применяем, и rng ... не трогаем' (поправка к телу)",
+    "tests": [
+      "test_C06_retry_after_replaces_policy_delay",
+      "test_C06_retry_after_capped_by_max_delay",
+      "test_C06_retry_after_has_no_jitter_and_keeps_rng_untouched",
+      "test_C06_error_class_contract"
+    ]
+  },
+  {
+    "id": "C07",
+    "text": "RetryLaterError подчиняется правилам этапа 1: считается попыткой, при исчерпании dead-letter с reason EXHAUSTED, без политики -> FAILED, обычные метрики и формат error, успех очищает error",
+    "kind": "interaction",
+    "source": "thread",
+    "where": "Артём 03.11 12:30: 'это обычное исчерпание, exhausted'; без политики — этап 1 ('всё работает как сейчас'); метрики — repo:jobq/metrics.py",
+    "tests": [
+      "test_C07_retry_later_counts_attempts_and_exhausts",
+      "test_C07_retry_later_without_policy_fails_as_before",
+      "test_C07_retry_later_then_success"
+    ]
+  },
+  {
+    "id": "C08",
+    "text": "requeue_all_dead_letters перезапускает каждое задание как requeue_dead_letter этапа 1: attempts=0, error=None, run_at=now, тот же id, jobs.requeued на каждое, jobs.enqueued не растёт; включая записи non_retryable",
+    "kind": "interaction",
+    "source": "ticket",
+    "where": "'Каждое задание перезапускается так же, как через requeue_dead_letter'; правило обнуления attempts — UPD этапа 1",
+    "tests": [
+      "test_C08_bulk_requeue_resets_like_single_requeue",
+      "test_C08_bulk_requeued_job_gets_full_attempts",
+      "test_C08_bulk_requeue_includes_non_retryable_entries"
+    ]
+  },
+  {
+    "id": "C09",
+    "text": "Новый путь в dead-letter сохраняет правила этапа 1: jobs.dead_lettered а не jobs.failed, rng не трогается, отсутствие обработчика и отсутствие политики -> FAILED, отчёт считает такие задания в «В dead-letter»",
+    "kind": "interaction",
+    "source": "repo:jobq/metrics.py",
+    "where": "счётчик растёт при переходе в статус; правила этапа 1 про rng, отсутствие обработчика и отсутствие политики; тело CR: 'для типов, на которые действует политика повторов'",
+    "tests": [
+      "test_C09_non_retryable_dead_letter_metrics",
+      "test_C09_non_retryable_dead_letter_does_not_touch_rng",
+      "test_C09_missing_handler_and_missing_policy_still_fail",
+      "test_C09_report_counts_non_retryable_as_dead_letter"
+    ]
+  },
+  {
+    "id": "C10",
+    "text": "Существующие сигнатуры и старые вызовы работают; dashboard.py, cli.py и существующие тесты не меняются",
+    "kind": "constraint",
+    "source": "ticket",
+    "where": "раздел 'Ограничения'",
+    "tests": [
+      "test_C10_existing_signatures_unchanged",
+      "test_C10_old_calls_still_work"
+    ]
+  }
+]

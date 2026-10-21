@@ -1,0 +1,22 @@
+{
+  "invalidated_stage1_tests": [
+    "test_R03_jitter_uses_one_uniform_call",
+    "test_R03_jitter_never_exceeds_max_delay",
+    "test_R03_worker_uses_injected_rng_for_run_at",
+    "test_R06_rng_sequence_not_consumed_by_final_attempt",
+    "test_R07_subclass_of_non_retryable_fails_immediately",
+    "test_R07_permanent_error_is_never_retried",
+    "test_R07_non_retryable_on_last_attempt_is_failed_not_dead_letter",
+    "test_R13_purge_keeps_dead_letters"
+  ],
+  "protected_paths": [
+    "jobq/cli.py",
+    "jobq/dashboard.py",
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/test_queue.py",
+    "tests/test_worker.py",
+    "tests/test_components.py",
+    "tests/test_dashboard_cli.py"
+  ]
+}

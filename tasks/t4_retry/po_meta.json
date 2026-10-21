@@ -1,0 +1,65 @@
+{
+  "decisions": [
+    {
+      "id": "D1",
+      "text": "requeue_dead_letter обнуляет attempts: перезапущенное задание получает полный набор попыток",
+      "requirements": [
+        "R10"
+      ],
+      "tests": [
+        "test_R10_requeue_resets_job",
+        "test_R10_requeued_job_gets_full_set_of_attempts"
+      ],
+      "fork": [
+        "обнулять attempts (эталон)",
+        "сохранять attempts как историю"
+      ],
+      "removed_from": "тело ('attempts сохраняем...') и UPD Артёма 14.10 16:48"
+    },
+    {
+      "id": "D2",
+      "text": "purge_finished не удаляет задания из dead-letter, хотя DEAD_LETTERED терминальный",
+      "requirements": [
+        "R13"
+      ],
+      "tests": [
+        "test_R13_purge_keeps_dead_letters"
+      ],
+      "fork": [
+        "не удалять dead-letter (эталон)",
+        "удалять как любые терминальные задания (поведение существующего кода)"
+      ],
+      "removed_from": "обсуждение: вопрос Дмитрия 13.10 10:02 п.2 и ответ Артёма 13.10 10:30 п.2"
+    },
+    {
+      "id": "D3",
+      "text": "max_delay — жёсткий потолок и после джиттера: итог min(capped * u, max_delay)",
+      "requirements": [
+        "R03"
+      ],
+      "tests": [
+        "test_R03_jitter_never_exceeds_max_delay"
+      ],
+      "fork": [
+        "ограничивать после джиттера (эталон)",
+        "джиттер может превысить max_delay"
+      ],
+      "removed_from": "обсуждение: Артём 12.10 11:40 ('результат всегда в [0, max_delay]', 'джиттер его тоже не пробивает')"
+    },
+    {
+      "id": "D4",
+      "text": "cancel() разрешён для задания в RETRY_SCHEDULED",
+      "requirements": [
+        "R11"
+      ],
+      "tests": [
+        "test_R11_cancel_job_waiting_for_retry"
+      ],
+      "fork": [
+        "разрешить отмену (эталон)",
+        "запретить: задание уже выполнялось, а cancel по докстрингу — для не начавших"
+      ],
+      "removed_from": "тело: 'Задание, которое ждёт повтора, можно отменить так же, как обычное ожидающее'"
+    }
+  ]
+}

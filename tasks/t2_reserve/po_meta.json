@@ -1,0 +1,115 @@
+{
+  "task_id": "t2_reserve",
+  "ticket": "ticket_po.md",
+  "decisions_file": "po_decisions.md",
+  "decisions": [
+    {
+      "id": "D1",
+      "text": "Резерв истекает ровно в момент expires_at (now >= expires_at — уже EXPIRED)",
+      "requirements": [
+        "R05",
+        "R07",
+        "R08",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "tests": [
+        "test_R05_expired_exactly_at_expires_at",
+        "test_R05_expired_reservation_frees_stock_for_new_order",
+        "test_R07_confirm_expired_raises_and_changes_nothing",
+        "test_R08_cancel_expired_is_noop",
+        "test_R09_extend_counts_from_now",
+        "test_R09_extend_expired_rejected",
+        "test_R10_reserve_again_after_expiry_replaces",
+        "test_R11_failed_operations_write_nothing",
+        "test_R12_expired_reservations_do_not_block_issue"
+      ],
+      "forks": [
+        "граница включительно: в expires_at уже истёк (эталон)",
+        "граница не включительно: в expires_at ещё действует"
+      ],
+      "removed_from": "тело v2: «В момент expires_at резерв уже не действует»"
+    },
+    {
+      "id": "D2",
+      "text": "extend: новый срок = now + ttl, но срок не сокращается; если не изменился — без события",
+      "requirements": [
+        "R09",
+        "R11"
+      ],
+      "tests": [
+        "test_R09_extend_counts_from_now",
+        "test_R09_extend_never_shortens",
+        "test_R11_all_lines_parse_back",
+        "test_R11_cancel_and_extend_events"
+      ],
+      "forks": [
+        "от текущего момента, без сокращения (эталон)",
+        "от старого expires_at (expires_at + ttl)",
+        "от текущего момента, срок может сократиться"
+      ],
+      "removed_from": "обсуждение v2: Ольга Смирнова 12.10 14:30"
+    },
+    {
+      "id": "D3",
+      "text": "Повторный reserve: активный или подтверждённый — DuplicateReservationError; истёкший или отменённый — новый резерв заменяет старый",
+      "requirements": [
+        "R10",
+        "R11"
+      ],
+      "tests": [
+        "test_R10_duplicate_active_rejected",
+        "test_R10_duplicate_confirmed_rejected",
+        "test_R10_reserve_again_after_cancel_replaces",
+        "test_R10_reserve_again_after_expiry_replaces",
+        "test_R11_failed_operations_write_nothing"
+      ],
+      "forks": [
+        "ошибка только при активном/подтверждённом, иначе замена (эталон)",
+        "ошибка всегда",
+        "замена и при активном резерве (пересборка корзины)"
+      ],
+      "removed_from": "тело v2 («Повторный reserve ... DuplicateReservationError») + поправка Анны Беловой 14.10 10:32"
+    },
+    {
+      "id": "D4",
+      "text": "cancel истёкшего резерва — no-op: без ошибки и события, статус остаётся EXPIRED",
+      "requirements": [
+        "R08"
+      ],
+      "tests": [
+        "test_R08_cancel_expired_is_noop"
+      ],
+      "forks": [
+        "no-op, статус EXPIRED (эталон)",
+        "переводит в CANCELLED с событием RESERVE_CANCEL",
+        "ReservationExpiredError"
+      ],
+      "removed_from": "тело v2: «повторная отмена и отмена истёкшего резерва ничего не делают ..., истёкший остаётся EXPIRED»"
+    },
+    {
+      "id": "D5",
+      "text": "Инвентаризация ниже резервов: available = 0 (не минус); confirm при физической нехватке по любой строке — InsufficientStockError, ничего не списывает, резерв остаётся ACTIVE",
+      "requirements": [
+        "R03",
+        "R13"
+      ],
+      "tests": [
+        "test_R03_confirm_checks_sum_of_lines",
+        "test_R13_adjust_below_reservations_available_is_zero",
+        "test_R13_confirm_succeeds_after_restock",
+        "test_R13_confirm_with_physical_shortage_is_atomic",
+        "test_R13_issue_blocked_when_on_hand_below_reservations"
+      ],
+      "forks": [
+        "available >= 0, confirm проверяет физический остаток (эталон)",
+        "available может быть отрицательным (показывает дефицит)",
+        "confirm списывает без проверки (остаток уходит в минус)"
+      ],
+      "removed_from": "обсуждение v2: Игорь Левин 13.10 09:40"
+    }
+  ],
+  "tests_method": "объединение тестов hidden_tests/test_hidden.py, падающих на reference/ с альтернативными вариантами развилки (см. forks); для D3 добавлен test_R10_duplicate_confirmed_rejected (вариант «заменять и подтверждённый»)"
+}

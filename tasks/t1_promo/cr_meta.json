@@ -1,0 +1,24 @@
+{
+  "task_id": "t1_promo",
+  "cr_title": "Промокоды: правки после летней кампании",
+  "invalidated_stage1_tests": [
+    "test_R04_fixed_capped_by_qualifying_lines",
+    "test_R11_line_discount_never_exceeds_line_amount",
+    "test_R13_free_shipping_threshold_uses_amount_after_discount",
+    "test_R13_threshold_with_gift_cards_and_discount",
+    "test_R13_discount_never_reduces_shipping"
+  ],
+  "protected_paths": [
+    "shop/cli.py",
+    "shop/reports.py",
+    "tests/conftest.py",
+    "tests/test_money.py",
+    "tests/test_catalog.py",
+    "tests/test_cart.py",
+    "tests/test_pricing.py",
+    "tests/test_orders.py",
+    "tests/test_reports.py",
+    "tests/test_cli.py"
+  ],
+  "allowed_new_dependencies": false
+}

@@ -1,0 +1,18 @@
+{
+  "task_id": "t3_import",
+  "title": "Импорт выписок банка «Сфера»: автоопределение формата и кодировки, дедупликация, ошибки строк и strict-режим",
+  "package": "ledger",
+  "protected_paths": [
+    "ledger/cli.py",
+    "ledger/reports.py",
+    "tests/conftest.py",
+    "tests/test_cli.py",
+    "tests/test_importer.py",
+    "tests/test_models.py",
+    "tests/test_money.py",
+    "tests/test_reports.py",
+    "tests/test_rules.py",
+    "tests/test_storage.py"
+  ],
+  "allowed_new_dependencies": false
+}

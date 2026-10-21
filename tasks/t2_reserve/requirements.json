@@ -1,0 +1,235 @@
+[
+  {
+    "id": "R01",
+    "text": "reserve(order_id, lines, ttl=None) резервирует все строки заказа (в т.ч. на разных складах), on_hand не меняется; снимок ACTIVE, created_at=now, expires_at=now+ttl; ttl по умолчанию DEFAULT_RESERVATION_TTL=15 мин; неположительный/не-timedelta ttl, плохой order_id, пустой заказ -> ValidationError; принимает кортежи и ReservationLine",
+    "kind": "functional",
+    "tests": [
+      "test_R01_reserve_returns_active_snapshot",
+      "test_R01_default_ttl_is_15_minutes",
+      "test_R01_accepts_reservation_line_objects",
+      "test_R01_rejects_bad_ttl",
+      "test_R01_rejects_bad_order_id_and_empty_lines"
+    ],
+    "source": "ticket",
+    "where": "тело: «expires_at = created_at + ttl», «ttl — положительный timedelta, иначе ValidationError», «заказ без строк — тоже ValidationError», «order_id — такой же код, как SKU и склады»",
+    "also": [
+      "thread: Анна Белова 13.10 16:10 «UPD: TTL по умолчанию 15 минут, а не 30»",
+      "repo:warehouse/inventory.py: _validate_code — «Коды ... попадают в журнал, поэтому без пробелов» -> ValidationError"
+    ]
+  },
+  {
+    "id": "R02",
+    "text": "Всё или ничего: при нехватке любой позиции InsufficientStockError (warehouse/sku/requested/available проблемной позиции), ни одна строка не резервируется, журнал не меняется; то же для UnknownSkuError/InvalidQuantityError",
+    "kind": "edge",
+    "tests": [
+      "test_R02_shortage_reserves_nothing",
+      "test_R02_unknown_sku_reserves_nothing",
+      "test_R02_bad_quantity_reserves_nothing",
+      "test_R02_failed_reserve_leaves_no_order"
+    ],
+    "source": "repo:README.md",
+    "where": "README, Атомарность: «Операция либо выполняется целиком, либо не меняет ничего — ни состояния сервиса, ни журнала»; поля исключения — докстринг InsufficientStockError в errors.py",
+    "also": [
+      "ticket: «Не хватает товара — InsufficientStockError»",
+      "repo:README.md: InvalidQuantityError для количеств, UnknownSkuError для незарегистрированного SKU"
+    ]
+  },
+  {
+    "id": "R03",
+    "text": "Одинаковые позиции (склад+SKU) в нескольких строках заказа проверяются по сумме — и в reserve, и в confirm; одинаковый SKU на разных складах не склеивается",
+    "kind": "edge",
+    "tests": [
+      "test_R03_duplicate_positions_summed_on_reserve",
+      "test_R03_duplicate_positions_fit_when_sum_fits",
+      "test_R03_confirm_checks_sum_of_lines",
+      "test_R03_same_sku_in_different_warehouses_is_not_merged"
+    ],
+    "source": "thread",
+    "where": "Ольга Смирнова 12.10 11:20: «Наличие проверяем по сумме таких строк, при confirm тоже. Склеивать строки в резерве не надо»",
+    "also": [
+      "repo:warehouse/errors.py: «requested — сколько всего единиц позиции требует операция»"
+    ]
+  },
+  {
+    "id": "R04",
+    "text": "available = on_hand - активные резервы, reserved = сумма активных резервов; reserve проверяет available; для неизвестного SKU UnknownSkuError",
+    "kind": "functional",
+    "tests": [
+      "test_R04_available_is_on_hand_minus_active_reservations",
+      "test_R04_reserve_checks_available_not_on_hand",
+      "test_R04_unknown_sku",
+      "test_R04_registered_sku_without_stock"
+    ],
+    "source": "ticket",
+    "where": "тело: «reserved — сумма активных резервов по позиции, available — физический остаток минус она. Резервировать можно только из доступного»",
+    "also": [
+      "repo:README.md: «Запросы по позиции ... для незарегистрированного SKU бросают UnknownSkuError, для зарегистрированного SKU без остатка возвращают 0»"
+    ]
+  },
+  {
+    "id": "R05",
+    "text": "Резерв активен строго до expires_at (в момент expires_at уже EXPIRED); истёкший не учитывается без фонового процесса, истечение в журнал не пишется; CONFIRMED/CANCELLED окончательны и не превращаются в EXPIRED",
+    "kind": "edge",
+    "tests": [
+      "test_R05_active_until_just_before_expiry",
+      "test_R05_expired_exactly_at_expires_at",
+      "test_R05_expiry_writes_no_events",
+      "test_R05_terminal_statuses_survive_ttl",
+      "test_R05_expired_reservation_frees_stock_for_new_order"
+    ],
+    "source": "ticket",
+    "where": "тело: «В момент expires_at резерв уже не действует: статус EXPIRED ... Само истечение в журнал не пишем»",
+    "also": [
+      "thread: Анна Белова 14.10 10:32 «CONFIRMED и CANCELLED окончательные, истечение их не меняет»"
+    ]
+  },
+  {
+    "id": "R06",
+    "text": "confirm превращает активный резерв в отгрузку: on_hand уменьшается по всем строкам, статус CONFIRMED, резерв больше не учитывается; проходит даже при нулевом available",
+    "kind": "functional",
+    "tests": [
+      "test_R06_confirm_ships_all_lines",
+      "test_R06_confirm_works_when_everything_is_reserved",
+      "test_R06_confirmed_reservation_is_not_double_counted",
+      "test_R06_confirm_just_before_expiry"
+    ],
+    "source": "ticket",
+    "where": "тело: «confirm превращает активный резерв в отгрузку ... нулевой available подтверждению не мешает»"
+  },
+  {
+    "id": "R07",
+    "text": "confirm: истёкший -> ReservationExpiredError (включая границу), подтверждённый/отменённый -> ReservationStateError, несуществующий -> ReservationNotFoundError; ничего не меняется; у исключений атрибут order_id, все наследники ReservationError",
+    "kind": "edge",
+    "tests": [
+      "test_R07_confirm_expired_raises_and_changes_nothing",
+      "test_R07_confirm_twice_ships_once",
+      "test_R07_confirm_cancelled_rejected",
+      "test_R07_confirm_unknown_order"
+    ],
+    "source": "ticket",
+    "where": "тело: «Истёкший резерв — ReservationExpiredError, уже подтверждённый или отменённый — ReservationStateError»; «Если резерва по order_id нет ... ReservationNotFoundError»",
+    "also": [
+      "repo:README.md: атомарность — при ошибке ничего не меняется"
+    ]
+  },
+  {
+    "id": "R08",
+    "text": "cancel освобождает резерв (CANCELLED); повторная отмена и отмена истёкшего — no-op без событий (статус EXPIRED сохраняется); отмена подтверждённого -> ReservationStateError, несуществующего -> ReservationNotFoundError",
+    "kind": "functional",
+    "tests": [
+      "test_R08_cancel_releases_stock",
+      "test_R08_cancel_is_idempotent",
+      "test_R08_cancel_expired_is_noop",
+      "test_R08_cancel_confirmed_rejected",
+      "test_R08_cancel_unknown_order"
+    ],
+    "source": "ticket",
+    "where": "тело: «Отмена идемпотентна: повторная отмена и отмена истёкшего резерва ничего не делают и ничего не пишут ... Подтверждённый отменить нельзя»"
+  },
+  {
+    "id": "R09",
+    "text": "extend(order_id, ttl): новый срок = max(старый expires_at, now+ttl); если не изменился — без события; истёкший -> ReservationExpiredError, подтверждённый/отменённый -> ReservationStateError; ttl валидируется",
+    "kind": "edge",
+    "tests": [
+      "test_R09_extend_counts_from_now",
+      "test_R09_extend_never_shortens",
+      "test_R09_extend_expired_rejected",
+      "test_R09_extend_confirmed_or_cancelled_rejected",
+      "test_R09_extend_bad_ttl"
+    ],
+    "source": "thread",
+    "where": "Ольга Смирнова 12.10 14:30: «новый срок now + ttl. Но срок никогда не сокращаем ... событие не пишем. ttl проверяем как в reserve, а ошибки по статусам такие же, как у confirm»",
+    "also": [
+      "ticket: «extend продлевает активный резерв на ttl» (уточнено в обсуждении)"
+    ]
+  },
+  {
+    "id": "R10",
+    "text": "Повторный reserve на order_id с активным или подтверждённым резервом -> DuplicateReservationError без изменений; после истечения/отмены новый резерв полностью заменяет старый",
+    "kind": "functional",
+    "tests": [
+      "test_R10_duplicate_active_rejected",
+      "test_R10_duplicate_confirmed_rejected",
+      "test_R10_reserve_again_after_expiry_replaces",
+      "test_R10_reserve_again_after_cancel_replaces"
+    ],
+    "source": "thread",
+    "where": "Анна Белова 14.10 10:32: «поправка про повторный reserve: если прежний резерв истёк или отменён, новый reserve разрешаем ... DuplicateReservationError — только когда есть активный или подтверждённый резерв» (меняет тело)",
+    "also": [
+      "ticket: «Повторный reserve на тот же order_id — DuplicateReservationError» (исходная формулировка, поправлена)"
+    ]
+  },
+  {
+    "id": "R11",
+    "text": "Журнал в существующем формате: RESERVE на каждую строку (order, wh, sku, qty, expires), confirm -> ISSUE на каждую строку (ref=order) + RESERVE_CONFIRM(order), RESERVE_CANCEL(order), RESERVE_EXTEND(order, expires); expires в формате времени журнала; неудачные операции ничего не пишут",
+    "kind": "functional",
+    "tests": [
+      "test_R11_reserve_event_lines_exact",
+      "test_R11_confirm_writes_issue_per_line_then_confirm",
+      "test_R11_cancel_and_extend_events",
+      "test_R11_all_lines_parse_back",
+      "test_R11_failed_operations_write_nothing"
+    ],
+    "source": "repo:warehouse/events.py",
+    "where": "формат строки журнала (seq, время, тип, поля по алфавиту) в events.py; README: «Время в полях событий пишется тем же форматом, что и время события»; ISSUE «как обычно» — Inventory.issue (поля wh, sku, qty, ref); README: неудачная операция не меняет журнал",
+    "also": [
+      "ticket: список типов событий и их полей"
+    ]
+  },
+  {
+    "id": "R12",
+    "text": "issue и transfer (со склада-источника) не могут забрать товар, зарезервированный активными резервами: InsufficientStockError с available = доступный остаток; истёкшие резервы и резервы на других складах не мешают",
+    "kind": "functional",
+    "tests": [
+      "test_R12_issue_cannot_take_reserved_stock",
+      "test_R12_expired_reservations_do_not_block_issue",
+      "test_R12_transfer_respects_source_reservations",
+      "test_R12_reservations_elsewhere_do_not_block"
+    ],
+    "source": "ticket",
+    "where": "тело: «issue не должен забирать товар из чужих активных резервов: просят больше доступного — InsufficientStockError»",
+    "also": [
+      "repo:warehouse/inventory.py: докстринг transfer — «Для склада-источника это обычный расход: проверки те же, что у issue»",
+      "repo:warehouse/errors.py: «available — сколько из них сервис мог бы отдать в этот момент»"
+    ]
+  },
+  {
+    "id": "R13",
+    "text": "adjust по-прежнему без проверок, может опустить on_hand ниже резервов; available тогда 0, а не отрицательное; confirm проверяет физический остаток по своим строкам атомарно (InsufficientStockError, резерв остаётся ACTIVE)",
+    "kind": "edge",
+    "tests": [
+      "test_R13_adjust_below_reservations_available_is_zero",
+      "test_R13_confirm_with_physical_shortage_is_atomic",
+      "test_R13_confirm_succeeds_after_restock",
+      "test_R13_issue_blocked_when_on_hand_below_reservations"
+    ],
+    "source": "thread",
+    "where": "Игорь Левин 13.10 09:40: «available должен показывать 0, а не минус. confirm ... проверяет физический остаток по своим строкам ... ничего не списываем, резерв остаётся активным»",
+    "also": [
+      "repo:warehouse/inventory.py: докстринг adjust — «Это факт, а не запрос, поэтому никаких проверок достаточности нет»"
+    ]
+  },
+  {
+    "id": "R14",
+    "text": "Обратная совместимость и рамки: старый публичный API Inventory (конструктор, receive/issue/transfer/adjust, формат старых событий, CLI) работает как раньше; on_hand/stock_levels и отчёты (stock_report/stock_csv/low_stock) показывают физический остаток и при наличии резервов; подтверждённые заказы попадают в movement_summary как расход; cli.py, reports.py и существующие тесты не меняются, новых зависимостей нет",
+    "kind": "compat",
+    "tests": [
+      "test_R14_on_hand_and_stock_levels_stay_physical",
+      "test_R14_movement_summary_counts_confirmed_orders_as_issued",
+      "test_R14_low_stock_uses_physical_quantities"
+    ],
+    "compat_tests": [
+      "test_API_constructor_signature_unchanged",
+      "test_API_old_operations_return_values",
+      "test_API_issue_shortage_without_reservations",
+      "test_API_old_event_lines_unchanged",
+      "test_API_cli_scenario_still_works"
+    ],
+    "also_checked_by": "meta.json protected_paths",
+    "source": "repo:warehouse/reports.py",
+    "where": "reports.py: movement_summary считает события ISSUE как расход, stock_report/stock_csv/low_stock строятся по stock_levels (физический остаток); тело: при confirm пишется обычный ISSUE, reports.py не трогаем",
+    "also": [
+      "ticket: Рамки — старый API, on_hand/stock_levels показывают физический остаток, cli.py/reports.py не трогаем"
+    ]
+  }
+]

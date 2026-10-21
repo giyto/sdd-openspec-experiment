@@ -1,0 +1,124 @@
+[
+  {
+    "id": "C01",
+    "text": "Точка как десятичный разделитель в sfera и sfera_split принимается наравне с запятой; точка и запятая в одной сумме — ошибка строки",
+    "kind": "changed",
+    "source": "ticket",
+    "where": "п.1: «Теперь в обоих форматах «Сферы» принимаем оба десятичных разделителя… и точка, и запятая — ошибка строки»",
+    "tests": [
+      "test_C01_dot_decimal_in_sfera",
+      "test_C01_dot_decimal_in_sfera_split",
+      "test_C01_comma_still_works_and_mixed_separators_are_errors"
+    ]
+  },
+  {
+    "id": "C02",
+    "text": "В sfera_split строка с нулями в обеих колонках (с точкой или запятой) молча пропускается: не ошибка, не дубль, не добавлена; ноль + пусто и пусто + пусто — по-прежнему ошибка",
+    "kind": "changed",
+    "source": "thread",
+    "where": "п.2 тела + Ольга 03.11 11:10: «Пропускаем только когда нули явно стоят в обеих колонках… ноль и пустая — по-прежнему ошибка»",
+    "tests": [
+      "test_C02_zero_in_both_columns_is_skipped",
+      "test_C02_zero_and_empty_is_still_error",
+      "test_C02_zero_rows_do_not_break_strict"
+    ]
+  },
+  {
+    "id": "C03",
+    "text": "Описание сохраняется с обрезанными краями и любыми последовательностями пробельных символов (включая переводы строк и табы), заменёнными одним пробелом; регистр и буквы не меняются",
+    "kind": "changed",
+    "source": "thread",
+    "where": "п.3 тела + Ольга 03.11 10:15 (поправка к п.3): «переводы строк и табы… любые последовательности пробельных символов»",
+    "tests": [
+      "test_C03_spaces_collapsed_case_kept",
+      "test_C03_newlines_and_tabs_collapsed",
+      "test_C03_collapse_in_nova_and_cp1251"
+    ]
+  },
+  {
+    "id": "C04",
+    "text": "Строгий режим разбирает файл до конца и бросает StatementRowError с errors (все ошибки по порядку), line_no — первой; атомарность сохраняется; относится и к import_csv",
+    "kind": "changed",
+    "source": "ticket",
+    "where": "п.4: «бросает StatementRowError со всеми ошибками; line_no и сообщение берутся у первой. Атомарность прежняя»",
+    "tests": [
+      "test_C04_strict_reports_all_errors",
+      "test_C04_strict_with_all_errors_is_still_atomic",
+      "test_C04_import_csv_strict_reports_all_errors"
+    ]
+  },
+  {
+    "id": "C05",
+    "text": "import_statement(..., dry_run=False): при dry_run=True ничего не пишется в хранилище (ни в память, ни в JSON-файл)",
+    "kind": "new",
+    "source": "ticket",
+    "where": "п.5 и блок API",
+    "tests": [
+      "test_C05_dry_run_saves_nothing",
+      "test_C05_dry_run_leaves_json_file_untouched",
+      "test_C05_dry_run_transactions_without_ids"
+    ]
+  },
+  {
+    "id": "C06",
+    "text": "ImportResult.transactions — добавленные транзакции в порядке файла с id от хранилища; в dry_run — то же без id (None)",
+    "kind": "new",
+    "source": "thread",
+    "where": "п.6 + Марина 03.11 14:30 (UPD к п.6): «в dry_run transactions тоже заполняем… id там пустые (None)»",
+    "tests": [
+      "test_C06_transactions_with_store_ids_in_file_order",
+      "test_C06_transactions_exclude_duplicates_and_errors",
+      "test_C06_transactions_carry_category_and_imported_at"
+    ]
+  },
+  {
+    "id": "C07",
+    "text": "RowError.raw — текст записи из файла без перевода строки в конце; многострочная запись — строки через \n; для cp1251 — раскодированный текст, без BOM и \r",
+    "kind": "new",
+    "source": "ticket",
+    "where": "п.7 + Игорь 03.11 15:05 про cp1251/BOM/\r",
+    "tests": [
+      "test_C07_raw_is_line_text",
+      "test_C07_raw_multiline_crlf_cp1251",
+      "test_C07_raw_in_bom_file_and_nova",
+      "test_C07_raw_in_strict_errors"
+    ]
+  },
+  {
+    "id": "C08",
+    "text": "dry_run подчиняется всем прежним правилам импорта: дедупликация по количеству (дубли внутри файла не дубли), ошибки и пустые строки, strict бросает StatementRowError, UnknownFormatError; цифры совпадают с реальным импортом",
+    "kind": "interaction",
+    "source": "thread",
+    "where": "п.5 «считаем всё так же, как при обычном импорте» + Марина 03.11 14:30 «цифры… должны совпадать»; правила этапа 1 R05, R08, R10, R11",
+    "tests": [
+      "test_C08_dry_run_matches_real_import",
+      "test_C08_dry_run_after_import_reports_duplicates",
+      "test_C08_dry_run_strict_and_unknown_format_still_raise"
+    ]
+  },
+  {
+    "id": "C09",
+    "text": "Суммы с точкой подчиняются прежним правилам сумм: больше двух знаков — ошибка, ноль в неиспользуемой колонке sfera_split = пусто, знак в Приход/Расход — ошибка, разделители тысяч (в т.ч. U+00A0), дедупликация между форматами",
+    "kind": "interaction",
+    "source": "ticket",
+    "where": "п.1 меняет только разделитель; прочее — правила этапа 1 R02–R04, R07",
+    "tests": [
+      "test_C09_more_than_two_decimals_with_dot_is_error",
+      "test_C09_zero_with_dot_in_unused_column_means_empty",
+      "test_C09_sign_with_dot_in_split_columns_is_error",
+      "test_C09_dot_amounts_dedup_across_formats"
+    ]
+  },
+  {
+    "id": "C10",
+    "text": "Схлопнутые описания работают с прежними правилами: дедупликация через нормализацию (в т.ч. с ранее сохранёнными несхлопнутыми описаниями, по количеству), категоризация, import_csv тоже схлопывает",
+    "kind": "interaction",
+    "source": "ticket",
+    "where": "п.3; правила этапа 1 R07 (normalize_text), R08, R12, R13 (import_csv через новый механизм)",
+    "tests": [
+      "test_C10_import_csv_collapses_description",
+      "test_C10_dedup_with_previously_stored_descriptions",
+      "test_C10_categorizer_sees_collapsed_description"
+    ]
+  }
+]

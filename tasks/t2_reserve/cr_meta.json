@@ -1,0 +1,32 @@
+{
+  "task_id": "t2_reserve",
+  "cr_title": "Резервы — доработки после запуска (WH-231)",
+  "invalidated_stage1_tests": [
+    "test_R01_default_ttl_is_15_minutes",
+    "test_R05_expired_reservation_frees_stock_for_new_order",
+    "test_R07_confirm_expired_raises_and_changes_nothing",
+    "test_R08_cancel_confirmed_rejected",
+    "test_R10_duplicate_active_rejected",
+    "test_R11_reserve_event_lines_exact",
+    "test_R11_failed_operations_write_nothing"
+  ],
+  "invalidated_reasons": {
+    "test_R01_default_ttl_is_15_minutes": "C03: TTL по умолчанию 20 минут",
+    "test_R05_expired_reservation_frees_stock_for_new_order": "C03: тест ждёт истечения через 15 минут при TTL по умолчанию",
+    "test_R07_confirm_expired_raises_and_changes_nothing": "C03: тест ждёт истечения через 15 минут при TTL по умолчанию",
+    "test_R08_cancel_confirmed_rejected": "C02: отмена подтверждённого теперь возврат",
+    "test_R10_duplicate_active_rejected": "C01: повторный reserve на активный заказ теперь замена",
+    "test_R11_reserve_event_lines_exact": "C03: expires при TTL по умолчанию теперь 10:20",
+    "test_R11_failed_operations_write_nothing": "C01: внутри ожидается DuplicateReservationError для активного заказа"
+  },
+  "protected_paths": [
+    "warehouse/cli.py",
+    "warehouse/reports.py",
+    "tests/conftest.py",
+    "tests/test_inventory.py",
+    "tests/test_events.py",
+    "tests/test_reports.py",
+    "tests/test_cli.py"
+  ],
+  "allowed_new_dependencies": false
+}

@@ -1,0 +1,189 @@
+[
+  {
+    "id": "R01",
+    "text": "import_statement(path, store, *, fmt=None, strict=False, categorizer=None, clock=None) возвращает frozen-dataclass ImportResult(format, encoding, added, duplicates, errors: list[RowError]); RowError(line_no, message) — frozen dataclass; формат nova импортируется через новую функцию",
+    "kind": "functional",
+    "source": "ticket",
+    "where": "блок API в теле: import_statement, ImportResult, RowError (frozen dataclass)",
+    "tests": [
+      "test_R01_nova_via_import_statement",
+      "test_R01_result_and_row_error_are_frozen_dataclasses",
+      "test_R01_explicit_format"
+    ]
+  },
+  {
+    "id": "R02",
+    "text": "Формат sfera: колонки Дата;Сумма;Описание, разделитель ';', дата ДД.ММ.ГГГГ, десятичная запятая, разделитель тысяч — пробел или U+00A0, расход со знаком '-', приход без знака или с '+'",
+    "kind": "functional",
+    "source": "ticket",
+    "where": "пример формата sfera + «тысячи отделяются пробелом (часто неразрывным, U+00A0), расход с минусом, приход без знака или с плюсом»",
+    "tests": [
+      "test_R02_sfera_parsing",
+      "test_R02_sfera_signs_and_short_fractions",
+      "test_R02_nbsp_thousands_separator",
+      "test_R02_quoted_description_with_semicolon"
+    ]
+  },
+  {
+    "id": "R03",
+    "text": "В суммах sfera больше двух знаков после запятой и точка — ошибка строки; неверная дата (несуществующая, не ДД.ММ.ГГГГ) — ошибка строки",
+    "kind": "edge",
+    "source": "thread",
+    "where": "Ольга 14.10 12:55: «точка — ошибка строки, больше двух знаков — тоже ошибка… Дата строго ДД.ММ.ГГГГ»",
+    "tests": [
+      "test_R03_dot_in_sfera_amount_is_row_error",
+      "test_R03_more_than_two_decimals_is_row_error",
+      "test_R03_bad_dates_are_row_errors"
+    ]
+  },
+  {
+    "id": "R04",
+    "text": "Формат sfera_split: колонки Дата;Описание;Приход;Расход, суммы без знака, расход становится отрицательной суммой; ровно одна колонка заполнена, '0,00' равно пусто; оба/ни одного/знак в колонке — ошибка строки",
+    "kind": "functional",
+    "source": "ticket",
+    "where": "тело: «суммы без знака (знак — ошибка строки)… ровно одна колонка из двух»; про `0,00` = пусто — Ольга 14.10 12:55",
+    "tests": [
+      "test_R04_income_and_expense_columns",
+      "test_R04_zero_in_unused_column_means_empty",
+      "test_R04_both_or_neither_filled_is_row_error",
+      "test_R04_sign_in_split_columns_is_row_error"
+    ]
+  },
+  {
+    "id": "R05",
+    "text": "Автоопределение формата по заголовку (без учёта регистра и пробелов по краям, любой порядок, лишние колонки игнорируются); detect_format(path); нераспознанный заголовок, пустой файл или несовпадение с явным fmt — UnknownFormatError (наследник StatementError) в любом режиме, хранилище не меняется",
+    "kind": "functional",
+    "source": "thread",
+    "where": "Ольга 14.10 11:02: «колонки ищем по названию без учёта регистра и пробелов по краям, лишние игнорируем»; UnknownFormatError/пустой файл/явный fmt — тело; line_no=1 у ошибки заголовка — tests/test_importer.py::test_import_missing_column",
+    "tests": [
+      "test_R05_detect_format",
+      "test_R05_header_case_order_and_extra_columns",
+      "test_R05_split_header_in_other_order",
+      "test_R05_unknown_header_raises_and_saves_nothing",
+      "test_R05_explicit_format_mismatch",
+      "test_R05_empty_file_is_unknown_format"
+    ]
+  },
+  {
+    "id": "R06",
+    "text": "Кодировка UTF-8 (с BOM или без) или cp1251, определяется для файла целиком; ImportResult.encoding = 'utf-8' | 'cp1251'",
+    "kind": "edge",
+    "source": "ticket",
+    "where": "тело: «если файл целиком читается как UTF-8 (BOM допустим) — это utf-8, иначе cp1251»",
+    "tests": [
+      "test_R06_utf8_bom_sfera",
+      "test_R06_utf8_bom_nova",
+      "test_R06_cp1251_sfera_with_nbsp",
+      "test_R06_encoding_detected_for_whole_file",
+      "test_R06_cp1251_split"
+    ]
+  },
+  {
+    "id": "R07",
+    "text": "Дедупликация с хранилищем по ключу (дата, сумма, normalize_description); normalize_description: strip, схлопнуть пробельные последовательности, casefold, ё->е; работает между форматами",
+    "kind": "functional",
+    "source": "repo:ledger/rules.py",
+    "where": "тело: «описания сравниваем так же, как везде в проекте»; rules.normalize_text (докстринг) и README «Сравнение описаний — только через rules.normalize_text»",
+    "tests": [
+      "test_R07_normalize_description",
+      "test_R07_skips_transactions_already_in_store",
+      "test_R07_yo_and_case_do_not_matter",
+      "test_R07_key_includes_date_and_amount",
+      "test_R07_dedup_across_formats"
+    ]
+  },
+  {
+    "id": "R08",
+    "text": "Одинаковые строки внутри файла — не дубли; сравнение только с состоянием хранилища до импорта и по количеству: при k в хранилище и n в файле первые min(k, n) — дубли; повторный импорт ничего не добавляет",
+    "kind": "edge",
+    "source": "thread",
+    "where": "Марина 15.10 10:05 (UPD про дубли): «внутри одного файла — не дубли… по количеству… первые min(k, n) строк — дубли»",
+    "tests": [
+      "test_R08_identical_rows_in_one_file_are_not_duplicates",
+      "test_R08_reimport_same_file_adds_nothing",
+      "test_R08_duplicates_are_counted_by_quantity",
+      "test_R08_overlapping_period_adds_only_new"
+    ]
+  },
+  {
+    "id": "R09",
+    "text": "strict=False: ошибочные строки (дата, сумма, нехватка полей, нулевая сумма, пустое описание) собираются в errors в порядке файла, остальные импортируются; line_no — номер физической строки (заголовок = 1, пустые строки считаются, многострочная запись — строка начала)",
+    "kind": "functional",
+    "source": "repo:ledger/errors.py",
+    "where": "тело: «попадает в errors с line_no по правилам StatementError»; докстринг StatementError: физические строки, заголовок = 1, пустые считаются, многострочная запись — строка начала; нулевая сумма/пустое описание — валидация Transaction в models.py",
+    "tests": [
+      "test_R09_errors_collected_and_valid_rows_imported",
+      "test_R09_line_numbers_count_blank_lines",
+      "test_R09_zero_amount_and_empty_description_are_row_errors",
+      "test_R09_missing_fields_is_row_error",
+      "test_R09_multiline_record_line_number"
+    ]
+  },
+  {
+    "id": "R10",
+    "text": "strict=True: первая ошибочная строка бросает StatementRowError (наследник StatementError) с её line_no, в хранилище (память и JSON-файл) ничего не попадает; дубли и пустые строки ошибками не являются",
+    "kind": "functional",
+    "source": "ticket",
+    "where": "тело: «strict=True: на первой ошибочной строке StatementRowError… не попадает ничего — ни в память, ни в JSON. Дубли ошибками не считаются»",
+    "tests": [
+      "test_R10_strict_raises_row_error_with_line",
+      "test_R10_strict_saves_nothing_in_memory",
+      "test_R10_strict_saves_nothing_in_json_file",
+      "test_R10_strict_allows_duplicates_and_blank_lines",
+      "test_R10_strict_row_error_on_split_rule"
+    ]
+  },
+  {
+    "id": "R11",
+    "text": "Пустые строки (без символов, из пробелов и/или разделителей) пропускаются в любом месте файла, особенно в конце; не ошибки, не дубли, не добавленные; файл только с заголовком — нули",
+    "kind": "edge",
+    "source": "thread",
+    "where": "Ольга 14.10 16:20: «пустые, из пробелов, из одних разделителей ;;; (у Новы ,,)… пропускаем, где бы ни стояли»",
+    "tests": [
+      "test_R11_trailing_blank_lines_ignored",
+      "test_R11_blank_lines_in_nova",
+      "test_R11_header_only_file",
+      "test_R11_crlf_line_endings"
+    ]
+  },
+  {
+    "id": "R12",
+    "text": "Описание сохраняется как в файле (strip по краям, без нормализации); categorizer применяется к добавляемым; imported_at = clock.now() одно на импорт; существующие транзакции-дубли не меняются",
+    "kind": "functional",
+    "source": "repo:ledger/importer.py",
+    "where": "тело: «категоризация, imported_at и описание — как в текущем импорте»; import_csv: description.strip(), categorizer.categorize, imported_at = clock.now() один раз; README: описание хранится как пришло",
+    "tests": [
+      "test_R12_description_stored_as_in_file",
+      "test_R12_categorizer_applied",
+      "test_R12_imported_at_from_clock",
+      "test_R12_duplicates_do_not_change_existing"
+    ]
+  },
+  {
+    "id": "R13",
+    "text": "import_csv(path, store, categorizer=None, clock=None) -> int сохраняет сигнатуру, но работает как строгий импорт формата nova: дедупликация, BOM/cp1251, пустые строки, атомарность; ошибки — StatementError",
+    "kind": "compat",
+    "source": "thread",
+    "where": "Игорь 15.10 11:30 (поправка к пункту про import_csv): «строгий импорт формата nova через новый механизм, с дедупликацией, BOM/cp1251, пропуском пустых строк и атомарностью»",
+    "tests": [
+      "test_R13_import_csv_reimport_adds_nothing",
+      "test_R13_import_csv_bom_and_cp1251",
+      "test_R13_import_csv_is_atomic",
+      "test_R13_import_csv_skips_blank_lines"
+    ]
+  },
+  {
+    "id": "R14",
+    "text": "Рамки: cli.py и reports.py не менять, существующие тесты не менять, без новых зависимостей; публичный API Transaction/хранилищ/import_csv не ломать (CLI-импорт работает как раньше)",
+    "kind": "constraint",
+    "source": "ticket",
+    "where": "раздел «Рамки» и пункт про import_csv в теле",
+    "tests": [
+      "test_API_import_csv_signature",
+      "test_API_import_csv_returns_int",
+      "test_API_import_csv_errors_are_statement_errors",
+      "test_API_cli_import_still_works",
+      "test_API_models_and_storage_unchanged"
+    ]
+  }
+]

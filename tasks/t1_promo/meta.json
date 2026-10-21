@@ -1,0 +1,18 @@
+{
+  "task_id": "t1_promo",
+  "title": "Промокоды при оформлении заказа",
+  "package": "shop",
+  "protected_paths": [
+    "shop/cli.py",
+    "shop/reports.py",
+    "tests/conftest.py",
+    "tests/test_money.py",
+    "tests/test_catalog.py",
+    "tests/test_cart.py",
+    "tests/test_pricing.py",
+    "tests/test_orders.py",
+    "tests/test_reports.py",
+    "tests/test_cli.py"
+  ],
+  "allowed_new_dependencies": false
+}

@@ -1,0 +1,52 @@
+{
+  "task_id": "t3_import",
+  "decisions": [
+    {
+      "id": "D1",
+      "text": "Одинаковые строки внутри файла — не дубли; сравнение только с хранилищем до импорта и по количеству (первые min(k, n) строк — дубли)",
+      "requirements": ["R08"],
+      "tests": [
+        "test_R08_identical_rows_in_one_file_are_not_duplicates",
+        "test_R08_reimport_same_file_adds_nothing",
+        "test_R08_duplicates_are_counted_by_quantity"
+      ]
+    },
+    {
+      "id": "D2",
+      "text": "В sfera_split значение 0,00 в неиспользуемой колонке равно пустой колонке",
+      "requirements": ["R04"],
+      "tests": [
+        "test_R04_zero_in_unused_column_means_empty"
+      ]
+    },
+    {
+      "id": "D3",
+      "text": "Точка как десятичный разделитель в суммах sfera — ошибка строки",
+      "requirements": ["R03", "R10"],
+      "tests": [
+        "test_R03_dot_in_sfera_amount_is_row_error",
+        "test_R10_strict_raises_row_error_with_line"
+      ]
+    },
+    {
+      "id": "D4",
+      "text": "import_csv переводится на новый механизм: строгий импорт nova с дедупликацией, BOM/cp1251, пропуском пустых строк и атомарностью; сигнатура, int и StatementError прежние",
+      "requirements": ["R13"],
+      "tests": [
+        "test_R13_import_csv_reimport_adds_nothing",
+        "test_R13_import_csv_bom_and_cp1251",
+        "test_R13_import_csv_is_atomic",
+        "test_R13_import_csv_skips_blank_lines"
+      ]
+    },
+    {
+      "id": "D5",
+      "text": "Колонки определяются по названию без учёта регистра и пробелов по краям, в любом порядке, лишние колонки игнорируются",
+      "requirements": ["R05"],
+      "tests": [
+        "test_R05_header_case_order_and_extra_columns",
+        "test_R05_split_header_in_other_order"
+      ]
+    }
+  ]
+}

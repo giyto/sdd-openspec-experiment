@@ -1,0 +1,129 @@
+[
+  {
+    "id": "C01",
+    "text": "Повторный reserve на заказ с активным резервом теперь заменяет его новым резервом (новые created_at/expires_at от момента замены); товар заменяемого резерва при проверке наличия свободен; в журнале RESERVE_CANCEL старого, затем RESERVE по строкам нового; подтверждённый заказ заменить нельзя (DuplicateReservationError)",
+    "kind": "changed",
+    "source": "cr_ticket",
+    "where": "п.1 «Пересборка корзины»; обсуждение: Анна Белова 09.11 14:05 «считаем его новым резервом»",
+    "tests": [
+      "test_C01_replace_uses_own_reserved_stock",
+      "test_C01_replacement_is_a_new_reservation",
+      "test_C01_replace_journal_cancel_then_reserve",
+      "test_C01_confirmed_order_still_cannot_be_replaced"
+    ]
+  },
+  {
+    "id": "C02",
+    "text": "cancel подтверждённого заказа — возврат: товар по всем строкам возвращается на те же склады, статус CANCELLED; журнал: RECEIVE на каждую строку с ref = номер заказа, затем RESERVE_CANCEL",
+    "kind": "changed",
+    "source": "cr_ticket",
+    "where": "п.2 «Возвраты»",
+    "tests": [
+      "test_C02_cancel_confirmed_returns_goods",
+      "test_C02_return_journal",
+      "test_C02_returned_stock_is_available_again"
+    ]
+  },
+  {
+    "id": "C03",
+    "text": "TTL по умолчанию 20 минут (DEFAULT_RESERVATION_TTL), граница истечения прежняя",
+    "kind": "changed",
+    "source": "cr_ticket",
+    "where": "п.3 «TTL по умолчанию — 20 минут вместо 15»",
+    "tests": [
+      "test_C03_default_ttl_constant",
+      "test_C03_reserve_without_ttl_lives_20_minutes",
+      "test_C03_default_ttl_written_to_journal"
+    ]
+  },
+  {
+    "id": "C04",
+    "text": "expires_at не позже created_at + MAX_RESERVATION_LIFETIME (2 часа): reserve с ttl больше предела — ValidationError (ровно предел допустим); extend сверх предела ставит срок ровно на предел; если срок уже на пределе, продление ничего не меняет и не пишет (прежнее правило «срок не сокращаем»)",
+    "kind": "changed",
+    "source": "cr_thread",
+    "where": "п.4 тела (предел «один час») + поправка Ольги Смирновой 10.11 10:20 «два часа, а не час»; правило «не сокращаем» — этап 1 R09",
+    "tests": [
+      "test_C04_max_lifetime_constant",
+      "test_C04_reserve_ttl_over_limit_rejected",
+      "test_C04_extend_is_capped_at_limit",
+      "test_C04_extend_at_limit_changes_nothing"
+    ]
+  },
+  {
+    "id": "C05",
+    "text": "Inventory.reservations(status=None) -> list[Reservation]: снимки текущих резервов, по одному на заказ, по created_at, затем order_id; фильтр по статусу на текущий момент",
+    "kind": "new",
+    "source": "cr_ticket",
+    "where": "п.5",
+    "tests": [
+      "test_C05_reservations_sorted_by_created_then_order",
+      "test_C05_reservations_filter_uses_current_status",
+      "test_C05_reservations_one_per_order"
+    ]
+  },
+  {
+    "id": "C06",
+    "text": "Inventory.availability(warehouse=None) -> list[Availability(warehouse, sku, on_hand, reserved, available)]: позиции с физическим остатком или активным резервом, значения как у on_hand/reserved/available (в т.ч. available не ниже нуля после инвентаризации), порядок и фильтр как у stock_levels",
+    "kind": "new",
+    "source": "cr_ticket",
+    "where": "п.6 «те же значения, что дают одноимённые методы»; ограничение нулём — этап 1 R13 (обсуждение этапа 1)",
+    "tests": [
+      "test_C06_availability_rows",
+      "test_C06_availability_ignores_expired_and_confirmed",
+      "test_C06_availability_after_recount_below_reservations",
+      "test_C06_availability_includes_reserved_position_without_stock"
+    ]
+  },
+  {
+    "id": "C07",
+    "text": "Inventory.sweep_expired() -> list[str]: пишет RESERVE_EXPIRE (order, expires) по каждому истёкшему резерву, о котором ещё не писали, возвращает order_id в порядке expires_at, затем order_id; о резерве пишет один раз; статусы и остатки не меняет",
+    "kind": "new",
+    "source": "cr_ticket",
+    "where": "п.7",
+    "tests": [
+      "test_C07_sweep_returns_expired_in_expiry_order",
+      "test_C07_sweep_writes_once",
+      "test_C07_sweep_changes_no_state",
+      "test_C07_sweep_with_nothing_expired"
+    ]
+  },
+  {
+    "id": "C08",
+    "text": "Замена резерва подчиняется правилам этапа 1: всё или ничего (при нехватке/ошибке данных старый резерв остаётся как был, журнал не меняется), одинаковые позиции суммируются, резервы других заказов по-прежнему не освобождаются",
+    "kind": "interaction",
+    "source": "stage1:R02,R03 + repo:README.md",
+    "where": "README «Атомарность»; этап 1: обсуждение (суммирование строк); CR п.1 говорит только о товаре заменяемого резерва",
+    "tests": [
+      "test_C08_failed_replacement_keeps_old_reservation",
+      "test_C08_invalid_replacement_keeps_old_reservation",
+      "test_C08_replacement_sums_duplicate_lines",
+      "test_C08_replacement_does_not_free_other_orders"
+    ]
+  },
+  {
+    "id": "C09",
+    "text": "Возврат сочетается с правилами этапа 1: CONFIRMED окончателен, поэтому возврат возможен и после срока резерва; повторная отмена после возврата — no-op; после возврата заказ можно зарезервировать заново; возврат попадает в movement_summary как приход, формат журнала прежний",
+    "kind": "interaction",
+    "source": "stage1:R05,R08,R10,R14",
+    "where": "этап 1: окончательные статусы, идемпотентная отмена, reserve после отмены, reports.py считает RECEIVE как приход",
+    "tests": [
+      "test_C09_return_allowed_after_reservation_time_passed",
+      "test_C09_second_cancel_after_return_is_noop",
+      "test_C09_order_can_be_reserved_again_after_return",
+      "test_C09_return_counts_in_movement_summary"
+    ]
+  },
+  {
+    "id": "C10",
+    "text": "sweep_expired сочетается с правилами этапа 1: истёкший ровно в expires_at; CONFIRMED/CANCELLED после срока не попадают; отмена истёкшего после sweep — по-прежнему no-op со статусом EXPIRED; поле expires в формате времени журнала; заново зарезервированный и снова истёкший заказ — новый резерв, о нём пишем снова",
+    "kind": "interaction",
+    "source": "stage1:R05,R08,R11 + cr_thread",
+    "where": "этап 1: граница TTL, окончательные статусы, формат журнала; обсуждение CR: Игорь Левин 10.11 16:45",
+    "tests": [
+      "test_C10_expire_event_line_format",
+      "test_C10_expired_exactly_at_expires_at_is_swept",
+      "test_C10_confirmed_and_cancelled_are_not_swept",
+      "test_C10_reserved_again_and_expired_again_is_swept_again"
+    ]
+  }
+]
